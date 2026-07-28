@@ -110,6 +110,29 @@ Four things that bite:
 - `cwd:` is unnecessary: `server.py` finds `pages_corrected/` relative to its
   own location, not the working directory.
 
+#### "Already connected to a transport" when reloading
+
+```
+Failed to connect to 'rlbook'
+Error: Already connected to a transport. Call close() before connecting to a
+new transport, or use a separate Protocol instance per connection.
+```
+
+This is a Continue bug, not a fault in this server — the message comes from the
+MCP TypeScript SDK on the client side. `MCPConnection.ts` reuses one `Client`
+instance across reconnections, and `Protocol.connect()` refuses when the old
+`_transport` is still set; it is only cleared in an asynchronous `_onclose()`
+that loses the race. The first connection always works, every reconnection
+fails. Tracked as [continuedev/continue#11886][issue], whose fix
+([#11887][pr]) is still unmerged.
+
+Work around it by reloading the whole window — **Developer: Reload Window** from
+the command palette — instead of Continue's MCP reload button or the
+disable/enable toggle.
+
+[issue]: https://github.com/continuedev/continue/issues/11886
+[pr]: https://github.com/continuedev/continue/pull/11887
+
 If you would rather run one long-lived server and point several workspaces at a
 URL, there is an unauthenticated HTTP mode:
 
