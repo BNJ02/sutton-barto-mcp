@@ -221,13 +221,40 @@ if __name__ == "__main__":
 
     if "--http" in sys.argv:
         port = 8003
+        host = None
         for arg in sys.argv:
             if arg.startswith("--port="):
                 port = int(arg.split("=")[1])
+            elif arg.startswith("--host="):
+                host = arg.split("=", 1)[1]
+
+        # --no-auth serves the tools over HTTP with no OAuth layer at all, for
+        # local editor integrations (Continue, Zed, ...) that just want a URL.
+        # It is restricted to loopback: an unauthenticated server bound to a
+        # routable address hands every tool to anyone on the network.
+        if "--no-auth" in sys.argv:
+            if host is None:
+                host = "127.0.0.1"
+            elif host not in ("127.0.0.1", "localhost", "::1"):
+                sys.exit(
+                    f"Refusing --no-auth on host {host!r}: that would expose an "
+                    "unauthenticated server beyond this machine. Use "
+                    "--host=127.0.0.1, or drop --no-auth and configure OAuth."
+                )
+            print(
+                f"Serving without authentication on http://{host}:{port}/mcp "
+                "(loopback only)",
+                file=sys.stderr,
+            )
+            mcp.run(transport="streamable-http", host=host, port=port)
+            sys.exit(0)
+
+        if host is None:
+            host = "0.0.0.0"
 
         client_id = os.environ.get("MCP_CLIENT_ID", "mcp-rlbook")
         client_secret = os.environ.get("MCP_CLIENT_SECRET")
-        base_url = os.environ.get("MCP_BASE_URL", f"http://0.0.0.0:{port}")
+        base_url = os.environ.get("MCP_BASE_URL", f"http://{host}:{port}")
 
         if not client_secret:
             sys.exit(
@@ -264,6 +291,6 @@ if __name__ == "__main__":
 
         register_pin_routes(mcp, auth)
         mcp.auth = auth
-        mcp.run(transport="streamable-http", host="0.0.0.0", port=port)
+        mcp.run(transport="streamable-http", host=host, port=port)
     else:
         mcp.run()

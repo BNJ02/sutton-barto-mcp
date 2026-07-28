@@ -63,6 +63,40 @@ Or, for any client that reads a JSON config:
 }
 ```
 
+### Local editor integrations (Continue, Zed, ...)
+
+Most editors speak stdio, so the section above is all you need — it involves no
+authentication at all. Example for Continue, in `.continue/mcpServers/rlbook.yaml`
+at your workspace root (MCP tools only work in Continue's **agent** mode):
+
+```yaml
+mcpServers:
+  - name: rlbook
+    type: stdio
+    command: /absolute/path/to/.venv/bin/python
+    args:
+      - /absolute/path/to/server.py
+```
+
+If you would rather run one long-lived server and point several workspaces at a
+URL, there is an unauthenticated HTTP mode:
+
+```bash
+python server.py --http --no-auth --port=8003
+```
+
+```yaml
+mcpServers:
+  - name: rlbook
+    type: streamable-http
+    url: http://127.0.0.1:8003/mcp
+```
+
+`--no-auth` binds to `127.0.0.1` and refuses any other host, because a server
+with no authentication on a routable address hands all its tools to anyone who
+can reach the port. Do not put this mode behind a tunnel or reverse proxy — use
+the OAuth mode below for anything off-machine.
+
 ### Remote (HTTP + OAuth)
 
 For clients that connect over the network. Copy `.env.example` to `.env` and
