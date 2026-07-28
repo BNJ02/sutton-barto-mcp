@@ -1,0 +1,35 @@
+# Continue MCP block for this server.
+#
+# Copy to one of:
+#   <your-workspace>/.continue/mcpServers/rlbook.yaml   (that workspace only)
+#   ~/.continue/mcpServers/rlbook.yaml                  (every workspace)
+#
+# Replace the path below with wherever you cloned this repo, then reload the
+# Continue window. MCP tools only appear in Continue's **agent** mode.
+
+name: rlbook
+version: 0.0.1
+schema: v1
+
+mcpServers:
+  - name: rlbook
+    # `uv run` creates the virtualenv and installs dependencies on first launch,
+    # reading pyproject.toml. Nothing to set up beforehand.
+    command: uv
+    args:
+      - run
+      - --directory
+      - /absolute/path/to/sutton-barto-mcp
+      - server.py
+
+# --- Alternative: you already made a virtualenv yourself -----------------
+#
+# mcpServers:
+#   - name: rlbook
+#     command: /absolute/path/to/sutton-barto-mcp/.venv/bin/python
+#     args:
+#       - server.py
+#     cwd: /absolute/path/to/sutton-barto-mcp
+#
+# `env:` is not needed in either case. This is stdio mode, which uses no
+# authentication and reads none of the variables in .env.example.

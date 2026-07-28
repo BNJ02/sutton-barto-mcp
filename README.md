@@ -65,18 +65,38 @@ Or, for any client that reads a JSON config:
 
 ### Local editor integrations (Continue, Zed, ...)
 
-Most editors speak stdio, so the section above is all you need — it involves no
-authentication at all. Example for Continue, in `.continue/mcpServers/rlbook.yaml`
-at your workspace root (MCP tools only work in Continue's **agent** mode):
+Most editors speak stdio, so this involves no authentication at all.
+
+The shortest path is [`continue-mcp.yaml`](continue-mcp.yaml) in this repo: copy
+it to `.continue/mcpServers/rlbook.yaml` at your workspace root (or
+`~/.continue/mcpServers/rlbook.yaml` to get it in every workspace), edit the one
+path in it, and reload the window.
 
 ```yaml
+name: rlbook
+version: 0.0.1
+schema: v1
+
 mcpServers:
   - name: rlbook
-    type: stdio
-    command: /absolute/path/to/.venv/bin/python
+    command: uv
     args:
-      - /absolute/path/to/server.py
+      - run
+      - --directory
+      - /absolute/path/to/sutton-barto-mcp
+      - server.py
 ```
+
+`uv run` builds the virtualenv and installs dependencies on first launch from
+`pyproject.toml`, so the install step above is optional if you use it. If you
+prefer your own virtualenv, point `command` at its `python` and set `cwd` to the
+repo — see the commented alternative in the file.
+
+Two things that bite:
+
+- MCP tools only show up in Continue's **agent** mode, not chat or edit.
+- `name`, `version` and `schema` are mandatory at the top of a Continue block.
+  Without them the file is ignored silently.
 
 If you would rather run one long-lived server and point several workspaces at a
 URL, there is an unauthenticated HTTP mode:
