@@ -1,0 +1,2759 @@
+--- Page 251 ---
+9.8. Least-Squares TD
+229
+where I is the identity matrix, and "I, for some small " > 0, ensures that bAt is always
+invertible. It might seem that these estimates should both be divided by t, and indeed
+they should; as deﬁned here, these are really estimates of t times A and t times b.
+However, the extra t factors cancel out when LSTD uses these estimates to estimate the
+TD ﬁxed point as
+wt .= bA−1
+t
+bbt.
+(9.21)
+This algorithm is the most data eﬃcient form of linear TD(0), but it is also more
+expensive computationally. Recall that semi-gradient TD(0) requires memory and per-
+step computation that is only O(d).
+How complex is LSTD? As it is written above the complexity seems to increase with
+t, but the two approximations in (9.20) could be implemented incrementally using the
+techniques we have covered earlier (e.g., in Chapter 2) so that they can be done in
+constant time per step. Even so, the update for bAt would involve an outer product (a
+column vector times a row vector) and thus would be a matrix update; its computational
+complexity would be O(d2), and of course the memory required to hold the bAt matrix
+would be O(d2).
+A potentially greater problem is that our ﬁnal computation (9.21) uses the inverse
+of bAt, and the computational complexity of a general inverse computation is O(d3).
+Fortunately, an inverse of a matrix of our special form—a sum of outer products—can
+also be updated incrementally with only O(d2) computations, as
+bA−1
+t
+=
+⇣
+bAt−1 + xt−1(xt−1 −γxt)>⌘−1
+(from (9.20))
+= bA−1
+t−1 −
+bA−1
+t−1xt−1(xt−1 −γxt)> bA−1
+t−1
+1 + (xt−1 −γxt)> bA−1
+t−1xt−1
+,
+(9.22)
+for t > 0, with bA0 .= "I. Although the identity (9.22), known as the Sherman-Morrison
+formula, is superﬁcially complicated, it involves only vector-matrix and vector-vector
+multiplications and thus is only O(d2). Thus we can store the inverse matrix bA−1
+t ,
+maintain it with (9.22), and then use it in (9.21), all with only O(d2) memory and
+per-step computation. The complete algorithm is given in the box on the next page.
+Of course, O(d2) is still signiﬁcantly more expensive than the O(d) of semi-gradient
+TD. Whether the greater data eﬃciency of LSTD is worth this computational expense
+depends on how large d is, how important it is to learn quickly, and the expense of other
+parts of the system. The fact that LSTD requires no step-size parameter is sometimes
+also touted, but the advantage of this is probably overstated. LSTD does not require a
+step size, but it does requires "; if " is chosen too small the sequence of inverses can vary
+wildly, and if " is chosen too large then learning is slowed. In addition, LSTD’s lack of a
+step-size parameter means that it never forgets. This is sometimes desirable, but it is
+problematic if the target policy ⇡changes as it does in reinforcement learning and GPI.
+In control applications, LSTD typically has to be combined with some other mechanism
+to induce forgetting, mooting any initial advantage of not requiring a step-size parameter.
+
+--- Page 252 ---
+230
+Chapter 9: On-policy Prediction with Approximation
+LSTD for estimating ˆv = w>x(·) ⇡v⇡(O(d2) version)
+Input: feature representation x : S+ ! Rd such that x(terminal) = 0
+Algorithm parameter: small " > 0
+d
+A−1  "−1I
+A d ⇥d matrix
+bb  0
+A d-dimensional vector
+Loop for each episode:
+Initialize S; x  x(S)
+Loop for each step of episode:
+Choose and take action A ⇠⇡(·|S), observe R, S0; x0  x(S0)
+v  d
+A−1>
+(x −γx0)
+d
+A−1  d
+A−1 −
+# d
+A−1x
+$
+v>/
+#
+1 + v>x
+$
+bb  bb + Rx
+w  d
+A−1bb
+S  S0; x  x0
+until S0 is terminal
+9.9
+Memory-based Function Approximation
+So far we have discussed the parametric approach to approximating value functions. In
+this approach, a learning algorithm adjusts the parameters of a functional form intended
+to approximate the value function over a problem’s entire state space. Each update,
+s 7! g, is a training example used by the learning algorithm to change the parameters
+with the aim of reducing the approximation error. After the update, the training example
+can be discarded (although it might be saved to be used again). When an approximate
+value of a state (which we will call the query state) is needed, the function is simply
+evaluated at that state using the latest parameters produced by the learning algorithm.
+Memory-based function approximation methods are very di↵erent. They simply save
+training examples in memory as they arrive (or at least save a subset of the examples)
+without updating any parameters. Then, whenever a query state’s value estimate is
+needed, a set of examples is retrieved from memory and used to compute a value estimate
+for the query state. This approach is sometimes called lazy learning because processing
+training examples is postponed until the system is queried to provide an output.
+Memory-based function approximation methods are prime examples of nonparametric
+methods. Unlike parametric methods, the approximating function’s form is not limited
+to a ﬁxed parameterized class of functions, such as linear functions or polynomials, but is
+instead determined by the training examples themselves, together with some means for
+combining them to output estimated values for query states. As more training examples
+accumulate in memory, one expects nonparametric methods to produce increasingly
+accurate approximations of any target function.
+
+--- Page 253 ---
+9.9. Memory-based Function Approximation
+231
+There are many di↵erent memory-based methods depending on how the stored training
+examples are selected and how they are used to respond to a query. Here, we focus on
+local-learning methods that approximate a value function only locally in the neighborhood
+of the current query state. These methods retrieve a set of training examples from memory
+whose states are judged to be the most relevant to the query state, where relevance
+usually depends on the distance between states: the closer a training example’s state is
+to the query state, the more relevant it is considered to be, where distance can be deﬁned
+in many di↵erent ways. After the query state is given a value, the local approximation is
+discarded.
+The simplest example of the memory-based approach is the nearest neighbor method,
+which simply ﬁnds the example in memory whose state is closest to the query state and
+returns that example’s value as the approximate value of the query state. In other words,
+if the query state is s, and s0 7! g is the example in memory in which s0 is the closest
+state to s, then g is returned as the approximate value of s. Slightly more complicated
+are weighted average methods that retrieve a set of nearest neighbor examples and return
+a weighted average of their target values, where the weights generally decrease with
+increasing distance between their states and the query state. Locally weighted regression is
+similar, but it ﬁts a surface to the values of a set of nearest states by means of a parametric
+approximation method that minimizes a weighted error measure like (9.1), where the
+weights depend on distances from the query state. The value returned is the evaluation of
+the locally-ﬁtted surface at the query state, after which the local approximation surface
+is discarded.
+Being nonparametric, memory-based methods have the advantage over parametric
+methods of not limiting approximations to pre-speciﬁed functional forms. This allows
+accuracy to improve as more data accumulates. Memory-based local approximation
+methods have other properties that make them well suited for reinforcement learning.
+Because trajectory sampling is of such importance in reinforcement learning, as discussed
+in Section 8.6, memory-based local methods can focus function approximation on local
+neighborhoods of states (or state–action pairs) visited in real or simulated trajectories.
+There may be no need for global approximation because many areas of the state space will
+never (or almost never) be reached. In addition, memory-based methods allow an agent’s
+experience to have a relatively immediate a↵ect on value estimates in the neighborhood
+of the current state, in contrast with a parametric method’s need to incrementally adjust
+parameters of a global approximation.
+Avoiding global approximation is also a way to address the curse of dimensionality.
+For example, for a state space with k dimensions, a tabular method storing a global
+approximation requires memory exponential in k. On the other hand, in storing examples
+for a memory-based method, each example requires memory proportional to k, and the
+memory required to store, say, n examples is linear in n. Nothing is exponential in k or
+n. Of course, the critical remaining issue is whether a memory-based method can answer
+queries quickly enough to be useful to an agent. A related concern is how speed degrades
+as the size of the memory grows. Finding nearest neighbors in a large database can take
+too long to be practical in many applications.
+
+--- Page 254 ---
+232
+Chapter 9: On-policy Prediction with Approximation
+Proponents of memory-based methods have developed ways to accelerate the nearest
+neighbor search. Using parallel computers or special purpose hardware is one approach;
+another is the use of special multi-dimensional data structures to store the training data.
+One data structure studied for this application is the k-d tree (short for k-dimensional
+tree), which recursively splits a k-dimensional space into regions arranged as nodes of a
+binary tree. Depending on the amount of data and how it is distributed over the state
+space, nearest-neighbor search using k-d trees can quickly eliminate large regions of the
+space in the search for neighbors, making the searches feasible in some problems where
+naive searches would take too long.
+Locally weighted regression additionally requires fast ways to do the local regression
+computations which have to be repeated to answer each query. Researchers have developed
+many ways to address these problems, including methods for forgetting entries in order to
+keep the size of the database within bounds. The Bibliographic and Historical Comments
+section at the end of this chapter points to some of the relevant literature, including a
+selection of papers describing applications of memory-based learning to reinforcement
+learning.
+9.10
+Kernel-based Function Approximation
+Memory-based methods such as the weighted average and locally weighted regression
+methods described above depend on assigning weights to examples s0 7! g in the database
+depending on the distance between s0 and a query states s. The function that assigns
+these weights is called a kernel function, or simply a kernel. In the weighted average and
+locally weighted regressions methods, for example, a kernel function k : R ! R assigns
+weights to distances between states. More generally, weights do not have to depend on
+distances; they can depend on some other measure of similarity between states. In this
+case, k : S ⇥S ! R, so that k(s, s0) is the weight given to data about s0 in its inﬂuence
+on answering queries about s.
+Viewed slightly di↵erently, k(s, s0) is a measure of the strength of generalization from
+s0 to s. Kernel functions numerically express how relevant knowledge about any state
+is to any other state. As an example, the strengths of generalization for tile coding
+shown in Figure 9.11 correspond to di↵erent kernel functions resulting from uniform and
+asymmetrical tile o↵sets. Although tile coding does not explicitly use a kernel function
+in its operation, it generalizes according to one. In fact, as we discuss more below, the
+strength of generalization resulting from linear parametric function approximation can
+always be described by a kernel function.
+Kernel regression is the memory-based method that computes a kernel weighted average
+of the targets of all examples stored in memory, assigning the result to the query state.
+If D is the set of stored examples, and g(s0) denotes the target for state s0 in a stored
+example, then kernel regression approximates the target function, in this case a value
+function depending on D, as
+ˆv(s,D) =
+X
+s02D
+k(s, s0)g(s0).
+(9.23)
+
+--- Page 255 ---
+9.10. Kernel-based Function Approximation
+233
+The weighted average method described above is a special case in which k(s, s0) is non-zero
+only when s and s0 are close to one another so that the sum need not be computed over
+all of D.
+A common kernel is the Gaussian radial basis function (RBF) used in RBF function
+approximation as described in Section 9.5.5. In the method described there, RBFs are
+features whose centers and widths are either ﬁxed from the start, with centers presumably
+concentrated in areas where many examples are expected to fall, or are adjusted in some
+way during learning. Barring methods that adjust centers and widths, this is a linear
+parametric method whose parameters are the weights of each RBF, which are typically
+learned by stochastic gradient, or semi-gradient, descent. The form of the approximation
+is a linear combination of the pre-determined RBFs. Kernel regression with an RBF
+kernel di↵ers from this in two ways. First, it is memory-based: the RBFs are centered on
+the states of the stored examples. Second, it is nonparametric: there are no parameters
+to learn; the response to a query is given by (9.23).
+Of course, many issues have to be addressed for practical implementation of kernel
+regression, issues that are beyond the scope of our brief discussion. However, it turns out
+that any linear parametric regression method like those we described in Section 9.4, with
+states represented by feature vectors x(s) = (x1(s), x2(s), . . . , xd(s))>, can be recast as
+kernel regression where k(s, s0) is the inner product of the feature vector representations
+of s and s0; that is
+k(s, s0) = x(s)>x(s0).
+(9.24)
+Kernel regression with this kernel function produces the same approximation that a linear
+parametric method would if it used these feature vectors and learned with the same
+training data.
+We skip the mathematical justiﬁcation for this, which can be found in any modern
+machine learning text, such as Bishop (2006), and simply point out an important
+implication. Instead of constructing features for linear parametric function approximators,
+one can instead construct kernel functions directly without referring at all to feature
+vectors. Not all kernel functions can be expressed as inner products of feature vectors
+as in (9.24), but a kernel function that can be expressed like this can o↵er signiﬁcant
+advantages over the equivalent parametric method. For many sets of feature vectors,
+(9.24) has a compact functional form that can be evaluated without any computation
+taking place in the d-dimensional feature space. In these cases, kernel regression is much
+less complex than directly using a linear parametric method with states represented by
+these feature vectors. This is the so-called “kernel trick” that allows e↵ectively working
+in the high-dimension of an expansive feature space while actually working only with the
+set of stored training examples. The kernel trick is the basis of many machine learning
+methods, and researchers have shown how it can sometimes beneﬁt reinforcement learning.
+
+--- Page 256 ---
+234
+Chapter 9: On-policy Prediction with Approximation
+9.11
+Looking Deeper at On-policy Learning:
+Interest and Emphasis
+The algorithms we have considered so far in this chapter have treated all the states
+encountered equally, as if they were all equally important. In some cases, however, we
+are more interested in some states than others. In discounted episodic problems, for
+example, we may be more interested in accurately valuing early states in the episode
+than in later states where discounting may have made the rewards much less important
+to the value of the start state. Or, if an action-value function is being learned, it may be
+less important to accurately value poor actions whose value is much less than the greedy
+action. Function approximation resources are always limited, and if they were used in a
+more targeted way, then performance could be improved.
+One reason we have treated all states encountered equally is that then we are updating
+according to the on-policy distribution, for which stronger theoretical results are available
+for semi-gradient methods. Recall that the on-policy distribution was deﬁned as the
+distribution of states encountered in an MDP while following the target policy. Now we
+will generalize this concept signiﬁcantly. Rather than having one on-policy distribution
+for the MDP, we will have many. All of them will have in common that they are a
+distribution of states encountered in trajectories while following the target policy, but
+they will vary in how the trajectories are, in a sense, initiated.
+We now introduce some new concepts. First we introduce a non-negative scalar measure,
+a random variable It called interest, indicating the degree to which we are interested in
+accurately valuing the state (or state–action pair) at time t. If we don’t care at all about
+the state, then the interest should be zero; if we fully care, it might be one, though it is
+formally allowed to take any non-negative value. The interest can be set in any causal
+way; for example, it may depend on the trajectory up to time t or the learned parameters
+at time t. The distribution µ in the VE (9.1) is then deﬁned as the distribution of
+states encountered while following the target policy, weighted by the interest. Second, we
+introduce another non-negative scalar random variable, the emphasis Mt. This scalar
+multiplies the learning update and thus emphasizes or de-emphasizes the learning done
+at time t. The general n-step learning rule, replacing (9.15), is
+wt+n .= wt+n−1 +↵Mt [Gt:t+n −ˆv(St,wt+n−1)] rˆv(St,wt+n−1),
+0 t < T, (9.25)
+with the n-step return given by (9.16) and the emphasis determined recursively from the
+interest by:
+Mt = It + γnMt−n,
+0 t < T,
+(9.26)
+with Mt .= 0, for all t < 0. These equations are taken to include the Monte Carlo case,
+for which Gt:t+n = Gt, all the updates are made at end of the episode, n = T −t, and
+Mt = It.
+
+--- Page 257 ---
+9.11. Looking Deeper at On-policy Learning: Interest and Emphasis
+235
+Example 9.4 illustrates how interest and emphasis can result in more accurate value
+estimates.
+Example 9.4: Interest and Emphasis
+To see the potential beneﬁts of using interest and emphasis, consider the four-state
+Markov reward process shown below:
++1
++1
++1
++1
+v⇡= 4
+v⇡= 3
+v⇡= 2
+v⇡= 1
+i = 1
+i = 0
+i = 0
+i = 0
+w1
+w1
+w2
+w2
+Episodes start in the leftmost state, then transition one state to the right, with a
+reward of +1, on each step until the terminal state is reached. The true value of
+the ﬁrst state is thus 4, of the second state 3, and so on as shown below each state.
+These are the true values; the estimated values can only approximate these because
+they are constrained by the parameterization. There are two components to the
+parameter vector w = (w1, w2)>, and the parameterization is as written inside
+each state. The estimated values of the ﬁrst two states are given by w1 alone and
+thus must be the same even though their true values are di↵erent. Similarly, the
+estimated values of the third and fourth states are given by w2 alone and must be
+the same even though their true values are di↵erent. Suppose that we are interested
+in accurately valuing only the leftmost state; we assign it an interest of 1 while all
+the other states are assigned an interest of 0, as indicated above the states.
+First consider applying gradient Monte Carlo algorithms to this problem. The
+algorithms presented earlier in this chapter that do not take into account interest
+and emphasis (in (9.7) and the box on page 202) will converge (for decreasing step
+sizes) to the parameter vector w1 = (3.5, 1.5), which gives the ﬁrst state—the only
+one we are interested in—a value of 3.5 (i.e., intermediate between the true values
+of the ﬁrst and second states). The methods presented in this section that do use
+interest and emphasis, on the other hand, will learn the value of the ﬁrst state
+exactly correctly; w1 will converge to 4 while w2 will never be updated because the
+emphasis is zero in all states save the leftmost.
+Now consider applying two-step semi-gradient TD methods. The methods from
+earlier in this chapter without interest and emphasis (in (9.15) and (9.16) and
+the box on page 209) will again converge to w1 = (3.5, 1.5), while the methods
+with interest and emphasis converge to w1 = (4, 2). The latter produces the
+exactly correct values for the ﬁrst state and for the third state (which the ﬁrst state
+bootstraps from) while never making any updates corresponding to the second or
+fourth states.
+
+--- Page 258 ---
+236
+Chapter 9: On-policy Prediction with Approximation
+9.12
+Summary
+Reinforcement learning systems must be capable of generalization if they are to be
+applicable to artiﬁcial intelligence or to large engineering applications. To achieve this,
+any of a broad range of existing methods for supervised-learning function approximation
+can be used simply by treating each update as a training example.
+Perhaps the most suitable supervised learning methods are those using parameterized
+function approximation, in which the policy is parameterized by a weight vector w.
+Although the weight vector has many components, the state space is much larger still,
+and we must settle for an approximate solution. We deﬁned the mean square value error,
+VE(w), as a measure of the error in the values v⇡w(s) for a weight vector w under the
+on-policy distribution, µ. The VE gives us a clear way to rank di↵erent value-function
+approximations in the on-policy case.
+To ﬁnd a good weight vector, the most popular methods are variations of stochastic
+gradient descent (SGD). In this chapter we have focused on the on-policy case with a ﬁxed
+policy, also known as policy evaluation or prediction; a natural learning algorithm for this
+case is n-step semi-gradient TD, which includes gradient Monte Carlo and semi-gradient
+TD(0) algorithms as the special cases when n=1 and n=1 respectively. Semi-gradient
+TD methods are not true gradient methods. In such bootstrapping methods (including
+DP), the weight vector appears in the update target, yet this is not taken into account in
+computing the gradient—thus they are semi-gradient methods. As such, they cannot
+rely on classical SGD results.
+Nevertheless, good results can be obtained for semi-gradient methods in the special case
+of linear function approximation, in which the value estimates are sums of features times
+corresponding weights. The linear case is the most well understood theoretically and
+works well in practice when provided with appropriate features. Choosing the features
+is one of the most important ways of adding prior domain knowledge to reinforcement
+learning systems. They can be chosen as polynomials, but this case generalizes poorly in
+the online learning setting typically considered in reinforcement learning. Better is to
+choose features according the Fourier basis, or according to some form of coarse coding
+with sparse overlapping receptive ﬁelds. Tile coding is a form of coarse coding that
+is particularly computationally eﬃcient and ﬂexible. Radial basis functions are useful
+for one- or two-dimensional tasks in which a smoothly varying response is important.
+LSTD is the most data-eﬃcient linear TD prediction method, but requires computation
+proportional to the square of the number of weights, whereas all the other methods are of
+complexity linear in the number of weights. Nonlinear methods include artiﬁcial neural
+networks trained by backpropagation and variations of SGD; these methods have become
+very popular in recent years under the name deep reinforcement learning.
+Linear semi-gradient n-step TD is guaranteed to converge under standard conditions,
+for all n, to a VE that is within a bound of the optimal error (achieved asymptotically
+by Monte Carlo methods). This bound is always tighter for higher n and approaches
+zero as n ! 1. However, in practice very high n results in very slow learning, and some
+degree of bootstrapping (n < 1) is usually preferable, just as we saw in comparisons of
+tabular n-step methods in Chapter 7 and in comparisons of tabular TD and Monte Carlo
+methods in Chapter 6.
+
+--- Page 259 ---
+9.12. Summary
+237
+Exercise 9.7 One of the simplest artiﬁcial neural networks consists of a single semi-linear
+unit with a logistic nonlinearity. The need to handle approximate value functions of this
+form is common in games that end with either a win or a loss, in which case the value of
+a state can be interpreted as the probability of winning. Derive the learning algorithm
+for this case, from (9.7), such that no gradient notation appears.
+⇤Exercise 9.8 Arguably, the squared error used to derive (9.7) is inappropriate for the
+case treated in the preceding exercise, and the right error measure is the cross-entropy
+loss (which you can ﬁnd on Wikipedia). Repeat the derivation in Section 9.3, using the
+cross-entropy loss instead of the squared error in (9.4), all the way to an explicit form
+with no gradient or logarithm notation in it. Is your ﬁnal form more complex, or simpler,
+than that you obtained in the preceding exercise?
+Bibliographical and Historical Remarks
+Generalization and function approximation have always been an integral part of rein-
+forcement learning. Bertsekas and Tsitsiklis (1996), Bertsekas (2012), and Sugiyama et
+al. (2013) present the state of the art in function approximation in reinforcement learning.
+Some of the early work with function approximation in reinforcement learning is discussed
+at the end of this section.
+9.3
+Gradient-descent methods for minimizing mean square error in supervised learning
+are well known. Widrow and Ho↵(1960) introduced the least-mean-square (LMS)
+algorithm, which is the prototypical incremental gradient-descent algorithm.
+Details of this and related algorithms are provided in many texts (e.g., Widrow
+and Stearns, 1985; Bishop, 1995; Duda and Hart, 1973).
+Semi-gradient TD(0) was ﬁrst explored by Sutton (1984, 1988), as part of the
+linear TD(λ) algorithm that we will treat in Chapter 12. The term “semi-gradient”
+to describe these bootstrapping methods is new to the second edition of this
+book.
+The earliest use of state aggregation in reinforcement learning may have been
+Michie and Chambers’s BOXES system (1968). The theory of state aggregation
+in reinforcement learning has been developed by Singh, Jaakkola, and Jordan
+(1995) and Tsitsiklis and Van Roy (1996). State aggregation has been used in
+dynamic programming from its earliest days (e.g., Bellman, 1957a).
+9.4
+Sutton (1988) proved convergence of linear TD(0) in the mean to the minimal
+VE solution for the case in which the feature vectors, {x(s) : s 2 S}, are linearly
+independent. Convergence with probability 1 was proved by several researchers
+at about the same time (Peng, 1993; Dayan and Sejnowski, 1994; Tsitsiklis,
+1994; Gurvits, Lin, and Hanson, 1994). In addition, Jaakkola, Jordan, and Singh
+(1994) proved convergence under online updating. All of these results assumed
+linearly independent feature vectors, which implies at least as many components
+to wt as there are states. Convergence for the more important case of general
+(dependent) feature vectors was ﬁrst shown by Dayan (1992). A signiﬁcant
+
+--- Page 260 ---
+238
+Chapter 9: On-policy Prediction with Approximation
+generalization and strengthening of Dayan’s result was proved by Tsitsiklis and
+Van Roy (1997). They proved the main result presented in this section, the
+bound on the asymptotic error of linear bootstrapping methods.
+9.5
+Our presentation of the range of possibilities for linear function approximation is
+based on that by Barto (1990).
+9.5.2
+Konidaris, Osentoski, and Thomas (2011) introduced the Fourier basis in a
+simple form suitable for reinforcement learning problems with multi-dimensional
+continuous state spaces and functions that do not have to be periodic.
+9.5.3
+The term coarse coding is due to Hinton (1984), and our Figure 9.6 is based on
+one of his ﬁgures. Waltz and Fu (1965) provide an early example of this type of
+function approximation in a reinforcement learning system.
+9.5.4
+Tile coding, including hashing, was introduced by Albus (1971, 1981). He de-
+scribed it in terms of his “cerebellar model articulator controller,” or CMAC, as
+tile coding is sometimes known in the literature. The term “tile coding” was new
+to the ﬁrst edition of this book, though the idea of describing CMAC in these
+terms is taken from Watkins (1989). Tile coding has been used in many rein-
+forcement learning systems (e.g., Shewchuk and Dean, 1990; Lin and Kim, 1991;
+Miller, Scalera, and Kim, 1994; Sofge and White, 1992; Tham, 1994; Sutton, 1996;
+Watkins, 1989) as well as in other types of learning control systems (e.g., Kraft and
+Campagna, 1990; Kraft, Miller, and Dietz, 1992). This section draws heavily on
+the work of Miller and Glanz (1996). General software for tile coding is available in
+several languages (e.g., see http://incompleteideas.net/tiles/tiles3.html).
+9.5.5
+Function approximation using radial basis functions has received wide attention
+ever since being related to ANNs by Broomhead and Lowe (1988). Powell (1987)
+reviewed earlier uses of RBFs, and Poggio and Girosi (1989, 1990) extensively
+developed and applied this approach.
+9.6
+Automatic methods for adapting the step-size parameter include RMSprop (Tiele-
+man and Hinton, 2012), Adam (Kingma and Ba, 2015), stochastic meta-descent
+methods such as Delta-Bar-Delta (Jacobs, 1988), its incremental generaliza-
+tion (Sutton, 1992b, c; Mahmood et al., 2012), and nonlinear generalizations
+(Schraudolph, 1999, 2002). Methods explicitly designed for reinforcement learn-
+ing include AlphaBound (Dabney and Barto, 2012), SID and NOSID (Dabney,
+2014), TIDBD (Kearney et al., in preparation) and the application of stochastic
+meta-descent to policy gradient learning (Schraudolph, Yu, and Aberdeen, 2006).
+9.7
+The introduction of the threshold logic unit as an abstract model neuron by
+McCulloch and Pitts (1943) was the beginning of ANNs. The history of ANNs as
+learning methods for classiﬁcation or regression has passed through several stages:
+roughly, the Perceptron (Rosenblatt, 1962) and ADALINE (ADAptive LINear
+Element) (Widrow and Ho↵, 1960) stage of learning by single-layer ANNs, the
+
+--- Page 261 ---
+9.12. Summary
+239
+error-backpropagation stage (LeCun, 1985; Rumelhart, Hinton, and Williams,
+1986) of learning by multi-layer ANNs, and the current deep-learning stage with
+its emphasis on representation learning (e.g., Bengio, Courville, and Vincent,
+2012; Goodfellow, Bengio, and Courville, 2016). Examples of the many books on
+ANNs are Haykin (1994), Bishop (1995), and Ripley (2007).
+ANNs as function approximation for reinforcement learning goes back to the early
+work of Farley and Clark (1954), who used reinforcement-like learning to modify
+the weights of linear threshold functions representing policies. Widrow, Gupta,
+and Maitra (1973) presented a neuron-like linear threshold unit implementing a
+learning process they called learning with a critic or selective bootstrap adaptation,
+a reinforcement-learning variant of the ADALINE algorithm. Werbos (1987,
+1994) developed an approach to prediction and control that uses ANNs trained by
+error backpropation to learn policies and value functions using TD-like algorithms.
+Barto, Sutton, and Brouwer (1981) and Barto and Sutton (1981b) extended the
+idea of an associative memory network (e.g., Kohonen, 1977; Anderson, Silverstein,
+Ritz, and Jones, 1977) to reinforcement learning. Barto, Anderson, and Sutton
+(1982) used a two-layer ANN to learn a nonlinear control policy, and emphasized
+the ﬁrst layer’s role of learning a suitable representation. Hampson (1983, 1989)
+was an early proponent of multilayer ANNs for learning value functions. Barto,
+Sutton, and Anderson (1983) presented an actor–critic algorithm in the form of an
+ANN learning to balance a simulated pole (see Sections 15.7 and 15.8). Barto and
+Anandan (1985) introduced a stochastic version of Widrow et al.’s (1973) selective
+bootstrap algorithm called the associative reward-penalty (AR−P ) algorithm.
+Barto (1985, 1986) and Barto and Jordan (1987) described multi-layer ANNs
+consisting of AR−P units trained with a globally-broadcast reinforcement signal
+to learn classiﬁcation rules that are not linearly separable. Barto (1985) discussed
+this approach to ANNs and how this type of learning rule is related to others in
+the literature at that time. (See Section 15.10 for additional discussion of this
+approach to training multi-layer ANNs.) Anderson (1986, 1987, 1989) evaluated
+numerous methods for training multilayer ANNs and showed that an actor–critic
+algorithm in which both the actor and critic were implemented by two-layer
+ANNs trained by error backpropagation outperformed single-layer ANNs in the
+pole-balancing and tower of Hanoi tasks. Williams (1988) described several ways
+that backpropagation and reinforcement learning can be combined for training
+ANNs. Gullapalli (1990) and Williams (1992) devised reinforcement learning
+algorithms for neuron-like units having continuous, rather than binary, outputs.
+Barto, Sutton, and Watkins (1990) argued that ANNs can play signiﬁcant roles
+for approximating functions required for solving sequential decision problems.
+Williams (1992) related REINFORCE learning rules (Section 13.3) to the error
+backpropagation method for training multi-layer ANNs. Tesauro’s TD-Gammon
+(Tesauro 1992, 1994; Section 16.1) inﬂuentially demonstrated the learning abilities
+of TD(λ) algorithm with function approximation by multi-layer ANNs in learning
+to play backgammon. The AlphaGo, AlphaGo Zero, and AlphaZero programs
+of Silver et al. (2016, 2017a, b; Section 16.6) used reinforcement learning with
+
+--- Page 262 ---
+240
+Chapter 9: On-policy Prediction with Approximation
+deep convolutional ANNs in achieving impressive results with the game of Go.
+Schmidhuber (2015) reviews applications of ANNs in reinforcement learning,
+including applications of recurrent ANNs.
+9.8
+LSTD is due to Bradtke and Barto (see Bradtke, 1993, 1994; Bradtke and Barto,
+1996; Bradtke, Ydstie, and Barto, 1994), and was further developed by Boyan
+(1999, 2002), Nedi´c and Bertsekas (2003), and Yu (2010). The incremental update
+of the inverse matrix has been known at least since 1949 (Sherman and Morrison,
+1949). An extension of least-squares methods to control was introduced by
+Lagoudakis and Parr (2003; Bu¸soniu, Lazaric, Ghavamzadeh, Munos, Babu˘ska,
+and De Schutter, 2012).
+9.9
+Our discussion of memory-based function approximation is largely based on
+the review of locally weighted learning by Atkeson, Moore, and Schaal (1997).
+Atkeson (1992) discussed the use of locally weighted regression in memory-based
+robot learning and supplied an extensive bibliography covering the history of
+the idea. Stanﬁll and Waltz (1986) inﬂuentially argued for the importance of
+memory based methods in artiﬁcial intelligence, especially in light of parallel
+architectures then becoming available, such as the Connection Machine. Baird
+and Klopf (1993) introduced a novel memory-based approach and used it as the
+function approximation method for Q-learning applied to the pole-balancing task.
+Schaal and Atkeson (1994) applied locally weighted regression to a robot juggling
+control problem, where it was used to learn a system model. Peng (1995) used
+the pole-balancing task to experiment with several nearest-neighbor methods
+for approximating value functions, policies, and environment models. Tadepalli
+and Ok (1996) obtained promising results with locally-weighted linear regression
+to learn a value function for a simulated automatic guided vehicle task. Bottou
+and Vapnik (1992) demonstrated surprising eﬃciency of several local learning
+algorithms compared to non-local algorithms in some pattern recognition tasks,
+discussing the impact of local learning on generalization.
+Bentley (1975) introduced k-d trees and reported observing average running
+time of O(log n) for nearest neighbor search over n records. Friedman, Bentley,
+and Finkel (1977) clariﬁed the algorithm for nearest neighbor search with k-d
+trees. Omohundro (1987) discussed eﬃciency gains possible with hierarchical
+data structures such as k-d-trees. Moore, Schneider, and Deng (1997) introduced
+the use of k-d trees for eﬃcient locally weighted regression.
+9.10
+The origin of kernel regression is the method of potential functions of Aizerman,
+Braverman, and Rozonoer (1964). They likened the data to point electric charges
+of various signs and magnitudes distributed over space. The resulting electric
+potential over space produced by summing the potentials of the point charges
+corresponded to the interpolated surface. In this analogy, the kernel function is
+the potential of a point charge, which falls o↵as the reciprocal of the distance
+from the charge. Connell and Utgo↵(1987) applied an actor–critic method
+to the pole-balancing task in which the critic approximated the value function
+
+--- Page 263 ---
+9.12. Summary
+241
+using kernel regression with an inverse-distance weighting. Predating widespread
+interest in kernel regression in machine learning, these authors did not use the
+term kernel, but referred to “Shepard’s method” (Shepard, 1968). Other kernel-
+based approaches to reinforcement learning include those of Ormoneit and Sen
+(2002), Dietterich and Wang (2002), Xu, Xie, Hu, and Lu (2005), Taylor and Parr
+(2009), Barreto, Precup, and Pineau (2011), and Bhat, Farias, and Moallemi
+(2012).
+9.11
+For Emphatic-TD methods, see the bibliographical notes to Section 11.8.
+The earliest example we know of in which function approximation methods were
+used for learning value functions was Samuel’s checkers player (1959, 1967). Samuel
+followed Shannon’s (1950) suggestion that a value function did not have to be exact to
+be a useful guide to selecting moves in a game and that it might be approximated by
+a linear combination of features. In addition to linear function approximation, Samuel
+experimented with lookup tables and hierarchical lookup tables called signature tables
+(Griﬃth, 1966, 1974; Page, 1977; Biermann, Fairﬁeld, and Beres, 1982).
+At about the same time as Samuel’s work, Bellman and Dreyfus (1959) proposed using
+function approximation methods with DP. (It is tempting to think that Bellman and
+Samuel had some inﬂuence on one another, but we know of no reference to the other in
+the work of either.) There is now a fairly extensive literature on function approximation
+methods and DP, such as multigrid methods and methods using splines and orthogonal
+polynomials (e.g., Bellman and Dreyfus, 1959; Bellman, Kalaba, and Kotkin, 1963; Daniel,
+1976; Whitt, 1978; Reetz, 1977; Schweitzer and Seidmann, 1985; Chow and Tsitsiklis,
+1991; Kushner and Dupuis, 1992; Rust, 1996).
+Holland’s (1986) classiﬁer system used a selective feature-match technique to generalize
+evaluation information across state–action pairs. Each classiﬁer matched a subset of states
+having speciﬁed values for a subset of features, with the remaining features having arbitrary
+values (“wild cards”). These subsets were then used in a conventional state-aggregation
+approach to function approximation. Holland’s idea was to use a genetic algorithm
+to evolve a set of classiﬁers that collectively would implement a useful action-value
+function. Holland’s ideas inﬂuenced the early research of the authors on reinforcement
+learning, but we focused on di↵erent approaches to function approximation. As function
+approximators, classiﬁers are limited in several ways. First, they are state-aggregation
+methods, with concomitant limitations in scaling and in representing smooth functions
+eﬃciently. In addition, the matching rules of classiﬁers can implement only aggregation
+boundaries that are parallel to the feature axes. Perhaps the most important limitation of
+conventional classiﬁer systems is that the classiﬁers are learned via the genetic algorithm,
+an evolutionary method. As we discussed in Chapter 1, there is available during learning
+much more detailed information about how to learn than can be used by evolutionary
+methods. This perspective led us to instead adapt supervised learning methods for
+use in reinforcement learning, speciﬁcally gradient-descent and ANN methods. These
+di↵erences between Holland’s approach and ours are not surprising because Holland’s
+ideas were developed during a period when ANNs were generally regarded as being too
+weak in computational power to be useful, whereas our work was at the beginning of
+
+--- Page 264 ---
+242
+Chapter 9: On-policy Prediction with Approximation
+the period that saw widespread questioning of that conventional wisdom. There remain
+many opportunities for combining aspects of these di↵erent approaches.
+Christensen and Korf (1986) experimented with regression methods for modifying
+coeﬃcients of linear value function approximations in the game of chess. Chapman
+and Kaelbling (1991) and Tan (1991) adapted decision-tree methods for learning value
+functions. Explanation-based learning methods have also been adapted for learning
+value functions, yielding compact representations (Yee, Saxena, Utgo↵, and Barto, 1990;
+Dietterich and Flann, 1995).
+
+--- Page 265 ---
+Chapter 10
+On-policy Control with
+Approximation
+In this chapter we return to the control problem, now with parametric approximation of
+the action-value function ˆq(s, a, w) ⇡q⇤(s, a), where w 2 Rd is a ﬁnite-dimensional weight
+vector. We continue to restrict attention to the on-policy case, leaving o↵-policy methods
+to Chapter 11. The present chapter features the semi-gradient Sarsa algorithm, the
+natural extension of semi-gradient TD(0) (last chapter) to action values and to on-policy
+control. In the episodic case, the extension is straightforward, but in the continuing case
+we have to take a few steps backward and re-examine how we have used discounting to
+deﬁne an optimal policy. Surprisingly, once we have genuine function approximation we
+have to give up discounting and switch to a new “average-reward” formulation of the
+control problem, with new “di↵erential” value functions.
+Starting ﬁrst in the episodic case, we extend the function approximation ideas presented
+in the last chapter from state values to action values. Then we extend them to control
+following the general pattern of on-policy GPI, using "-greedy for action selection. We
+show results for n-step linear Sarsa on the Mountain Car problem. Then we turn to the
+continuing case and repeat the development of these ideas for the average-reward case
+with di↵erential values.
+10.1
+Episodic Semi-gradient Control
+The extension of the semi-gradient prediction methods of Chapter 9 to action values is
+straightforward. In this case it is the approximate action-value function, ˆq ⇡q⇡, that is
+represented as a parameterized functional form with weight vector w. Whereas before we
+considered random training examples of the form St 7! Ut, now we consider examples
+of the form St, At 7! Ut. The update target Ut can be any approximation of q⇡(St, At),
+including the usual backed-up values such as the full Monte Carlo return (Gt) or any
+of the n-step Sarsa returns (7.4). The general gradient-descent update for action-value
+
+--- Page 266 ---
+244
+Chapter 10: On-policy Control with Approximation
+prediction is
+wt+1 .= wt + ↵
+h
+Ut −ˆq(St, At, wt)
+i
+rˆq(St, At, wt).
+(10.1)
+For example, the update for the one-step Sarsa method is
+wt+1 .= wt + ↵
+h
+Rt+1 + γˆq(St+1, At+1, wt) −ˆq(St, At, wt)
+i
+rˆq(St, At, wt).
+(10.2)
+We call this method episodic semi-gradient one-step Sarsa. For a constant policy, this
+method converges in the same way that TD(0) does, with the same kind of error bound
+(9.14).
+To form control methods, we need to couple such action-value prediction methods with
+techniques for policy improvement and action selection. Suitable techniques applicable to
+continuous actions, or to actions from large discrete sets, are a topic of ongoing research
+with as yet no clear resolution. On the other hand, if the action set is discrete and not too
+large, then we can use the techniques already developed in previous chapters. That is, for
+each possible action a available in the next state St+1, we can compute ˆq(St+1, a, wt) and
+then ﬁnd the greedy action A⇤
+t+1 = argmaxa ˆq(St+1, a, wt). Policy improvement is then
+done (in the on-policy case treated in this chapter) by changing the estimation policy to a
+soft approximation of the greedy policy such as the "-greedy policy. Actions are selected
+according to this same policy. Pseudocode for the complete algorithm is given in the box.
+Episodic Semi-gradient Sarsa for Estimating ˆq ⇡q⇤
+Input: a di↵erentiable action-value function parameterization ˆq : S ⇥A ⇥Rd ! R
+Algorithm parameters: step size ↵> 0, small " > 0
+Initialize value-function weights w 2 Rd arbitrarily (e.g., w = 0)
+Loop for each episode:
+S, A  initial state and action of episode (e.g., "-greedy)
+Loop for each step of episode:
+Take action A, observe R, S0
+If S0 is terminal:
+w  w + ↵
+⇥
+R −ˆq(S, A, w)
+⇤
+rˆq(S, A, w)
+Go to next episode
+Choose A0 as a function of ˆq(S0, ·, w) (e.g., "-greedy)
+w  w + ↵
+⇥
+R + γˆq(S0, A0, w) −ˆq(S, A, w)
+⇤
+rˆq(S, A, w)
+S  S0
+A  A0
+Example 10.1: Mountain Car Task
+Consider the task of driving an underpowered
+car up a steep mountain road, as suggested by the diagram in the upper left of Figure 10.1.
+The diﬃculty is that gravity is stronger than the car’s engine, and even at full throttle
+the car cannot accelerate up the steep slope. The only solution is to ﬁrst move away from
+the goal and up the opposite slope on the left. Then, by applying full throttle the car
+
+--- Page 267 ---
+10.1. Episodic Semi-gradient Control
+245
+!1.2
+Position
+0.6
+Step 428
+Goal
+Position
+4
+0
+!.07
+.07
+Velocity
+Velocity
+Velocity
+Velocity
+Velocity
+Velocity
+Position
+Position
+Position
+0
+27
+0
+120
+0
+104
+0
+46
+Episode 12
+Episode 104
+Episode 1000
+Episode 9000
+MOUNTAIN   CAR
+Goal
+Figure 10.1:
+The Mountain Car task (upper left panel) and the cost-to-go function
+(−maxa ˆq(s, a, w)) learned during one run.
+can build up enough inertia to carry it up the steep slope even though it is slowing down
+the whole way. This is a simple example of a continuous control task where things have
+to get worse in a sense (farther from the goal) before they can get better. Many control
+methodologies have great diﬃculties with tasks of this kind unless explicitly aided by a
+human designer.
+The reward in this problem is −1 on all time steps until the car moves past its goal
+position at the top of the mountain, which ends the episode. There are three possible
+actions: full throttle forward (+1), full throttle reverse (−1), and zero throttle (0). The
+car moves according to a simpliﬁed physics. Its position, xt, and velocity, ˙xt, are updated
+by
+xt+1 .= bound
+⇥
+xt + ˙xt+1
+⇤
+˙xt+1 .= bound
+⇥
+˙xt + 0.001At −0.0025 cos(3xt)
+⇤
+,
+where the bound operation enforces −1.2 xt+1 0.5 and −0.07 ˙xt+1 0.07. In
+addition, when xt+1 reached the left bound, ˙xt+1 was reset to zero. When it reached
+the right bound, the goal was reached and the episode was terminated. Each episode
+started from a random position xt 2 [−0.6, −0.4) and zero velocity. To convert the two
+continuous state variables to binary features, we used grid-tilings as in Figure 9.9. We
+used 8 tilings, with each tile covering 1/8th of the bounded distance in each dimension,
+
+--- Page 268 ---
+246
+Chapter 10: On-policy Control with Approximation
+and asymmetrical o↵sets as described in Section 9.5.4.1 The feature vectors x(s, a) created
+by tile coding were then combined linearly with the parameter vector to approximate the
+action-value function:
+ˆq(s, a, w) .= w>x(s, a) =
+d
+X
+i=1
+wi · xi(s, a),
+(10.3)
+for each pair of state, s, and action, a.
+Figure 10.1 shows what typically happens while learning to solve this task with this
+form of function approximation.2 Shown is the negative of the value function (the cost-
+to-go function) learned on a single run. The initial action values were all zero, which was
+optimistic (all true values are negative in this task), causing extensive exploration to occur
+even though the exploration parameter, ", was 0. This can be seen in the middle-top panel
+of the ﬁgure, labeled “Step 428”. At this time not even one episode had been completed,
+but the car has oscillated back and forth in the valley, following circular trajectories in
+state space. All the states visited frequently are valued worse than unexplored states,
+because the actual rewards have been worse than what was (unrealistically) expected.
+This continually drives the agent away from wherever it has been, to explore new states,
+until a solution is found.
+Figure 10.2 shows several learning curves for semi-gradient Sarsa on this problem, with
+various step sizes.
+100
+200
+400
+1000
+0
+Mountain Car
+Steps per episode
+log scale
+averaged over 100 runs
+Episode
+500
+↵=0.5/8
+↵=0.1/8
+↵=0.2/8
+Figure 10.2: Mountain Car learning curves for the semi-gradient Sarsa method with tile-coding
+function approximation and "-greedy action selection.
+1In particular, we used the tile-coding software, available at http://incompleteideas.net/tiles/
+tiles3.html, with iht=IHT(4096) and tiles(iht,8,[8*x/(0.5+1.2),8*xdot/(0.07+0.07)],[A]) to get
+the indices of the ones in the feature vector for state (x, xdot) and action A.
+2This data is actually from the “semi-gradient Sarsa(λ)” algorithm that we will not meet until
+Chapter 12, but semi-gradient Sarsa would behave similarly.
+
+--- Page 269 ---
+10.2. Semi-gradient n-step Sarsa
+247
+10.2
+Semi-gradient n-step Sarsa
+We can obtain an n-step version of episodic semi-gradient Sarsa by using an n-step return
+as the update target in the semi-gradient Sarsa update equation (10.1). The n-step return
+immediately generalizes from its tabular form (7.4) to a function approximation form:
+Gt:t+n .= Rt+1+γRt+2+· · ·+γn−1Rt+n+γnˆq(St+n, At+n, wt+n−1),
+t+n < T, (10.4)
+with Gt:t+n .= Gt if t + n ≥T, as usual. The n-step update equation is
+wt+n .= wt+n−1 + ↵[Gt:t+n −ˆq(St, At, wt+n−1)] rˆq(St, At, wt+n−1),
+0 t < T.
+(10.5)
+Complete pseudocode is given in the box below.
+Episodic semi-gradient n-step Sarsa for estimating ˆq ⇡q⇤or q⇡
+Input: a di↵erentiable action-value function parameterization ˆq : S ⇥A ⇥Rd ! R
+Input: a policy ⇡(if estimating q⇡)
+Algorithm parameters: step size ↵> 0, small " > 0, a positive integer n
+Initialize value-function weights w 2 Rd arbitrarily (e.g., w = 0)
+All store and access operations (St, At, and Rt) can take their index mod n + 1
+Loop for each episode:
+Initialize and store S0 6= terminal
+Select and store an action A0 ⇠⇡(·|S0) or "-greedy wrt ˆq(S0, ·, w)
+T  1
+Loop for t = 0, 1, 2, . . . :
+|
+If t < T, then:
+|
+Take action At
+|
+Observe and store the next reward as Rt+1 and the next state as St+1
+|
+If St+1 is terminal, then:
+|
+T  t + 1
+|
+else:
+|
+Select and store At+1 ⇠⇡(·|St+1) or "-greedy wrt ˆq(St+1, ·, w)
+|
+⌧ t −n + 1
+(⌧is the time whose estimate is being updated)
+|
+If ⌧≥0:
+|
+G  Pmin(⌧+n,T )
+i=⌧+1
+γi−⌧−1Ri
+|
+If ⌧+ n < T, then G  G + γnˆq(S⌧+n, A⌧+n, w)
+(G⌧:⌧+n)
+|
+w  w + ↵[G −ˆq(S⌧, A⌧, w)] rˆq(S⌧, A⌧, w)
+Until ⌧= T −1
+As we have seen before, performance is best if an intermediate level of bootstrapping
+is used, corresponding to an n larger than 1. Figure 10.3 shows how this algorithm tends
+to learn faster and obtain a better asymptotic performance at n=8 than at n=1 on the
+Mountain Car task. Figure 10.4 shows the results of a more detailed study of the e↵ect
+of the parameters ↵and n on the rate of learning on this task.
+
+--- Page 270 ---
+248
+Chapter 10: On-policy Control with Approximation
+100
+200
+400
+1000
+0
+Mountain Car
+Steps per episode
+log scale
+averaged over 100 runs
+Episode
+500
+n=1
+n=8
+Figure 10.3: Performance of one-step vs 8-step semi-gradient Sarsa on the Mountain Car task.
+Good step sizes were used: ↵= 0.5/8 for n = 1 and ↵= 0.3/8 for n = 8.
+220
+240
+260
+300
+0
+0.5
+1
+1.5
+Mountain Car
+Steps per episode
+averaged over
+ﬁrst 50 episodes
+and 100 runs
+↵×  number of tilings (8)
+280
+n=1
+n=2
+n=4
+n=8
+n=16
+n=8
+n=4
+n=2
+n=16
+n=1
+Figure 10.4: E↵ect of the ↵and n on early performance of n-step semi-gradient Sarsa and
+tile-coding function approximation on the Mountain Car task. As usual, an intermediate level of
+bootstrapping (n = 4) performed best. These results are for selected ↵values, on a log scale,
+and then connected by straight lines. The standard errors ranged from 0.5 (less than the line
+width) for n = 1 to about 4 for n = 16, so the main e↵ects are all statistically signiﬁcant.
+Exercise 10.1 We have not explicitly considered or given pseudocode for any Monte Carlo
+methods in this chapter. What would they be like? Why is it reasonable not to give
+pseudocode for them? How would they perform on the Mountain Car task?
+⇤
+Exercise 10.2 Give pseudocode for semi-gradient one-step Expected Sarsa for control. ⇤
+Exercise 10.3 Why do the results shown in Figure 10.4 have higher standard errors at
+large n than at small n?
+⇤
+
+--- Page 271 ---
+10.3. Average Reward: A New Problem Setting for Continuing Tasks
+249
+10.3
+Average Reward: A New Problem Setting for
+Continuing Tasks
+We now introduce a third classical setting—alongside the episodic and discounted settings—
+for formulating the goal in Markov decision problems (MDPs). Like the discounted
+setting, the average reward setting applies to continuing problems, problems for which the
+interaction between agent and environment goes on and on forever without termination
+or start states. Unlike that setting, however, there is no discounting—the agent cares just
+as much about delayed rewards as it does about immediate reward. The average-reward
+setting is one of the major settings commonly considered in the classical theory of dynamic
+programming and less-commonly in reinforcement learning. As we discuss in the next
+section, the discounted setting is problematic with function approximation, and thus the
+average-reward setting is needed to replace it.
+In the average-reward setting, the quality of a policy ⇡is deﬁned as the average rate of
+reward, or simply average reward, while following that policy, which we denote as r(⇡):
+r(⇡) .= lim
+h!1
+1
+h
+h
+X
+t=1
+E[Rt | S0, A0:t−1 ⇠⇡]
+(10.6)
+= lim
+t!1 E[Rt | S0, A0:t−1 ⇠⇡] ,
+(10.7)
+=
+X
+s
+µ⇡(s)
+X
+a
+⇡(a|s)
+X
+s0,r
+p(s0, r|s, a)r,
+where the expectations are conditioned on the initial state, S0, and on the subsequent
+actions, A0, A1, . . . , At−1, being taken according to ⇡. The second and third equations
+hold if the steady-state distribution, µ⇡(s) .= limt!1 Pr{St =s |A0:t−1 ⇠⇡}, exists and
+is independent of S0, in other words, if the MDP is ergodic. In an ergodic MDP, the
+starting state and any early decision made by the agent can have only a temporary e↵ect;
+in the long run the expectation of being in a state depends only on the policy and the
+MDP transition probabilities. Ergodicity is suﬃcient but not necessary to guarantee the
+existence of the limit in (10.6).
+There are subtle distinctions that can be drawn between di↵erent kinds of optimality
+in the undiscounted continuing case. Nevertheless, for most practical purposes it may
+be adequate simply to order policies according to their average reward per time step,
+in other words, according to their r(⇡). This quantity is essentially the average reward
+under ⇡, as suggested by (10.7), or the reward rate. In particular, we consider all policies
+that attain the maximal value of r(⇡) to be optimal.
+Note that the steady state distribution µ⇡is the special distribution under which, if
+you select actions according to ⇡, you remain in the same distribution. That is, for which
+X
+s
+µ⇡(s)
+X
+a
+⇡(a|s)p(s0|s, a) = µ⇡(s0).
+(10.8)
+
+--- Page 272 ---
+250
+Chapter 10: On-policy Control with Approximation
+In the average-reward setting, returns are deﬁned in terms of di↵erences between
+rewards and the average reward:
+Gt
+.= Rt+1 −r(⇡) + Rt+2 −r(⇡) + Rt+3 −r(⇡) + · · · .
+(10.9)
+This is known as the di↵erential return, and the corresponding value functions are
+known as di↵erential value functions. Di↵erential value functions are deﬁned in terms
+of the new return just as conventional value functions were deﬁned in terms of the
+discounted return; thus we will use the same notation, v⇡(s)
+.= E⇡[Gt|St = s] and
+q⇡(s, a) .= E⇡[Gt|St = s, At = a] (similarly for v⇤and q⇤), for di↵erential value functions.
+Di↵erential value functions also have Bellman equations, just slightly di↵erent from those
+we have seen earlier. We simply remove all γs and replace all rewards by the di↵erence
+between the reward and the true average reward:
+v⇡(s) =
+X
+a
+⇡(a|s)
+X
+r,s0
+p(s0, r|s, a)
+h
+r −r(⇡) + v⇡(s0)
+i
+,
+q⇡(s, a) =
+X
+r,s0
+p(s0, r|s, a)
+h
+r −r(⇡) +
+X
+a0
+⇡(a0|s0)q⇡(s0, a0)
+i
+,
+v⇤(s) = max
+a
+X
+r,s0
+p(s0, r|s, a)
+h
+r −max
+⇡
+r(⇡) + v⇤(s0)
+i
+, and
+q⇤(s, a) =
+X
+r,s0
+p(s0, r|s, a)
+h
+r −max
+⇡
+r(⇡) + max
+a0 q⇤(s0, a0)
+i
+(cf. (3.14), Exercise 3.17, (3.19), and (3.20)).
+There is also a di↵erential form of the two TD errors:
+δt
+.= Rt+1−¯Rt + ˆv(St+1,wt) −ˆv(St,wt),
+(10.10)
+and
+δt
+.= Rt+1−¯Rt + ˆq(St+1, At+1, wt) −ˆq(St, At, wt),
+(10.11)
+where ¯Rt is an estimate at time t of the average reward r(⇡). With these alternate
+deﬁnitions, most of our algorithms and many theoretical results carry through to the
+average-reward setting without change.
+For example, an average reward version of semi-gradient Sarsa could be deﬁned just as
+in (10.2) except with the di↵erential version of the TD error. That is, by
+wt+1 .= wt + ↵δtrˆq(St, At, wt),
+(10.12)
+with δt given by (10.11). Pseudocode for a complete algorithm is given in the box on the
+next page. One limitation of this algorithm is that it does not converge to the di↵erential
+values but to the di↵erential values plus an arbitrary o↵set. Notice that the Bellman
+equations and TD errors given above are una↵ected if all the values are shifted by the
+same amount. Thus, the o↵set may not matter in practice. How this algorithm could be
+changed to eliminate the o↵set is an interesting question for future research.
+Exercise 10.4 Give pseudocode for a di↵erential version of semi-gradient Q-learning. ⇤
+Exercise 10.5
+What equations are needed (beyond 10.10) to specify the di↵erential
+version of TD(0)?
+⇤
+
+--- Page 273 ---
+10.3. Average Reward: A New Problem Setting for Continuing Tasks
+251
+Di↵erential semi-gradient Sarsa for estimating ˆq ⇡q⇤
+Input: a di↵erentiable action-value function parameterization ˆq : S ⇥A ⇥Rd ! R
+Algorithm parameters: step sizes ↵, β > 0, small " > 0
+Initialize value-function weights w 2 Rd arbitrarily (e.g., w = 0)
+Initialize average reward estimate ¯R 2 R arbitrarily (e.g., ¯R = 0)
+Initialize state S, and action A
+Loop for each step:
+Take action A, observe R, S0
+Choose A0 as a function of ˆq(S0, ·, w) (e.g., "-greedy)
+δ  R −¯R + ˆq(S0, A0, w) −ˆq(S, A, w)
+¯R  ¯R + βδ
+w  w + ↵δrˆq(S, A, w)
+S  S0
+A  A0
+Exercise 10.6 Suppose there is an MDP that under any policy produces the deterministic
+sequence of rewards +1, 0, +1, 0, +1, 0, . . . going on forever. Technically, this violates
+ergodicity; there is no stationary limiting distribution µ⇡and the limit (10.7) does not
+exist. Nevertheless, the average reward (10.6) is well deﬁned. What is it? Now consider
+two states in this MDP. From A, the reward sequence is exactly as described above,
+starting with a +1, whereas, from B, the reward sequence starts with a 0 and then
+continues with +1, 0, +1, 0, . . .. We would like to compute the di↵erential values of A and
+B. Unfortunately, the di↵erential return (10.9) is not well deﬁned when starting from
+these states as the implicit limit does not exist. To repair this, one could alternatively
+deﬁne the di↵erential value of a state as
+v⇡(s) .= lim
+γ!1 lim
+h!1
+h
+X
+t=0
+γt⇣
+E⇡[Rt+1|S0 =s] −r(⇡)
+⌘
+.
+(10.13)
+Under this deﬁnition, what are the di↵erential values of states A and B?
+⇤
+Exercise 10.7 Consider a Markov reward process consisting of a ring of three states A, B,
+and C, with state transitions going deterministically around the ring. A reward of +1 is
+received upon arrival in A and otherwise the reward is 0. What are the di↵erential values
+of the three states, using (10.13)?
+⇤
+Exercise 10.8 The pseudocode in the box on page 251 updates ¯Rt using δt as an error
+rather than simply Rt+1 −¯Rt. Both errors work, but using δt is better. To see why,
+consider the ring MRP of three states from Exercise 10.7. The estimate of the average
+reward should tend towards its true value of 1
+3. Suppose it was already there and was
+held stuck there. What would the sequence of Rt+1 −¯Rt errors be? What would the
+sequence of δt errors be (using Equation 10.10)? Which error sequence would produce
+a more stable estimate of the average reward if the estimate were allowed to change in
+response to the errors? Why?
+⇤
+
+--- Page 274 ---
+252
+Chapter 10: On-policy Control with Approximation
+Example 10.2: An Access-Control Queuing Task
+This is a decision task involving
+access control to a set of 10 servers. Customers of four di↵erent priorities arrive at a
+single queue. If given access to a server, the customers pay a reward of 1, 2, 4, or 8 to
+the server, depending on their priority, with higher priority customers paying more. In
+each time step, the customer at the head of the queue is either accepted (assigned to one
+of the servers) or rejected (removed from the queue, with a reward of zero). In either
+case, on the next time step the next customer in the queue is considered. The queue
+never empties, and the priorities of the customers in the queue are uniformly randomly
+distributed. Of course a customer cannot be served if there is no free server; the customer
+is always rejected in this case. Each busy server becomes free with probability p = 0.06
+on each time step. Although we have just described them for deﬁniteness, let us assume
+the statistics of arrivals and departures are unknown. The task is to decide on each step
+whether to accept or reject the next customer, on the basis of his priority and the number
+of free servers, so as to maximize long-term reward without discounting.
+In this example we consider a tabular solution to this problem. Although there is no
+generalization between states, we can still consider it in the general function approximation
+setting as this setting generalizes the tabular setting. Thus we have a di↵erential action-
+value estimate for each pair of state (number of free servers and priority of the customer
+at the head of the queue) and action (accept or reject). Figure 10.5 shows the solution
+found by di↵erential semi-gradient Sarsa with parameters ↵= 0.01, β = 0.01, and " = 0.1.
+The initial action values and ¯R were zero.
+-10
+-5
+0
+10
+0
+Diﬀerential
+value of 
+best action
+Number of free servers
+4
+2
+8
+ACCEPT
+REJECT
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+Number of free servers
+Priority
+1
+5
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+priority 8
+priority 4
+priority 2
+priority 1
+POLICY
+VALUE
+FUNCTION
+Figure 10.5: The policy and value function found by di↵erential semi-gradient one-step Sarsa
+on the access-control queuing task after 2 million steps. The drop on the right of the graph
+is probably due to insuﬃcient data; many of these states were never experienced. The value
+learned for ¯R was about 2.31. (Note that priority 1 here is the lowest priority.)
+
+--- Page 275 ---
+10.4. Deprecating the Discounted Setting
+253
+10.4
+Deprecating the Discounted Setting
+The continuing, discounted problem formulation has been very useful in the tabular case,
+in which the returns from each state can be separately identiﬁed and averaged. But in the
+approximate case it is questionable whether one should ever use this problem formulation.
+To see why, consider an inﬁnite sequence of returns with no beginning or end, and no
+clearly identiﬁed states. The states might be represented only by feature vectors, which
+may do little to distinguish the states from each other. As a special case, all of the feature
+vectors may be the same. Thus one really has only the reward sequence (and the actions),
+and performance has to be assessed purely from these. How could it be done? One way
+is by averaging the rewards over a long interval—this is the idea of the average-reward
+setting. How could discounting be used? Well, for each time step we could measure
+the discounted return. Some returns would be small and some big, so again we would
+have to average them over a suﬃciently large time interval. In the continuing setting
+there are no starts and ends, and no special time steps, so there is nothing else that
+could be done. However, if you do this, it turns out that the average of the discounted
+returns is proportional to the average reward. In fact, for policy ⇡, the average of the
+discounted returns is always r(⇡)/(1 −γ), that is, it is essentially the average reward,
+r(⇡). In particular, the ordering of all policies in the average discounted return setting
+would be exactly the same as in the average-reward setting. The discount rate γ thus has
+no e↵ect on the problem formulation. It could in fact be zero and the ranking would be
+unchanged.
+This surprising fact is proven in the box on the next page, but the basic idea can
+be seen via a symmetry argument. Each time step is exactly the same as every other.
+With discounting, every reward will appear exactly once in each position in some return.
+The tth reward will appear undiscounted in the t −1st return, discounted once in the
+t −2nd return, and discounted 999 times in the t −1000th return. The weight on the
+tth reward is thus 1 + γ + γ2 + γ3 + · · · = 1/(1 −γ). Because all states are the same,
+they are all weighted by this, and thus the average of the returns will be this times the
+average reward, or r(⇡)/(1 −γ).
+This example and the more general argument in the box show that if we optimized
+discounted value over the on-policy distribution, then the e↵ect would be identical to
+optimizing undiscounted average reward; the actual value of γ would have no e↵ect. This
+strongly suggests that discounting has no role to play in the deﬁnition of the control
+problem with function approximation. One can nevertheless go ahead and use discounting
+in solution methods. The discounting parameter γ changes from a problem parameter
+to a solution method parameter! Unfortunately, discounting algorithms with function
+approximation do not optimize discounted value over the on-policy distribution, and thus
+are not guaranteed to optimize average reward.
+The root cause of the diﬃculties with the discounted control setting is that with
+function approximation we have lost the policy improvement theorem (Section 4.2). It is
+no longer true that if we change the policy to improve the discounted value of one state
+then we are guaranteed to have improved the overall policy in any useful sense. That
+guarantee was key to the theory of our reinforcement learning control methods. With
+
+--- Page 276 ---
+254
+Chapter 10: On-policy Control with Approximation
+The Futility of Discounting in Continuing Problems
+Perhaps discounting can be saved by choosing an objective that sums discounted
+values over the distribution with which states occur under the policy:
+J(⇡) =
+X
+s
+µ⇡(s)vγ
+⇡(s)
+(where vγ
+⇡is the discounted value function)
+=
+X
+s
+µ⇡(s)
+X
+a
+⇡(a|s)
+X
+s0
+X
+r
+p(s0, r|s, a) [r + γvγ
+⇡(s0)]
+(Bellman Eq.)
+= r(⇡) +
+X
+s
+µ⇡(s)
+X
+a
+⇡(a|s)
+X
+s0
+X
+r
+p(s0, r|s, a)γvγ
+⇡(s0)
+(from (10.7))
+= r(⇡) + γ
+X
+s0
+vγ
+⇡(s0)
+X
+s
+µ⇡(s)
+X
+a
+⇡(a|s)p(s0|s, a)
+(from (3.4))
+= r(⇡) + γ
+X
+s0
+vγ
+⇡(s0)µ⇡(s0)
+(from (10.8))
+= r(⇡) + γJ(⇡)
+= r(⇡) + γr(⇡) + γ2J(⇡)
+= r(⇡) + γr(⇡) + γ2r(⇡) + γ3r(⇡) + · · ·
+=
+1
+1 −γ r(⇡).
+The proposed discounted objective orders policies identically to the undiscounted
+(average reward) objective. The discount rate γ does not inﬂuence the ordering!
+function approximation we have lost it!
+In fact, the lack of a policy improvement theorem is also a theoretical lacuna for the
+total-episodic and average-reward settings. Once we introduce function approximation
+we can no longer guarantee improvement for any setting. In Chapter 13 we introduce an
+alternative class of reinforcement learning algorithms based on parameterized policies,
+and there we have a theoretical guarantee called the “policy-gradient theorem” which
+plays a similar role as the policy improvement theorem. But for methods that learn
+action values we seem to be currently without a local improvement guarantee (possibly
+the approach taken by Perkins and Precup (2003) may provide a part of the answer). We
+do know that "-greediﬁcation may sometimes result in an inferior policy, as policies may
+chatter among good policies rather than converge (Gordon, 1996a). This is an area with
+multiple open theoretical questions.
+
+--- Page 277 ---
+10.5. Di↵erential Semi-gradient n-step Sarsa
+255
+10.5
+Di↵erential Semi-gradient n-step Sarsa
+In order to generalize to n-step bootstrapping, we need an n-step version of the TD error.
+We begin by generalizing the n-step return (7.4) to its di↵erential form, with function
+approximation:
+Gt:t+n .= Rt+1−¯Rt+n−1 + · · · + Rt+n−¯Rt+n−1 + ˆq(St+n, At+n, wt+n−1),
+(10.14)
+where ¯R is an estimate of r(⇡), n ≥1, and t + n < T. If t + n ≥T, then we deﬁne
+Gt:t+n .= Gt as usual. The n-step TD error is then
+δt .= Gt:t+n −ˆq(St, At, w),
+(10.15)
+after which we can apply our usual semi-gradient Sarsa update (10.12). Pseudocode for
+the complete algorithm is given in the box.
+Di↵erential semi-gradient n-step Sarsa for estimating ˆq ⇡q⇡or q⇤
+Input: a di↵erentiable function ˆq : S ⇥A ⇥Rd ! R, a policy ⇡
+Initialize value-function weights w 2 Rd arbitrarily (e.g., w = 0)
+Initialize average-reward estimate ¯R 2 R arbitrarily (e.g., ¯R = 0)
+Algorithm parameters: step sizes ↵, β > 0, small " > 0, a positive integer n
+All store and access operations (St, At, and Rt) can take their index mod n + 1
+Initialize and store S0 and A0
+Loop for each step, t = 0, 1, 2, . . . :
+Take action At
+Observe and store the next reward as Rt+1 and the next state as St+1
+Select and store an action At+1 ⇠⇡(·|St+1), or "-greedy wrt ˆq(St+1, ·, w)
+⌧ t −n + 1
+(⌧is the time whose estimate is being updated)
+If ⌧≥0:
+δ  P⌧+n
+i=⌧+1(Ri −¯R) + ˆq(S⌧+n, A⌧+n, w) −ˆq(S⌧, A⌧, w)
+¯R  ¯R + βδ
+w  w + ↵δrˆq(S⌧, A⌧, w)
+Exercise 10.9
+In the di↵erential semi-gradient n-step Sarsa algorithm, the step-size
+parameter on the average reward, β, needs to be quite small so that ¯R becomes a good
+long-term estimate of the average reward. Unfortunately, ¯R will then be biased by its
+initial value for many steps, which may make learning ineﬃcient. Alternatively, one could
+use a sample average of the observed rewards for ¯R. That would initially adapt rapidly
+but in the long run would also adapt slowly. As the policy slowly changed, ¯R would also
+change; the potential for such long-term nonstationarity makes sample-average methods
+ill-suited. In fact, the step-size parameter on the average reward is a perfect place to use
+the unbiased constant-step-size trick from Exercise 2.7. Describe the speciﬁc changes
+needed to the boxed algorithm for di↵erential semi-gradient n-step Sarsa to use this
+trick.
+⇤
+
+--- Page 278 ---
+256
+Chapter 10: On-policy Control with Approximation
+10.6
+Summary
+In this chapter we have extended the ideas of parameterized function approximation and
+semi-gradient descent, introduced in the previous chapter, to control. The extension is
+immediate for the episodic case, but for the continuing case we have to introduce a whole
+new problem formulation based on maximizing the average reward setting per time step.
+Surprisingly, the discounted formulation cannot be carried over to control in the presence
+of approximations. In the approximate case most policies cannot be represented by a
+value function. The arbitrary policies that remain need to be ranked, and the scalar
+average reward r(⇡) provides an e↵ective way to do this.
+The average reward formulation involves new di↵erential versions of value functions,
+Bellman equations, and TD errors, but all of these parallel the old ones, and the
+conceptual changes are small. There is also a new parallel set of di↵erential algorithms
+for the average-reward case.
+Bibliographical and Historical Remarks
+10.1
+Semi-gradient Sarsa with function approximation was ﬁrst explored by Rummery
+and Niranjan (1994). Linear semi-gradient Sarsa with "-greedy action selection
+does not converge in the usual sense, but does enter a bounded region near
+the best solution (Gordon, 1996a, 2001). Precup and Perkins (2003) showed
+convergence in a di↵erentiable action selection setting. See also Perkins and
+Pendrith (2002) and Melo, Meyn, and Ribeiro (2008). The mountain–car example
+is based on a similar task studied by Moore (1990), but the exact form used here
+is from Sutton (1996).
+10.2
+Episodic n-step semi-gradient Sarsa is based on the forward Sarsa(λ) algorithm
+of van Seijen (2016). The empirical results shown here are new to the second
+edition of this text.
+10.3
+The average-reward formulation has been described for dynamic programming
+(e.g., Puterman, 1994) and from the point of view of reinforcement learning
+(Mahadevan, 1996; Tadepalli and Ok, 1994; Bertsekas and Tsitsiklis, 1996;
+Tsitsiklis and Van Roy, 1999). The algorithm described here is the on-policy
+analog of the “R-learning” algorithm introduced by Schwartz (1993). The name
+R-learning was probably meant to be the alphabetic successor to Q-learning,
+but we prefer to think of it as a reference to the learning of di↵erential or
+relative values. The access-control queuing example was suggested by the work
+of Carlstr¨om and Nordstr¨om (1997).
+10.4
+The recognition of the limitations of discounting as a formulation of the rein-
+forcement learning problem with function approximation became apparent to
+the authors shortly after the publication of the ﬁrst edition of this text. Singh,
+Jaakkola, and Jordan (1994) may have been the ﬁrst to observe it in print.
+
+--- Page 279 ---
+Chapter 11
+*O↵-policy Methods with
+Approximation
+This book has treated on-policy and o↵-policy learning methods since Chapter 5 primarily
+as two alternative ways of handling the conﬂict between exploitation and exploration
+inherent in learning forms of generalized policy iteration. The two chapters preceding this
+have treated the on-policy case with function approximation, and in this chapter we treat
+the o↵-policy case with function approximation. The extension to function approximation
+turns out to be signiﬁcantly di↵erent and harder for o↵-policy learning than it is for
+on-policy learning. The tabular o↵-policy methods developed in Chapters 6 and 7 readily
+extend to semi-gradient algorithms, but these algorithms do not converge as robustly as
+they do under on-policy training. In this chapter we explore the convergence problems,
+take a closer look at the theory of linear function approximation, introduce a notion of
+learnability, and then discuss new algorithms with stronger convergence guarantees for the
+o↵-policy case. In the end we will have improved methods, but the theoretical results will
+not be as strong, nor the empirical results as satisfying, as they are for on-policy learning.
+Along the way, we will gain a deeper understanding of approximation in reinforcement
+learning for on-policy learning as well as o↵-policy learning.
+Recall that in o↵-policy learning we seek to learn a value function for a target policy
+⇡, given data due to a di↵erent behavior policy b. In the prediction case, both policies
+are static and given, and we seek to learn either state values ˆv ⇡v⇡or action values
+ˆq ⇡q⇡. In the control case, action values are learned, and both policies typically change
+during learning—⇡being the greedy policy with respect to ˆq, and b being something
+more exploratory such as the "-greedy policy with respect to ˆq.
+The challenge of o↵-policy learning can be divided into two parts, one that arises in
+the tabular case and one that arises only with function approximation. The ﬁrst part
+of the challenge has to do with the target of the update (not to be confused with the
+target policy), and the second part has to do with the distribution of the updates. The
+techniques related to importance sampling developed in Chapters 5 and 7 deal with
+the ﬁrst part; these may increase variance but are needed in all successful algorithms,
+
+--- Page 280 ---
+258
+Chapter 11: O↵-policy Methods with Approximation
+tabular and approximate. The extension of these techniques to function approximation
+are quickly dealt with in the ﬁrst section of this chapter.
+Something more is needed for the second part of the challenge of o↵-policy learning
+with function approximation because the distribution of updates in the o↵-policy case is
+not according to the on-policy distribution. The on-policy distribution is important to
+the stability of semi-gradient methods. Two general approaches have been explored to
+deal with this. One is to use importance sampling methods again, this time to warp the
+update distribution back to the on-policy distribution, so that semi-gradient methods
+are guaranteed to converge (in the linear case). The other is to develop true gradient
+methods that do not rely on any special distribution for stability. We present methods
+based on both approaches. This is a cutting-edge research area, and it is not clear which
+of these approaches is most e↵ective in practice.
+11.1
+Semi-gradient Methods
+We begin by describing how the methods developed in earlier chapters for the o↵-
+policy case extend readily to function approximation as semi-gradient methods. These
+methods address the ﬁrst part of the challenge of o↵-policy learning (changing the update
+targets) but not the second part (changing the update distribution). Accordingly, these
+methods may diverge in some cases, and in that sense are not sound, but still they
+are often successfully used. Remember that these methods are guaranteed stable and
+asymptotically unbiased for the tabular case, which corresponds to a special case of
+function approximation. So it may still be possible to combine them with feature selection
+methods in such a way that the combined system could be assured stable. In any event,
+these methods are simple and thus a good place to start.
+In Chapter 7 we described a variety of tabular o↵-policy algorithms. To convert them
+to semi-gradient form, we simply replace the update to an array (V or Q) to an update
+to a weight vector (w), using the approximate value function (ˆv or ˆq) and its gradient.
+Many of these algorithms use the per-step importance sampling ratio:
+⇢t .= ⇢t:t = ⇡(At|St)
+b(At|St) .
+(11.1)
+For example, the one-step, state-value algorithm is semi-gradient o↵-policy TD(0), which
+is just like the corresponding on-policy algorithm (page 203) except for the addition of
+⇢t:
+wt+1 .= wt + ↵⇢tδtrˆv(St,wt),
+(11.2)
+where δt is deﬁned appropriately depending on whether the problem is episodic and
+discounted, or continuing and undiscounted using average reward:
+δt .= Rt+1 + γˆv(St+1,wt) −ˆv(St,wt), or
+(11.3)
+δt .= Rt+1 −¯Rt + ˆv(St+1,wt) −ˆv(St,wt).
+(11.4)
+
+--- Page 281 ---
+11.1. Semi-gradient Methods
+259
+For action values, the one-step algorithm is semi-gradient Expected Sarsa:
+wt+1 .= wt + ↵δtrˆq(St, At, wt), with
+(11.5)
+δt .= Rt+1 + γ
+X
+a
+⇡(a|St+1)ˆq(St+1, a, wt) −ˆq(St, At, wt), or
+(episodic)
+δt .= Rt+1 −¯Rt +
+X
+a
+⇡(a|St+1)ˆq(St+1, a, wt) −ˆq(St, At, wt).
+(continuing)
+Note that this algorithm does not use importance sampling. In the tabular case it is clear
+that this is appropriate because the only sample action is At, and in learning its value we
+do not have to consider any other actions. With function approximation it is less clear
+because we might want to weight di↵erent state–action pairs di↵erently once they all
+contribute to the same overall approximation. Proper resolution of this issue awaits a
+more thorough understanding of the theory of function approximation in reinforcement
+learning.
+In the multi-step generalizations of these algorithms, both the state-value and action-
+value algorithms involve importance sampling. The n-step version of semi-gradient Sarsa
+is
+wt+n .= wt+n−1+↵⇢t+1 · · · ⇢t+n [Gt:t+n −ˆq(St, At, wt+n−1)] rˆq(St, At, wt+n−1) (11.6)
+with
+Gt:t+n .= Rt+1 + · · · + γn−1Rt+n + γnˆq(St+n, At+n, wt+n−1), or
+(episodic)
+Gt:t+n .= Rt+1 −¯Rt + · · · + Rt+n −¯Rt+n−1 + ˆq(St+n, At+n, wt+n−1), (continuing)
+where here we are being slightly informal in our treatment of the ends of episodes. In the
+ﬁrst equation, the ⇢ks for k ≥T (where T is the last time step of the episode) should be
+taken to be 1, and Gt:t+n should be taken to be Gt if t + n ≥T.
+Recall that we also presented in Chapter 7 an o↵-policy algorithm that does not involve
+importance sampling at all: the n-step tree-backup algorithm. Here is its semi-gradient
+version:
+wt+n .= wt+n−1 + ↵[Gt:t+n −ˆq(St, At, wt+n−1)] rˆq(St, At, wt+n−1),
+(11.7)
+Gt:t+n .= ˆq(St, At, wt+n−1) +
+t+n−1
+X
+k=t
+δk
+k
+Y
+i=t+1
+γ⇡(Ai|Si),
+(11.8)
+with δt as deﬁned at the top of this page for Expected Sarsa. We also deﬁned in Chapter 7
+an algorithm that uniﬁes all action-value algorithms: n-step Q(σ). We leave the semi-
+gradient form of that algorithm, and also of the n-step state-value algorithm, as exercises
+for the reader.
+Exercise 11.1 Convert the equation of n-step o↵-policy TD (7.9) to semi-gradient form.
+Give accompanying deﬁnitions of the return for both the episodic and continuing cases. ⇤
+⇤Exercise 11.2 Convert the equations of n-step Q(σ) (7.11 and 7.17) to semi-gradient
+form. Give deﬁnitions that cover both the episodic and continuing cases.
+⇤
+
+--- Page 282 ---
+260
+Chapter 11: O↵-policy Methods with Approximation
+11.2
+Examples of O↵-policy Divergence
+In this section we begin to discuss the second part of the challenge of o↵-policy learning
+with function approximation—that the distribution of updates does not match the on-
+policy distribution. We describe some instructive counterexamples to o↵-policy learning—
+cases where semi-gradient and other simple algorithms are unstable and diverge.
+To establish intuitions, it is best to consider ﬁrst a very simple example. Suppose,
+perhaps as part of a larger MDP, there are two states whose estimated values are of
+the functional form w and 2w, where the parameter vector w consists of only a single
+component w. This occurs under linear function approximation if the feature vectors
+for the two states are each simple numbers (single-component vectors), in this case 1
+and 2. In the ﬁrst state, only one action is available, and it results deterministically in a
+transition to the second state with a reward of 0:
+2w
+0
+2w
+where the expressions inside the two circles indicate the two state’s values.
+Suppose initially w = 10. The transition will then be from a state of estimated value
+10 to a state of estimated value 20. It will look like a good transition, and w will be
+increased to raise the ﬁrst state’s estimated value. If γ is nearly 1, then the TD error will
+be nearly 10, and, if ↵= 0.1, then w will be increased to nearly 11 in trying to reduce the
+TD error. However, the second state’s estimated value will also be increased, to nearly
+22. If the transition occurs again, then it will be from a state of estimated value ⇡11 to
+a state of estimated value ⇡22, for a TD error of ⇡11—larger, not smaller, than before.
+It will look even more like the ﬁrst state is undervalued, and its value will be increased
+again, this time to ⇡12.1. This looks bad, and in fact with further updates w will diverge
+to inﬁnity.
+To see this deﬁnitively we have to look more carefully at the sequence of updates. The
+TD error on a transition between the two states is
+δt = Rt+1 + γˆv(St+1,wt) −ˆv(St,wt) = 0 + γ2wt −wt = (2γ −1)wt,
+and the o↵-policy semi-gradient TD(0) update (from (11.2)) is
+wt+1 = wt + ↵⇢tδtrˆv(St,wt) = wt + ↵· 1 · (2γ −1)wt · 1 =
+#
+1 + ↵(2γ −1)
+$
+wt.
+Note that the importance sampling ratio, ⇢t, is 1 on this transition because there is
+only one action available from the ﬁrst state, so its probabilities of being taken under
+the target and behavior policies must both be 1. In the ﬁnal update above, the new
+parameter is the old parameter times a scalar constant, 1 + ↵(2γ −1). If this constant is
+greater than 1, then the system is unstable and w will go to positive or negative inﬁnity
+depending on its initial value. Here this constant is greater than 1 whenever γ > 0.5.
+Note that stability does not depend on the speciﬁc step size, as long as ↵> 0. Smaller or
+larger step sizes would a↵ect the rate at which w goes to inﬁnity, but not whether it goes
+there or not.
+Key to this example is that the one transition occurs repeatedly without w being
+updated on other transitions. This is possible under o↵-policy training because the
+
+--- Page 283 ---
+11.2. Examples of O↵-policy Divergence
+261
+behavior policy might select actions on those other transitions which the target policy
+never would. For these transitions, ⇢t would be zero and no update would be made.
+Under on-policy training, however, ⇢t is always one. Each time there is a transition from
+the w state to the 2w state, increasing w, there would also have to be a transition out
+of the 2w state. That transition would reduce w, unless it were to a state whose value
+was higher (because γ < 1) than 2w, and then that state would have to be followed by a
+state of even higher value, or else again w would be reduced. Each state can support the
+one before only by creating a higher expectation. Eventually the piper must be paid. In
+the on-policy case the promise of future reward must be kept and the system is kept in
+check. But in the o↵-policy case, a promise can be made and then, after taking an action
+that the target policy never would, forgotten and forgiven.
+This simple example communicates much of the reason why o↵-policy training can lead
+to divergence, but it is not completely convincing because it is not complete—it is just a
+fragment of a complete MDP. Can there really be a complete system with instability? A
+simple complete example of divergence is Baird’s counterexample. Consider the episodic
+seven-state, two-action MDP shown in Figure 11.1. The dashed action takes the system
+to one of the six upper states with equal probability, whereas the solid action takes the
+system to the seventh state. The behavior policy b selects the dashed and solid actions
+with probabilities 6
+7 and 1
+7, so that the next-state distribution under it is uniform (the
+same for all nonterminal states), which is also the starting distribution for each episode.
+The target policy ⇡always takes the solid action, and so the on-policy distribution (for ⇡)
+is concentrated in the seventh state. The reward is zero on all transitions. The discount
+rate is γ = 0.99.
+Consider estimating the state-value under the linear parameterization indicated by
+the expression shown in each state circle. For example, the estimated value of the
+leftmost state is 2w1 +w8, where the subscript corresponds to the component of the
+2w2+w8
+2w1+w8
+2w3+w8
+2w4+w8
+2w5+w8
+2w6+w8
+w7+2w8
+b(dashed|·) = 6/7
+b(solid|·) = 1/7
+⇡(solid|·) = 1
+γ = 0.99
+Figure 11.1: Baird’s counterexample. The approximate state-value function for this Markov
+process is of the form shown by the linear expressions inside each state. The solid action usually
+results in the seventh state, and the dashed action usually results in one of the other six states,
+each with equal probability. The reward is always zero.
+
+--- Page 284 ---
+262
+Chapter 11: O↵-policy Methods with Approximation
+overall weight vector w 2 R8; this corresponds to a feature vector for the ﬁrst state
+being x(1) = (2, 0, 0, 0, 0, 0, 0, 1)>. The reward is zero on all transitions, so the true value
+function is v⇡(s) = 0, for all s, which can be exactly approximated if w = 0. In fact,
+there are many solutions, as there are more components to the weight vector (8) than
+there are nonterminal states (7). Moreover, the set of feature vectors, {x(s) : s 2 S}, is
+a linearly independent set. In all these ways this task seems a favorable case for linear
+function approximation.
+If we apply semi-gradient TD(0) to this problem (11.2), then the weights diverge
+to inﬁnity, as shown in Figure 11.2 (left). The instability occurs for any positive step
+size, no matter how small. In fact, it even occurs if an expected update is done as in
+dynamic programming (DP), as shown in Figure 11.2 (right). That is, if the weight
+vector, wk, is updated for all states at the same time in a semi-gradient way, using the
+DP (expectation-based) target:
+wk+1 .= wk + ↵
+|S|
+X
+s
+⇣
+E⇡[Rt+1 + γˆv(St+1,wk) | St =s] −ˆv(s,wk)
+⌘
+rˆv(s,wk). (11.9)
+In this case, there is no randomness and no asynchrony, just as in a classical DP update.
+The method is conventional except in its use of semi-gradient function approximation.
+Yet still the system is unstable.
+If we alter just the distribution of DP updates in Baird’s counterexample, from the
+uniform distribution to the on-policy distribution (which generally requires asynchronous
+updating), then convergence is guaranteed to a solution with error bounded by (9.14).
+This example is striking because the TD and DP methods used are arguably the simplest
+w8
+w8
+300
+200
+100
+101
+1000
+0
+1000
+0
+w1– w6
+Steps
+w7
+Sweeps
+Semi-gradient Off-policy TD
+Semi-gradient DP
+w1– w6
+w7
+Figure 11.2: Demonstration of instability on Baird’s counterexample. Shown are the evolution
+of the components of the parameter vector w of the two semi-gradient algorithms. The step size
+was ↵= 0.01, and the initial weights were w = (1, 1, 1, 1, 1, 1, 10, 1)>.
+
+--- Page 285 ---
+11.2. Examples of O↵-policy Divergence
+263
+and best-understood bootstrapping methods, and the linear, semi-descent method used is
+arguably the simplest and best-understood kind of function approximation. The example
+shows that even the simplest combination of bootstrapping and function approximation
+can be unstable if the updates are not done according to the on-policy distribution.
+There are also counterexamples similar to Baird’s showing divergence for Q-learning.
+This is cause for concern because otherwise Q-learning has the best convergence guarantees
+of all control methods. Considerable e↵ort has gone into trying to ﬁnd a remedy to
+this problem or to obtain some weaker, but still workable, guarantee. For example, it
+may be possible to guarantee convergence of Q-learning as long as the behavior policy is
+suﬃciently close to the target policy, for example, when it is the "-greedy policy. To the
+best of our knowledge, Q-learning has never been found to diverge in this case, but there
+has been no theoretical analysis. In the rest of this section we present several other ideas
+that have been explored.
+Suppose that instead of taking just a step toward the expected one-step return on each
+iteration, as in Baird’s counterexample, we actually change the value function all the way
+to the best, least-squares approximation. Would this solve the instability problem? Of
+course it would if the feature vectors, {x(s) : s 2 S}, formed a linearly independent set,
+as they do in Baird’s counterexample, because then exact approximation is possible on
+each iteration and the method reduces to standard tabular DP. But of course the point
+here is to consider the case when an exact solution is not possible. In this case stability
+is not guaranteed even when forming the best approximation at each iteration, as shown
+in the example.
+Example 11.1: Tsitsiklis and Van Roy’s Counterexample This example shows
+that linear function approximation would not work with DP even if the least-squares
+1 −"
+"
+w
+2w
+solution was found at each step. The counterexample is formed
+by extending the w-to-2w example (from earlier in this section)
+with a terminal state, as shown to the right. As before, the
+estimated value of the ﬁrst state is w, and the estimated value
+of the second state is 2w. The reward is zero on all transitions,
+so the true values are zero at both states, which is exactly
+representable with w = 0. If we set wk+1 at each step so
+as to minimize the VE between the estimated value and the
+expected one-step return, then we have
+wk+1
+=
+argmin
+w2R
+X
+s2S
+⇣
+ˆv(s,w) −E⇡
+⇥
+Rt+1 + γˆv(St+1,wk)
+44 St = s
+⇤⌘2
+=
+argmin
+w2R
+#
+w −γ2wk
+$2 +
+#
+2w −(1 −")γ2wk
+$2
+=
+6 −4"
+5
+γwk.
+(11.10)
+The sequence {wk} diverges when γ >
+5
+6−4" and w0 6= 0.
+
+--- Page 286 ---
+264
+Chapter 11: O↵-policy Methods with Approximation
+Another way to try to prevent instability is to use special methods for function
+approximation. In particular, stability is guaranteed for function approximation methods
+that do not extrapolate from the observed targets. These methods, called averagers,
+include nearest neighbor methods and locally weighted regression, but not popular
+methods such as tile coding and artiﬁcial neural networks (ANNs).
+Exercise 11.3 (programming) Apply one-step semi-gradient Q-learning to Baird’s coun-
+terexample and show empirically that its weights diverge.
+⇤
+11.3
+The Deadly Triad
+Our discussion so far can be summarized by saying that the danger of instability and
+divergence arises whenever we combine all of the following three elements, making up
+what we call the deadly triad:
+Function approximation A powerful, scalable way of generalizing from a state space
+much larger than the memory and computational resources (e.g., linear function
+approximation or ANNs).
+Bootstrapping Update targets that include existing estimates (as in dynamic pro-
+gramming or TD methods) rather than relying exclusively on actual rewards and
+complete returns (as in MC methods).
+O↵-policy training Training on a distribution of transitions other than that produced
+by the target policy. Sweeping through the state space and updating all states
+uniformly, as in dynamic programming, does not respect the target policy and is
+an example of o↵-policy training.
+In particular, note that the danger is not due to control or to generalized policy iteration.
+Those cases are more complex to analyze, but the instability arises in the simpler prediction
+case whenever it includes all three elements of the deadly triad. The danger is also not
+due to learning or to uncertainties about the environment, because it occurs just as
+strongly in planning methods, such as dynamic programming, in which the environment
+is completely known.
+If any two elements of the deadly triad are present, but not all three, then instability
+can be avoided. It is natural, then, to go through the three and see if there is any one
+that can be given up.
+Of the three, function approximation most clearly cannot be given up. We need
+methods that scale to large problems and to great expressive power. We need at least
+linear function approximation with many features and parameters. State aggregation or
+nonparametric methods whose complexity grows with data are too weak or too expensive.
+Least-squares methods such as LSTD are of quadratic complexity and are therefore too
+expensive for large problems.
+Doing without bootstrapping is possible, at the cost of computational and data eﬃciency.
+Perhaps most important are the losses in computational eﬃciency. Monte Carlo (non-
+bootstrapping) methods require memory to save everything that happens between making
+
+--- Page 287 ---
+11.3. The Deadly Triad
+265
+each prediction and obtaining the ﬁnal return, and all their computation is done once the
+ﬁnal return is obtained. The cost of these computational issues is not apparent on serial
+von Neumann computers, but would be on specialized hardware. With bootstrapping and
+eligibility traces (Chapter 12), data can be dealt with when and where it is generated,
+then need never be used again. The savings in communication and memory made possible
+by bootstrapping are great.
+The losses in data eﬃciency by giving up bootstrapping are also signiﬁcant.
+We
+have seen this repeatedly, such as in Chapters 7 (Figure 7.2) and 9 (Figure 9.2), where
+some degree of bootstrapping performed much better than Monte Carlo methods on
+the random-walk prediction task, and in Chapter 10 where the same was seen on the
+Mountain-Car control task (Figure 10.4). Many other problems show much faster learning
+with bootstrapping (e.g., see Figure 12.14). Bootstrapping often results in faster learning
+because it allows learning to take advantage of the state property, the ability to recognize
+a state upon returning to it. On the other hand, bootstrapping can impair learning on
+problems where the state representation is poor and causes poor generalization (e.g.,
+this seems to be the case on Tetris, see S¸im¸sek, Alg´orta, and Kothiyal, 2016). A poor
+state representation can also result in bias; this is the reason for the poorer bound on
+the asymptotic approximation quality of bootstrapping methods (Equation 9.14). On
+balance, the ability to bootstrap has to be considered extremely valuable. One may
+sometimes choose not to use it by selecting long n-step updates (or a large bootstrapping
+parameter, λ ⇡1; see Chapter 12) but often bootstrapping greatly increases eﬃciency. It
+is an ability that we would very much like to keep in our toolkit.
+Finally, there is o↵-policy learning; can we give that up? On-policy methods are often
+adequate. For model-free reinforcement learning, one can simply use Sarsa rather than
+Q-learning. O↵-policy methods free behavior from the target policy. This could be
+considered an appealing convenience but not a necessity. However, o↵-policy learning
+is essential to other anticipated use cases, cases that we have not yet mentioned in this
+book but may be important to the larger goal of creating a powerful intelligent agent.
+In these use cases, the agent learns not just a single value function and single policy,
+but large numbers of them in parallel. There is extensive psychological evidence that
+people and animals learn to predict many di↵erent sensory events, not just rewards. We
+can be surprised by unusual events, and correct our predictions about them, even if
+they are of neutral valence (neither good nor bad). This kind of prediction presumably
+underlies predictive models of the world such as are used in planning. We predict what
+we will see after eye movements, how long it will take to walk home, the probability of
+making a jump shot in basketball, and the satisfaction we will get from taking on a new
+project. In all these cases, the events we would like to predict depend on our acting in
+a certain way. To learn them all, in parallel, requires learning from the one stream of
+experience. There are many target policies, and thus the one behavior policy cannot
+equal all of them. Yet parallel learning is conceptually possible because the behavior
+policy may overlap in part with many of the target policies. To take full advantage of
+this requires o↵-policy learning.
+
+--- Page 288 ---
+266
+Chapter 11: O↵-policy Methods with Approximation
+11.4
+Linear Value-function Geometry
+To better understand the stability challenge of o↵-policy learning, it is helpful to think
+about value function approximation more abstractly and independently of how learning
+is done. We can imagine the space of all possible state-value functions—all functions
+from states to real numbers v : S ! R. Most of these value functions do not correspond
+to any policy. More important for our purposes is that most are not representable by the
+function approximator, which by design has far fewer parameters than there are states.
+Given an enumeration of the state space S = {s1, s2, . . . , s|S|}, any value function v
+corresponds to a vector listing the value of each state in order [v(s1), v(s2), . . . , v(s|S|)]>.
+This vector representation of a value function has as many components as there are
+states. In most cases where we want to use function approximation, this would be far
+too many components to represent the vector explicitly. Nevertheless, the idea of this
+vector is conceptually useful. In the following, we treat a value function and its vector
+representation interchangeably.
+To develop intuitions, consider the case with three states S = {s1, s2, s3} and two
+parameters w = (w1, w2)>. We can then view all value functions/vectors as points in
+a three-dimensional space. The parameters provide an alternative coordinate system
+over a two-dimensional subspace. Any weight vector w = (w1, w2)> is a point in the
+two-dimensional subspace and thus also a complete value function vw that assigns values
+to all three states. With general function approximation the relationship between the
+full space and the subspace of representable functions could be complex, but in the case
+of linear value-function approximation the subspace is a simple plane, as suggested by
+Figure 11.3.
+Now consider a single ﬁxed policy ⇡. We assume that its true value function, v⇡, is too
+complex to be represented exactly as an approximation. Thus v⇡is not in the subspace;
+in the ﬁgure it is depicted as being above the planar subspace of representable functions.
+If v⇡cannot be represented exactly, what representable value function is closest to
+it? This turns out to be a subtle question with multiple answers. To begin, we need
+a measure of the distance between two value functions. Given two value functions v1
+and v2, we can talk about the vector di↵erence between them, v = v1 −v2. If v is small,
+then the two value functions are close to each other. But how are we to measure the size
+of this di↵erence vector? The conventional Euclidean norm is not appropriate because,
+as discussed in Section 9.2, some states are more important than others because they
+occur more frequently or because we are more interested in them (Section 9.11). As
+in Section 9.2, let us use the distribution µ : S ! [0, 1] to specify the degree to which
+we care about di↵erent states being accurately valued (often taken to be the on-policy
+distribution). We can then deﬁne the distance between value functions using the norm
+kvk2
+µ
+.=
+X
+s2S
+µ(s)v(s)2.
+(11.11)
+Note that the VE from Section 9.2 can be written simply using this norm as VE(w) =
+kvw −v⇡k2
+µ. For any value function v, the operation of ﬁnding its closest value function
+in the subspace of representable value functions is a projection operation. We deﬁne a
+
+--- Page 289 ---
+11.4. Linear Value-function Geometry
+267
+v⇡
+The subspace of all value functions representable as 
+Bellman error vector (BE)
+⇧v⇡= vθ⇤
+VE
+PBE(
+Value error (VE)
+w1
+w2
+vw
+vw
+B⇡vw
+⇧B⇡vw
+wTD
+PBE = ⃗0
+The 3D space of 
+all value functions 
+over 3 states
+min BE
+min TDE
+(min VE)
+Figure 11.3:
+The geometry of linear value-function approximation.
+Shown is the three-
+dimensional space of all value functions over three states, while shown as a plane is the subspace of
+all value functions representable by a linear function approximator with parameter w = (w1, w2)>.
+The true value function v⇡is in the larger space and can be projected down (into the subspace,
+using a projection operator ⇧) to its best approximation in the value error (VE) sense. The
+best approximators in the Bellman error (BE), projected Bellman error (PBE), and temporal
+di↵erence error (TDE) senses are all potentially di↵erent and are shown in the lower right. (VE,
+BE, and PBE are all treated as the corresponding vectors in this ﬁgure.) The Bellman operator
+takes a value function in the plane to one outside, which can then be projected back. If you
+iteratively applied the Bellman operator outside the space (shown in gray above) you would
+reach the true value function, as in conventional dynamic programming. If instead you kept
+projecting back into the subspace at each step, as in the lower step shown in gray, then the ﬁxed
+point would be the point of vector-zero PBE.
+projection operator ⇧that takes an arbitrary value function to the representable function
+that is closest in our norm:
+⇧v .= vw where w = argmin
+w2Rd kv −vwk2
+µ .
+(11.12)
+The representable value function that is closest to the true value function v⇡is thus its
+projection, ⇧v⇡, as suggested in Figure 11.3. This is the solution asymptotically found
+by Monte Carlo methods, albeit often very slowly. The projection operation is discussed
+more fully in the box on the next page.
+TD methods ﬁnd di↵erent solutions. To understand their rationale, recall that the
+Bellman equation for value function v⇡is
+v⇡(s) =
+X
+a
+⇡(a|s)
+X
+s0,r
+p(s0, r|s, a) [r + γv⇡(s0)] ,
+for all s 2 S.
+(11.16)
+
+--- Page 290 ---
+268
+Chapter 11: O↵-policy Methods with Approximation
+The projection matrix
+For a linear function approximator, the projection operation is linear, which implies
+that it can be represented as an |S| ⇥|S| matrix:
+⇧.= X
+#
+X>DX
+$−1 X>D,
+(11.13)
+where, as in Section 9.4, D denotes the |S| ⇥|S| diagonal matrix with the µ(s)
+on the diagonal, and X denotes the |S| ⇥d matrix whose rows are the feature
+vectors x(s)>, one for each state s. If the inverse in (11.13) does not exist, then the
+pseudoinverse is substituted. Using these matrices, the squared norm of a vector
+can be written
+kvk2
+µ = v>Dv,
+(11.14)
+and the approximate linear value function can be written
+vw = Xw.
+(11.15)
+The true value function v⇡is the only value function that solves (11.16) exactly. If an
+approximate value function vw were substituted for v⇡, the di↵erence between the right
+and left sides of the modiﬁed equation could be used as a measure of how far o↵vw is
+from v⇡. We call this the Bellman error at state s:
+¯δw(s) .=
+0
+@X
+a
+⇡(a|s)
+X
+s0,r
+p(s0, r|s, a) [r + γvw(s0)]
+1
+A −vw(s)
+(11.17)
+= E⇡
+⇥
+Rt+1 + γvw(St+1) −vw(St)
+44 St = s, At ⇠⇡
+⇤
+,
+(11.18)
+which shows clearly the relationship of the Bellman error to the TD error (11.3). The
+Bellman error is the expectation of the TD error.
+The vector of all the Bellman errors, at all states, ¯δw 2 R|S|, is called the Bellman
+error vector (shown as BE in Figure 11.3). The overall size of this vector, in the norm, is
+an overall measure of the error in the value function, called the mean square Bellman
+error:
+BE(w) =
+&&¯δw
+&&2
+µ .
+(11.19)
+It is not possible in general to reduce the BE to zero (at which point vw = v⇡), but for
+linear function approximation there is a unique value of w for which the BE is minimized.
+This point in the representable-function subspace (labeled min BE in Figure 11.3) is
+di↵erent in general from that which minimizes the VE (shown as ⇧v⇡). Methods that
+seek to minimize the BE are discussed in the next two sections.
+The Bellman error vector is shown in Figure 11.3 as the result of applying the Bellman
+operator B⇡: R|S| ! R|S| to the approximate value function. The Bellman operator is
+
+--- Page 291 ---
+11.5. Gradient Descent in the Bellman Error
+269
+deﬁned by
+(B⇡v)(s) .=
+X
+a
+⇡(a|s)
+X
+s0,r
+p(s0, r|s, a) [r + γv(s0)] ,
+(11.20)
+for all s 2 S, v : S ! R. The Bellman error vector for vw can be written ¯δw = B⇡vw −vw.
+If the Bellman operator is applied to a value function in the representable subspace,
+then, in general, it will produce a new value function that is outside the subspace, as
+suggested in the ﬁgure. In dynamic programming (without function approximation), this
+operator is applied repeatedly to the points outside the representable space, as suggested
+by the gray arrows in the top of Figure 11.3. Eventually that process converges to the
+true value function v⇡, the only ﬁxed point for the Bellman operator, the only value
+function for which
+v⇡= B⇡v⇡,
+(11.21)
+which is just another way of writing the Bellman equation for ⇡(11.16).
+With function approximation, however, the intermediate value functions lying outside
+the subspace cannot be represented. The gray arrows in the upper part of Figure 11.3
+cannot be followed because after the ﬁrst update (dark line) the value function must
+be projected back into something representable. The next iteration then begins within
+the subspace; the value function is again taken outside of the subspace by the Bellman
+operator and then mapped back by the projection operator, as suggested by the lower
+gray arrow and line. Following these arrows is a DP-like process with approximation.
+In this case we are interested in the projection of the Bellman error vector back into
+the representable space. This is the projected Bellman error vector ⇧¯δw, shown in
+Figure 11.3 as PBE. The size of this vector, in the norm, is another measure of error in
+the approximate value function. For any approximate value function vw, we deﬁne the
+mean square Projected Bellman error, denoted PBE, as
+PBE(w) =
+&&⇧¯δw
+&&2
+µ .
+(11.22)
+With linear function approximation there always exists an approximate value function
+(within the subspace) with zero PBE; this is the TD ﬁxed point, wTD, introduced in
+Section 9.4. As we have seen, this point is not always stable under semi-gradient TD
+methods and o↵-policy training. As shown in the ﬁgure, this value function is generally
+di↵erent from those minimizing VE or BE. Methods that are guaranteed to converge to
+it are discussed in Sections 11.7 and 11.8.
+11.5
+Gradient Descent in the Bellman Error
+Armed with a better understanding of value function approximation and its various
+objectives, we return now to the challenge of stability in o↵-policy learning. We would
+like to apply the approach of stochastic gradient descent (SGD, Section 9.3), in which
+updates are made that in expectation are equal to the negative gradient of an objective
+
+--- Page 292 ---
+270
+Chapter 11: O↵-policy Methods with Approximation
+function. These methods always go downhill (in expectation) in the objective and because
+of this are typically stable with excellent convergence properties. Among the algorithms
+investigated so far in this book, only the Monte Carlo methods are true SGD methods.
+These methods converge robustly under both on-policy and o↵-policy training as well
+as for general nonlinear (di↵erentiable) function approximators, though they are often
+slower than semi-gradient methods with bootstrapping, which are not SGD methods.
+Semi-gradient methods may diverge under o↵-policy training, as we have seen earlier in
+this chapter, and under contrived cases of nonlinear function approximation (Tsitsiklis
+and Van Roy, 1997). With a true SGD method such divergence would not be possible.
+The appeal of SGD is so strong that great e↵ort has gone into ﬁnding a practical
+way of harnessing it for reinforcement learning. The starting place of all such e↵orts is
+the choice of an error or objective function to optimize. In this and the next section
+we explore the origins and limits of the most popular proposed objective function, that
+based on the Bellman error introduced in the previous section. Although this has been a
+popular and inﬂuential approach, the conclusion that we reach here is that it is a misstep
+and yields no good learning algorithms. On the other hand, this approach fails in an
+interesting way that o↵ers insight into what might constitute a good approach.
+To begin, let us consider not the Bellman error, but something more immediate
+and naive. Temporal di↵erence learning is driven by the TD error. Why not take the
+minimization of the expected square of the TD error as the objective? In the general
+function-approximation case, the one-step TD error with discounting is
+δt = Rt+1 + γˆv(St+1,wt) −ˆv(St,wt).
+A possible objective function then is what one might call the mean square TD error:
+TDE(w) =
+X
+s2S
+µ(s)E
+⇥
+δ2
+t
+44 St =s, At ⇠⇡
+⇤
+=
+X
+s2S
+µ(s)E
+⇥
+⇢tδ2
+t
+44 St =s, At ⇠b
+⇤
+= Eb
+⇥
+⇢tδ2
+t
+⇤
+.
+(if µ is the distribution encountered under b)
+The last equation is of the form needed for SGD; it gives the objective as an expectation
+that can be sampled from experience (remember the experience is due to the behavior
+policy b). Thus, following the standard SGD approach, one can derive the per-step update
+based on a sample of this expected value:
+wt+1 = wt −1
+2↵r(⇢tδ2
+t )
+= wt −↵⇢tδtrδt
+= wt + ↵⇢tδt
+#
+rˆv(St,wt) −γrˆv(St+1,wt)
+$
+,
+(11.23)
+which you will recognize as the same as the semi-gradient TD algorithm (11.2) except for
+the additional ﬁnal term. This term completes the gradient and makes this a true SGD
+algorithm with excellent convergence guarantees. Let us call this algorithm the naive
+
+--- Page 293 ---
+11.5. Gradient Descent in the Bellman Error
+271
+residual-gradient algorithm (after Baird, 1995). Although the naive residual-gradient
+algorithm converges robustly, it does not necessarily converge to a desirable place.
+Example 11.2: A-split example,
+showing the naivet´e of the naive residual-gradient algorithm
+A
+B
+C
+0
+0
+0
+1
+Consider the three-state episodic MRP shown to the right.
+Episodes begin in state A and then ‘split’ stochastically, half
+the time going to B (and then invariably going on to terminate
+with a reward of 1) and half the time going to state C (and
+then invariably terminating with a reward of zero). Reward for
+the ﬁrst transition, out of A, is always zero whichever way the
+episode goes. As this is an episodic problem, we can take γ to
+be 1. We also assume on-policy training, so that ⇢t is always
+1, and tabular function approximation, so that the learning algorithms are free to
+give arbitrary, independent values to all three states. Thus, this should be an easy
+problem.
+What should the values be? From A, half the time the return is 1, and half the
+time the return is 0; A should have value 1
+2. From B the return is always 1, so its
+value should be 1, and similarly from C the return is always 0, so its value should
+be 0. These are the true values and, as this is a tabular problem, all the methods
+presented previously converge to them exactly.
+However, the naive residual-gradient algorithm ﬁnds di↵erent values for B and
+C. It converges with B having a value of 3
+4 and C having a value of 1
+4 (A converges
+correctly to 1
+2). These are in fact the values that minimize the TDE.
+Let us compute the TDE for these values. The ﬁrst transition of each episode is
+either up from A’s 1
+2 to B’s 3
+4, a change of 1
+4, or down from A’s 1
+2 to C’s 1
+4, a change
+of −1
+4. Because the reward is zero on these transitions, and γ = 1, these changes are
+the TD errors, and thus the squared TD error is always
+1
+16 on the ﬁrst transition.
+The second transition is similar; it is either up from B’s 3
+4 to a reward of 1 (and a
+terminal state of value 0), or down from C’s 1
+4 to a reward of 0 (again with a terminal
+state of value 0). Thus, the TD error is always ± 1
+4, for a squared error of
+1
+16 on the
+second step. Thus, for this set of values, the TDE on both steps is
+1
+16.
+Now let’s compute the TDE for the true values (B at 1, C at 0, and A at 1
+2). In this
+case the ﬁrst transition is either from 1
+2 up to 1, at B, or from 1
+2 down to 0, at C; in
+either case the absolute error is 1
+2 and the squared error is 1
+4. The second transition
+has zero error because the starting value, either 1 or 0 depending on whether the
+transition is from B or C, always exactly matches the immediate reward and return.
+Thus the squared TD error is 1
+4 on the ﬁrst transition and 0 on the second, for a
+mean reward over the two transitions of 1
+8. As 1
+8 is bigger that
+1
+16, this solution is
+worse according to the TDE. On this simple problem, the true values do not have
+the smallest TDE.
+
+--- Page 294 ---
+272
+Chapter 11: O↵-policy Methods with Approximation
+A tabular representation is used in the A-split example, so the true state values can
+be exactly represented, yet the naive residual-gradient algorithm ﬁnds di↵erent values,
+and these values have lower TDE than do the true values. Minimizing the TDE is naive;
+by penalizing all TD errors it achieves something more like temporal smoothing than
+accurate prediction.
+A better idea would seem to be minimizing the mean square Bellman error (BE). If
+the exact values are learned, the Bellman error is zero everywhere. Thus, a Bellman-
+error-minimizing algorithm should have no trouble with the A-split example. We cannot
+expect to achieve zero Bellman error in general, as it would involve ﬁnding the true value
+function, which we presume is outside the space of representable value functions. But
+getting close to this ideal is a natural-seeming goal. As we have seen, the Bellman error
+is also closely related to the TD error. The Bellman error for a state is the expected TD
+error in that state. So let’s repeat the derivation above with the expected TD error (all
+expectations here are implicitly conditional on St):
+wt+1 = wt −1
+2↵r(E⇡[δt]2)
+= wt −1
+2↵r(Eb[⇢tδt]2)
+= wt −↵Eb[⇢tδt] rEb[⇢tδt]
+= wt −↵Eb
+⇥
+⇢t(Rt+1 + γˆv(St+1,w) −ˆv(St,w))
+⇤
+Eb[⇢trδt]
+= wt + ↵
+h
+Eb
+⇥
+⇢t(Rt+1 + γˆv(St+1,w))
+⇤
+−ˆv(St,w)
+ih
+rˆv(St,w) −γEb
+⇥
+⇢trˆv(St+1,w)
+⇤i
+.
+This update and various ways of sampling it are referred to as the residual-gradient
+algorithm. If you simply used the sample values in all the expectations, then the equation
+above reduces almost exactly to (11.23), the naive residual-gradient algorithm.1 But
+this is naive, because the equation above involves the next state, St+1, appearing in two
+expectations that are multiplied together. To get an unbiased sample of the product,
+two independent samples of the next state are required, but during normal interaction
+with an external environment only one is obtained. One expectation or the other can be
+sampled, but not both.
+There are two ways to make the residual-gradient algorithm work. One is in the case
+of deterministic environments. If the transition to the next state is deterministic, then
+the two samples will necessarily be the same, and the naive algorithm is valid. The
+other way is to obtain two independent samples of the next state, St+1, from St, one for
+the ﬁrst expectation and another for the second expectation. In real interaction with
+an environment, this would not seem possible, but when interacting with a simulated
+environment, it is. One simply rolls back to the previous state and obtains an alternate
+next state before proceeding forward from the ﬁrst next state. In either of these cases the
+residual-gradient algorithm is guaranteed to converge to a minimum of the BE under the
+usual conditions on the step-size parameter. As a true SGD method, this convergence is
+1For state values there remains a small di↵erence in the treatment of the importance sampling ratio
+⇢t. In the analagous action-value case (which is the most important case for control algorithms), the
+residual-gradient algorithm would reduce exactly to the naive version.
+
+--- Page 295 ---
+11.5. Gradient Descent in the Bellman Error
+273
+robust, applying to both linear and nonlinear function approximators. In the linear case,
+convergence is always to the unique w that minimizes the BE.
+However, there remain at least three ways in which the convergence of the residual-
+gradient method is unsatisfactory. The ﬁrst of these is that empirically it is slow, much
+slower that semi-gradient methods. Indeed, proponents of this method have proposed
+increasing its speed by combining it with faster semi-gradient methods initially, then
+gradually switching over to residual gradient for the convergence guarantee (Baird and
+Moore, 1999). The second way in which the residual-gradient algorithm is unsatisfactory
+is that it still seems to converge to the wrong values. It does get the right values in all
+tabular cases, such as the A-split example, as for those an exact solution to the Bellman
+Example 11.3: A-presplit example, a counterexample for the BE
+A1
+B
+C
+0
+0
+0
+1
+A2
+A
+Consider the three-state episodic MRP shown to the
+right: Episodes start in either A1 or A2, with equal
+probability. These two states look exactly the same to
+the function approximator, like a single state A whose
+feature representation is distinct from and unrelated to
+the feature representation of the other two states, B and
+C, which are also distinct from each other. Speciﬁcally,
+the parameter of the function approximator has three
+components, one giving the value of state B, one giving the value of state C, and one
+giving the value of both states A1 and A2. Other than the selection of the initial
+state, the system is deterministic. If it starts in A1, then it transitions to B with a
+reward of 0 and then on to termination with a reward of 1. If it starts in A2, then it
+transitions to C, and then to termination, with both rewards zero.
+To a learning algorithm, seeing only the features, the system looks identical to
+the A-split example. The system seems to always start in A, followed by either
+B or C with equal probability, and then terminating with a 1 or a 0 depending
+deterministically on the previous state. As in the A-split example, the true values
+of B and C are 1 and 0, and the best shared value of A1 and A2 is 1
+2, by symmetry.
+Because this problem appears externally identical to the A-split example, we
+already know what values will be found by the algorithms. Semi-gradient TD
+converges to the ideal values just mentioned, while the naive residual-gradient
+algorithm converges to values of
+3
+4 and
+1
+4 for B and C respectively.
+All state
+transitions are deterministic, so the non-naive residual-gradient algorithm will also
+converge to these values (it is the same algorithm in this case). It follows then that
+this ‘naive’ solution must also be the one that minimizes the BE, and so it is. On a
+deterministic problem, the Bellman errors and TD errors are all the same, so the
+BE is always the same as the TDE. Optimizing the BE on this example gives rise to
+the same failure mode as with the naive residual-gradient algorithm on the A-split
+example.
+
+--- Page 296 ---
+274
+Chapter 11: O↵-policy Methods with Approximation
+equation is possible. But if we examine examples with genuine function approximation,
+then the residual-gradient algorithm, and indeed the BE objective, seem to ﬁnd the
+wrong value functions. One of the most telling such examples is the variation on the
+A-split example known as the A-presplit example, shown on the preceding page, in which
+the residual-gradient algorithm ﬁnds the same poor solution as its naive version. This
+example shows intuitively that minimizing the BE (which the residual-gradient algorithm
+surely does) may not be a desirable goal.
+The third way in which the convergence of the residual-gradient algorithm is not
+satisfactory is explained in the next section. Like the second way, the third way is also
+a problem with the BE objective itself rather than with any particular algorithm for
+achieving it.
+11.6
+The Bellman Error is Not Learnable
+The concept of learnability that we introduce in this section is di↵erent from that
+commonly used in machine learning. There, a hypothesis is said to be “learnable” if
+it is eﬃciently learnable, meaning that it can be learned within a polynomial rather
+than an exponential number of examples. Here we use the term in a more basic way,
+to mean learnable at all, with any amount of experience. It turns out many quantities
+of apparent interest in reinforcement learning cannot be learned even from an inﬁnite
+amount of experiential data. These quantities are well deﬁned and can be computed
+given knowledge of the internal structure of the environment, but cannot be computed
+or estimated from the observed sequence of feature vectors, actions, and rewards.2 We
+say that they are not learnable. It will turn out that the Bellman error objective (BE)
+introduced in the last two sections is not learnable in this sense. That the Bellman error
+objective cannot be learned from the observable data is probably the strongest reason
+not to seek it.
+To make the concept of learnability clear, let’s start with some simple examples.
+Consider the two Markov reward processes3 (MRPs) diagrammed below:
+0
+2
+0
+2
+2
+0
+w
+w
+w
+Where two edges leave a state, both transitions are assumed to occur with equal probability,
+and the numbers indicate the reward received. All the states appear the same; they all
+produce the same single-component feature vector x = 1 and have approximated value
+w. Thus, the only varying part of the data trajectory is the reward sequence. The left
+MRP stays in the same state and emits an endless stream of 0s and 2s at random, each
+with 0.5 probability. The right MRP, on every step, either stays in its current state or
+2They would of course be estimated if the state sequence were observed rather than only the
+corresponding feature vectors.
+3All MRPs can be considered MDPs with a single action in all states; what we conclude about MRPs
+here applies as well to MDPs.
+
+--- Page 297 ---
+11.6. The Bellman Error is Not Learnable
+275
+switches to the other, with equal probability. The reward is deterministic in this MRP,
+always a 0 from one state and always a 2 from the other, but because the each state
+is equally likely on each step, the observable data is again an endless stream of 0s and
+2s at random, identical to that produced by the left MRP. (We can assume the right
+MRP starts in one of two states at random with equal probability.) Thus, even given
+an inﬁnite amount of data, it would not be possible to tell which of these two MRPs
+was generating it. In particular, we could not tell if the MRP has one state or two, is
+stochastic or deterministic. These things are not learnable.
+This pair of MRPs also illustrates that the VE objective (9.1) is not learnable. If
+γ = 0, then the true values of the three states (in both MRPs), left to right, are 1, 0,
+and 2. Suppose w = 1. Then the VE is 0 for the left MRP and 1 for the right MRP.
+Because the VE is di↵erent in the two problems, yet the data generated has the same
+distribution, the VE cannot be learned. The VE is not a unique function of the data
+distribution. And if it cannot be learned, then how could the VE possibly be useful as
+an objective for learning?
+If an objective cannot be learned, it does indeed draw its utility into question. In
+the case of the VE, however, there is a way out. Note that the same solution, w = 1,
+is optimal for both MRPs above (assuming µ is the same for the two indistinguishable
+states in the right MRP). Is this a coincidence, or could it be generally true that all
+MDPs with the same data distribution also have the same optimal parameter vector? If
+this is true—and we will show next that it is—then the VE remains a usable objective.
+The VE is not learnable, but the parameter that optimizes it is!
+To understand this, it is useful to bring in another natural objective function, this
+time one that is clearly learnable. One error that is always observable is that between the
+value estimate at each time and the return from that time. The mean square return error,
+denoted RE, is the expectation, under µ, of the square of this error. In the on-policy case
+the RE can be written
+RE(w) = E
+h#
+Gt −ˆv(St,w)
+$2i
+= VE(w) + E
+h#
+Gt −v⇡(St)
+$2i
+.
+(11.24)
+Thus, the two objectives are the same except for a variance term that does not depend on
+the parameter vector. The two objectives must therefore have the same optimal parameter
+value w⇤. The overall relationships are summarized in the left side of Figure 11.4.
+⇤Exercise 11.4 Prove (11.24). Hint: Write the RE as an expectation over possible states
+s of the expectation of the squared error given that St = s. Then add and subtract the
+true value of state s from the error (before squaring), grouping the subtracted true value
+with the return and the added true value with the estimated value. Then, if you expand
+the square, the most complex term will end up being zero, leaving you with (11.24). ⇤
+Now let us return to the BE. The BE is like the VE in that it can be computed from
+knowledge of the MDP but is not learnable from data. But it is not like the VE in that its
+minimum solution is not learnable. The box on the next page presents a counterexample—
+two MRPs that generate the same data distribution but whose minimizing parameter
+vector is di↵erent, proving that the optimal parameter vector is not a function of the
+
+--- Page 298 ---
+276
+Chapter 11: O↵-policy Methods with Approximation
+Example 11.4: Counterexample to the learnability of the Bellman error
+To show the full range of possibilities we need a slightly more complex pair of Markov
+reward processes (MRPs) than those considered earlier. Consider the following two
+MRPs:
+B
+A
+1
+0
+-1
+B
+A
+0
+-1 B
+0
+1
+-1
+Where two edges leave a state, both transitions are assumed to occur with equal
+probability, and the numbers indicate the reward received. The MRP on the left has
+two states that are represented distinctly. The MRP on the right has three states,
+two of which, B and B0, appear the same and must be given the same approximate
+value. Speciﬁcally, w has two components and the value of state A is given by the ﬁrst
+component and the value of B and B0 is given by the second. The second MRP has
+been designed so that equal time is spent in all three states, so we can take µ(s) = 1
+3,
+for all s.
+Note that the observable data distribution is identical for the two MRPs. In both
+cases the agent will see single occurrences of A followed by a 0, then some number
+of apparent Bs, each followed by a −1 except the last, which is followed by a 1, then
+we start all over again with a single A and a 0, etc. All the statistical details are the
+same as well; in both MRPs, the probability of a string of k Bs is 2−k.
+Now suppose w = 0. In the ﬁrst MRP, this is an exact solution, and the BE is
+zero. In the second MRP, this solution produces a squared error in both B and B0 of
+1, such that BE = µ(B)1 + µ(B0)1 = 2
+3. These two MRPs, which generate the same
+data distribution, have di↵erent BEs; the BE is not learnable.
+Moreover (and unlike the earlier example for the VE) the minimizing value of w
+is di↵erent for the two MRPs. For the ﬁrst MRP, w = 0 minimizes the BE for any
+γ. For the second MRP, the minimizing w is a complicated function of γ, but in
+the limit, as γ ! 1, it is (−1
+2, 0)>. Thus the solution that minimizes BE cannot be
+estimated from data alone; knowledge of the MRP beyond what is revealed in the
+data is required. In this sense, it is impossible in principle to pursue the BE as an
+objective for learning.
+It may be surprising that in the second MRP the BE-minimizing value of A is so far
+from zero. Recall that A has a dedicated weight and thus its value is unconstrained
+by function approximation. A is followed by a reward of 0 and transition to a state
+with a value of nearly 0, which suggests vw(A) should be 0; why is its optimal
+value substantially negative rather than 0? The answer is that making vw(A) negative
+reduces the error upon arriving in A from B. The reward on this deterministic transition
+is 1, which implies that B should have a value 1 more than A. Because B’s value is
+approximately zero, A’s value is driven toward −1. The BE-minimizing value of ⇡−1
+2
+for A is a compromise between reducing the errors on leaving and on entering A.
+
+--- Page 299 ---
+11.6. The Bellman Error is Not Learnable
+277
+MDP1
+MDP2
+MSBE1
+MSBE2
+✓∗
+1
+✓∗
+2
+MSPBE
+✓∗
+3
+MSTDE
+✓∗
+4
+Data
+distribution
+MDP1
+MDP2
+MSVE1
+MSVE2
+MSRE
+Data
+distribution
+✓∗
+w⇤
+w⇤
+1
+w⇤
+2
+w⇤
+3
+w⇤
+4
+VE1
+VE2
+RE
+BE2
+BE1
+PBE
+TDE
+Monte Carlo
+objectives
+Bootstrapping
+objectives
+Figure 11.4: Causal relationships among the data distribution, MDPs, and various objectives.
+Left, Monte Carlo objectives: Two di↵erent MDPs can produce the same data distribution
+yet also produce di↵erent VEs, proving that the VE objective cannot be determined from data
+and is not learnable. However, all such VEs must have the same optimal parameter vector, w⇤!
+Moreover, this same w⇤can be determined from another objective, the RE, which is uniquely
+determined from the data distribution. Thus w⇤and the RE are learnable even though the VEs
+are not. Right, Bootstrapping objectives: Two di↵erent MDPs can produce the same data
+distribution yet also produce di↵erent BEs and have di↵erent minimizing parameter vectors;
+these are not learnable from the data distribution. The PBE and TDE objectives and their
+(di↵erent) minima can be directly determined from data and thus are learnable.
+data and thus cannot be learned from it. The other bootstrapping objectives that we
+have considered, the PBE and TDE, can be determined from data (are learnable) and
+determine optimal solutions that are in general di↵erent from each other and the BE
+minimums. The general case is summarized in the right side of Figure 11.4.
+Thus, the BE is not learnable; it cannot be estimated from feature vectors and other
+observable data. This limits the BE to model-based settings. There can be no algorithm
+that minimizes the BE without access to the underlying MDP states beyond the feature
+vectors. The residual-gradient algorithm is only able to minimize BE because it is allowed
+to double sample from the same state—not a state that has the same feature vector,
+but one that is guaranteed to be the same underlying state. We can see now that there
+is no way around this. Minimizing the BE requires some such access to the nominal,
+underlying MDP. This is an important limitation of the BE beyond that identiﬁed in the
+A-presplit example on page 273. All this directs more attention toward the PBE.
+
+--- Page 300 ---
+278
+Chapter 11: O↵-policy Methods with Approximation
+11.7
+Gradient-TD Methods
+We now consider SGD methods for minimizing the PBE. As true SGD methods, these
+Gradient-TD methods have robust convergence properties even under o↵-policy training
+and nonlinear function approximation. Remember that in the linear case there is always
+an exact solution, the TD ﬁxed point wTD, at which the PBE is zero. This solution could
+be found by least-squares methods (Section 9.8), but only by methods of quadratic O(d2)
+complexity in the number of parameters. We seek instead an SGD method, which should
+be O(d) and have robust convergence properties. Gradient-TD methods come close to
+achieving these goals, at the cost of a rough doubling of computational complexity.
+To derive an SGD method for the PBE (assuming linear function approximation) we
+begin by expanding and rewriting the objective (11.22) in matrix terms:
+PBE(w) =
+&&⇧¯δw
+&&2
+µ
+= (⇧¯δw)>D⇧¯δw
+(from (11.14))
+= ¯δ>
+w⇧>D⇧¯δw
+= ¯δ>
+wDX
+#
+X>DX
+$−1X>D¯δw
+(11.25)
+(using (11.13) and the identity ⇧>D⇧= DX
+#
+X>DX
+$−1 X>D)
+=
+#
+X>D¯δw
+$>#
+X>DX
+$−1#
+X>D¯δw
+$
+.
+(11.26)
+The gradient with respect to w is
+rPBE(w) = 2r
+⇥
+X>D¯δw
+⇤> #
+X>DX
+$−1#
+X>D¯δw
+$
+.
+To turn this into an SGD method, we have to sample something on every time step that
+has this quantity as its expected value. Let us take µ to be the distribution of states
+visited under the behavior policy. All three of the factors above can then be written in
+terms of expectations under this distribution. For example, the last factor can be written
+X>D¯δw =
+X
+s
+µ(s)x(s)¯δw(s) = E[⇢tδtxt] ,
+which is just the expectation of the semi-gradient TD(0) update (11.2). The ﬁrst factor
+is the transpose of the gradient of this update:
+rE[⇢tδtxt]> = E
+⇥
+⇢trδ>
+t x>
+t
+⇤
+= E
+⇥
+⇢tr(Rt+1 + γw>xt+1 −w>xt)>x>
+t
+⇤
+(using episodic δt)
+= E
+⇥
+⇢t(γxt+1 −xt)x>
+t
+⇤
+.
+Finally, the middle factor is the inverse of the expected outer-product matrix of the
+feature vectors:
+X>DX =
+X
+s
+µ(s)x(s)x(s)> = E
+⇥
+xtx>
+t
+⇤
+.
+

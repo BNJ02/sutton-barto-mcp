@@ -1,0 +1,5 @@
+fastmcp>=3.4.2
+# starlette and the `mcp` package come in as fastmcp dependencies, but the
+# OAuth layer imports them directly, so pin them explicitly.
+mcp>=1.2.0
+starlette>=0.37.0

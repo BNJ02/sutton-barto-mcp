@@ -1,0 +1,2301 @@
+--- Page 451 ---
+16.3. Watson’s Daily-Double Wagering
+429
+extensive use of a supervised learning mode called “book learning,” and hierarchical
+lookup tables called signature tables (Griﬃth, 1966) to represent the value function
+instead of linear function approximation. This version learned to play much better than
+the 1959 program, though still not at a master level. Samuel’s checkers-playing program
+was widely recognized as a signiﬁcant achievement in artiﬁcial intelligence and machine
+learning.
+16.3
+Watson’s Daily-Double Wagering
+IBM Watson1 is the system developed by a team of IBM researchers to play the popular
+TV quiz show Jeopardy!.2 It gained fame in 2011 by winning ﬁrst prize in an exhibition
+match against human champions. Although the main technical achievement demonstrated
+by Watson was its ability to quickly and accurately answer natural language questions
+over broad areas of general knowledge, its winning Jeopardy! performance also relied on
+sophisticated decision-making strategies for critical parts of the game. Tesauro, Gondek,
+Lechner, Fan, and Prager (2012, 2013) adapted Tesauro’s TD-Gammon system described
+above to create the strategy used by Watson in “Daily-Double” (DD) wagering in its
+celebrated winning performance against human champions. These authors report that the
+e↵ectiveness of this wagering strategy went well beyond what human players are able to
+do in live game play, and that it, along with other advanced strategies, was an important
+contributor to Watson’s impressive winning performance. Here we focus only on DD
+wagering because it is the component of Watson that owes the most to reinforcement
+learning.
+Jeopardy! is played by three contestants who face a board showing 30 squares, each of
+which hides a clue and has a dollar value. The squares are arranged in six columns, each
+corresponding to a di↵erent category. A contestant selects a square, the host reads the
+square’s clue, and each contestant may choose to respond to the clue by sounding a buzzer
+(“buzzing in”). The ﬁrst contestant to buzz in gets to try responding to the clue. If this
+contestant’s response is correct, their score increases by the dollar value of the square; if
+their response is not correct, or if they do not respond within ﬁve seconds, their score
+decreases by that amount, and the other contestants get a chance to buzz in to respond
+to the same clue. One or two squares (depending on the game’s current round) are
+special DD squares. A contestant who selects one of these gets an exclusive opportunity
+to respond to the square’s clue and has to decide—before the clue is revealed—on how
+much to wager, or bet. The bet has to be greater than ﬁve dollars but not greater than
+the contestant’s current score. If the contestant responds correctly to the DD clue, their
+score increases by the bet amount; otherwise it decreases by the bet amount. At the end
+of each game is a “Final Jeopardy” (FJ) round in which each contestant writes down
+a sealed bet and then writes an answer after the clue is read. The contestant with the
+highest score after three rounds of play (where a round consists of revealing all 30 clues)
+is the winner. The game has many other details, but these are enough to appreciate
+1Registered trademark of IBM Corp.
+2Registered trademark of Jeopardy Productions Inc.
+
+--- Page 452 ---
+430
+Chapter 16: Applications and Case Studies
+the importance of DD wagering. Winning or losing often depends on a contestant’s DD
+wagering strategy.
+Whenever Watson selected a DD square, it chose its bet by comparing action values,
+ˆq(s, bet), that estimated the probability of a win from the current game state, s, for
+each round-dollar legal bet. Except for some risk-abatement measures described below,
+Watson selected the bet with the maximum action value. Action values were computed
+whenever a betting decision was needed by using two types of estimates that were learned
+before any live game play took place. The ﬁrst were estimated values of the afterstates
+(Section 6.8) that would result from selecting each legal bet. These estimates were obtained
+from a state-value function, ˆv(·,w), deﬁned by parameters w, that gave estimates of the
+probability of a win for Watson from any game state. The second estimates used to
+compute action values gave the “in-category DD conﬁdence,” pDD, which estimated the
+likelihood that Watson would respond correctly to the as-yet unrevealed DD clue.
+Tesauro et al. used the reinforcement learning approach of TD-Gammon described above
+to learn ˆv(·,w): a straightforward combination of nonlinear TD(λ) using a multilayer
+ANN with weights w trained by backpropagating TD errors during many simulated
+games. States were represented to the network by feature vectors speciﬁcally designed
+for Jeopardy!. Features included the current scores of the three players, how many DDs
+remained, the total dollar value of the remaining clues, and other information related to
+the amount of play left in the game. Unlike TD-Gammon, which learned by self-play,
+Watson’s ˆv was learned over millions of simulated games against carefully-crafted models
+of human players. In-category conﬁdence estimates were conditioned on the number of
+right responses r and wrong responses w that Watson gave in previously-played clues in
+the current category. The dependencies on (r, w) were estimated from Watson’s actual
+accuracies over many thousands of historical categories.
+With the previously learned value function ˆv and in-category DD conﬁdence pDD,
+Watson computed ˆq(s, bet) for each legal round-dollar bet as follows:
+ˆq(s, bet) = pDD ⇥ˆv(SW + bet,. . .) + (1 −pDD) ⇥ˆv(SW −bet,. . .),
+(16.2)
+where SW is Watson’s current score, and ˆv gives the estimated value for the game state
+after Watson’s response to the DD clue, which is either correct or incorrect. Computing
+an action value this way corresponds to the insight from Exercise 3.19 that an action
+value is the expected next state value given the action (except that here it is the expected
+next afterstate value because the full next state of the entire game depends on the next
+square selection).
+Tesauro et al. found that selecting bets by maximizing action values incurred “a
+frightening amount of risk,” meaning that if Watson’s response to the clue happened to
+be wrong, the loss could be disastrous for its chances of winning. To decrease the downside
+risk of a wrong answer, Tesauro et al. adjusted (16.2) by subtracting a small fraction of
+the standard deviation over Watson’s correct/incorrect afterstate evaluations. They
+further reduced risk by prohibiting bets that would cause the wrong-answer afterstate
+value to decrease below a certain limit. These measures slightly reduced Watson’s
+expectation of winning, but they signiﬁcantly reduced downside risk, not only in terms of
+average risk per DD bet, but even more so in extreme-risk scenarios where a risk-neutral
+Watson would bet most or all of its bankroll.
+
+--- Page 453 ---
+16.3. Watson’s Daily-Double Wagering
+431
+Why was the TD-Gammon method of self-play not used to learn the critical value
+function ˆv? Learning from self-play in Jeopardy! would not have worked very well
+because Watson was so di↵erent from any human contestant. Self-play would have led to
+exploration of state space regions that are not typical for play against human opponents,
+particularly human champions. In addition, unlike backgammon, Jeopardy! is a game
+of imperfect information because contestants do not have access to all the information
+inﬂuencing their opponents’ play. In particular, Jeopardy! contestants do not know how
+much conﬁdence their opponents have for responding to clues in the various categories.
+Self-play would have been something like playing poker with someone who is holding the
+same cards that you hold.
+As a result of these complications, much of the e↵ort in developing Watson’s DD-
+wagering strategy was devoted to creating good models of human opponents. The models
+did not address the natural language aspect of the game, but were instead stochastic
+process models of events that can occur during play. Statistics were extracted from an
+extensive fan-created archive of game information from the beginning of the show to the
+present day. The archive includes information such as the ordering of the clues, right and
+wrong contestant answers, DD locations, and DD and FJ bets for nearly 300,000 clues.
+Three models were constructed: an Average Contestant model (based on all the data), a
+Champion model (based on statistics from games with the 100 best players), and a Grand
+Champion model (based on statistics from games with the 10 best players). In addition
+to serving as opponents during learning, the models were used to assess the beneﬁts
+produced by the learned DD-wagering strategy. Watson’s win rate in simulation when it
+used a baseline heuristic DD-wagering strategy was 61%; when it used the learned values
+and a default conﬁdence value, its win rate increased to 64%; and with live in-category
+conﬁdence, it was 67%. Tesauro et al. regarded this as a signiﬁcant improvement, given
+that the DD wagering was needed only about 1.5 to 2 times in each game.
+Because Watson had only a few seconds to bet, as well as to select squares and decide
+whether or not to buzz in, the computation time needed to make these decisions was
+a critical factor. The ANN implementation of ˆv allowed DD bets to be made quickly
+enough to meet the time constraints of live play. However, once games could be simulated
+fast enough through improvements in the simulation software, near the end of a game
+it was feasible to estimate the value of bets by averaging over many Monte-Carlo trials
+in which the consequence of each bet was determined by simulating play to the game’s
+end. Selecting endgame DD bets in live play based on Monte-Carlo trials instead of the
+ANN signiﬁcantly improved Watson’s performance because errors in value estimates
+in endgames could seriously a↵ect its chances of winning. Making all the decisions via
+Monte-Carlo trials might have led to better wagering decisions, but this was simply
+impossible given the complexity of the game and the time constraints of live play.
+Although its ability to quickly and accurately answer natural language questions
+stands out as Watson’s major achievement, all of its sophisticated decision strategies
+contributed to its impressive defeat of human champions. According to Tesauro et al.
+(2012):
+... it is plainly evident that our strategy algorithms achieve a level of quanti-
+tative precision and real-time performance that exceeds human capabilities.
+
+--- Page 454 ---
+432
+Chapter 16: Applications and Case Studies
+This is particularly true in the cases of DD wagering and endgame buzzing,
+where humans simply cannot come close to matching the precise equity and
+conﬁdence estimates and complex decision calculations performed by Watson.
+16.4
+Optimizing Memory Control
+Most computers use dynamic random access memory (DRAM) as their main memory
+because of its low cost and high capacity. The job of a DRAM memory controller is to
+eﬃciently use the interface between the processor chip and an o↵-chip DRAM system
+to provide the high-bandwidth and low-latency data transfer necessary for high-speed
+program execution.
+A memory controller needs to deal with dynamically changing
+patterns of read/write requests while adhering to a large number of timing and resource
+constraints required by the hardware. This is a formidable scheduling problem, especially
+with modern processors with multiple cores sharing the same DRAM.
+˙Ipek, Mutlu, Mart´ınez, and Caruana (2008) (also Mart´ınez and ˙Ipek, 2009) designed
+a reinforcement learning memory controller and demonstrated that it can signiﬁcantly
+improve the speed of program execution over what was possible with conventional
+controllers at the time of their research. They were motivated by limitations of existing
+state-of-the-art controllers that used policies that did not take advantage of past scheduling
+experience and did not account for long-term consequences of scheduling decisions. ˙Ipek
+et al.’s project was carried out by means of simulation, but they designed the controller
+at the detailed level of the hardware needed to implement it—including the learning
+algorithm—directly on a processor chip.
+Accessing DRAM involves a number of steps that have to be done according to strict
+time constraints. DRAM systems consist of multiple DRAM chips, each containing
+multiple rectangular arrays of storage cells arranged in rows and columns. Each cell
+stores a bit as the charge on a capacitor. Because the charge decreases over time, each
+DRAM cell needs to be recharged—refreshed—every few milliseconds to prevent memory
+content from being lost. This need to refresh the cells is why DRAM is called “dynamic.”
+Each cell array has a row bu↵er that holds a row of bits that can be transferred into
+or out of one of the array’s rows. An activate command “opens a row,” which means
+moving the contents of the row whose address is indicated by the command into the
+row bu↵er. With a row open, the controller can issue read and write commands to the
+cell array. Each read command transfers a word (a short sequence of consecutive bits)
+in the row bu↵er to the external data bus, and each write command transfers a word
+in the external data bus to the row bu↵er. Before a di↵erent row can be opened, a
+precharge command must be issued which transfers the (possibly updated) data in the
+row bu↵er back into the addressed row of the cell array. After this, another activate
+command can open a new row to be accessed. Read and write commands are column
+commands because they sequentially transfer bits into or out of columns of the row bu↵er;
+multiple bits can be transferred without re-opening the row. Read and write commands
+to the currently-open row can be carried out more quickly than accessing a di↵erent row,
+which would involve additional row commands: precharge and activate; this is sometimes
+
+--- Page 455 ---
+16.4. Optimizing Memory Control
+433
+referred to as “row locality.” A memory controller maintains a memory transaction queue
+that stores memory-access requests from the processors sharing the memory system. The
+controller has to process requests by issuing commands to the memory system while
+adhering to a large number of timing constraints.
+A controller’s policy for scheduling access requests can have a large e↵ect on the
+performance of the memory system, such as the average latency with which requests
+can be satisﬁed and the throughput the system is capable of achieving. The simplest
+scheduling strategy handles access requests in the order in which they arrive by issuing
+all the commands required by the request before beginning to service the next one. But if
+the system is not ready for one of these commands, or executing a command would result
+in resources being underutilized (e.g., due to timing constraints arising from servicing
+that one command), it makes sense to begin servicing a newer request before ﬁnishing
+the older one. Policies can gain eﬃciency by reordering requests, for example, by giving
+priority to read requests over write requests, or by giving priority to read/write commands
+to already open rows. The policy called First-Ready, First-Come-First-Serve (FR-FCFS),
+gives priority to column commands (read and write) over row commands (activate and
+precharge), and in case of a tie gives priority to the oldest command. FR-FCFS was
+shown to outperform other scheduling policies in terms of average memory-access latency
+under conditions commonly encountered (Rixner, 2004).
+Figure 16.3 is a high-level view of ˙Ipek et al.’s reinforcement learning memory controller.
+They modeled the DRAM access process as an MDP whose states are the contents of the
+transaction queue and whose actions are commands to the DRAM system: precharge,
+activate, read, write, and NoOp. The reward signal is 1 whenever the action is read or
+write, and otherwise it is 0. State transitions were considered to be stochastic because
+the next state of the system not only depends on the scheduler’s command, but also on
+aspects of the system’s behavior that the scheduler cannot control, such as the workloads
+of the processor cores accessing the DRAM system.
+Figure 16.3: High-level view of the reinforcement learning DRAM controller. The scheduler is
+the reinforcement learning agent. Its environment is represented by features of the transaction
+queue, and its actions are commands to the DRAM system. ©2009 IEEE. Reprinted, with
+permission, from J. F. Mart´ınez and E. ˙Ipek, Dynamic multicore resource management: A
+machine learning approach, Micro, IEEE, 29(5), p. 12.
+
+--- Page 456 ---
+434
+Chapter 16: Applications and Case Studies
+Critical to this MDP are constraints on the actions available in each state. Recall from
+Chapter 3 that the set of available actions can depend on the state: At 2 A(St), where
+At is the action at time step t and A(St) is the set of actions available in state St. In
+this application, the integrity of the DRAM system was assured by not allowing actions
+that would violate timing or resource constraints. Although ˙Ipek et al. did not make it
+explicit, they e↵ectively accomplished this by pre-deﬁning the sets A(St) for all possible
+states St.
+These constraints explain why the MDP has a NoOp action and why the reward signal
+is 0 except when a read or write command is issued. NoOp is issued when it is the sole
+legal action in a state. To maximize utilization of the memory system, the controller’s
+task is to drive the system to states in which either a read or a write action can be
+selected: only these actions result in sending data over the external data bus, so it is only
+these that contribute to the throughput of the system. Although precharge and activate
+produce no immediate reward, the agent needs to select these actions to make it possible
+to later select the rewarded read and write actions.
+The scheduling agent used Sarsa (Section 6.4) to learn an action-value function. States
+were represented by six integer-valued features. To approximate the action-value function,
+the algorithm used linear function approximation implemented by tile coding with hashing
+(Section 9.5.4). The tile coding had 32 tilings, each storing 256 action values as 16-bit
+ﬁxed point numbers. Exploration was "-greedy with " = 0.05.
+State features included the number of read requests in the transaction queue, the
+number of write requests in the transaction queue, the number of write requests in the
+transaction queue waiting for their row to be opened, and the number of read requests in
+the transaction queue waiting for their row to be opened that are the oldest issued by
+their requesting processors. (The other features depended on how the DRAM interacts
+with cache memory, details we omit here.) The selection of the state features was based
+on ˙Ipek et al.’s understanding of factors that impact DRAM performance. For example,
+balancing the rate of servicing reads and writes based on how many of each are in the
+transaction queue can help avoid stalling the DRAM system’s interaction with cache
+memory. The authors in fact generated a relatively long list of potential features, and
+then pared them down to a handful using simulations guided by stepwise feature selection.
+An interesting aspect of this formulation of the scheduling problem as an MDP is
+that the features input to the tile coding for deﬁning the action-value function were
+di↵erent from the features used to specify the action-constraint sets A(St). Whereas the
+tile coding input was derived from the contents of the transaction queue, the constraint
+sets depended on a host of other features related to timing and resource constraints that
+had to be satisﬁed by the hardware implementation of the entire system. In this way, the
+action constraints ensured that the learning algorithm’s exploration could not endanger
+the integrity of the physical system, while learning was e↵ectively limited to a “safe”
+region of the much larger state space of the hardware implementation.
+Because an objective of this work was that the learning controller could be implemented
+on a chip so that learning could occur online while a computer is running, hardware
+implementation details were important considerations. The design included two ﬁve-stage
+pipelines to calculate and compare two action values at every processor clock cycle, and
+
+--- Page 457 ---
+16.4. Optimizing Memory Control
+435
+to update the appropriate action value. This included accessing the tile coding which
+was stored on-chip in static RAM. For the conﬁguration ˙Ipek et al. simulated, which was
+a 4GHz 4-core chip typical of high-end workstations at the time of their research, there
+were 10 processor cycles for every DRAM cycle. Considering the cycles needed to ﬁll
+the pipes, up to 12 actions could be evaluated in each DRAM cycle. ˙Ipek et al. found
+that the number of legal commands for any state was rarely greater than this, and that
+performance loss was negligible if enough time was not always available to consider all
+legal commands. These and other clever design details made it feasible to implement the
+complete controller and learning algorithm on a multi-processor chip.
+˙Ipek et al. evaluated their learning controller in simulation by comparing it with three
+other controllers: (1) the FR-FCFS controller mentioned above that produces the best
+on-average performance, (2) a conventional controller that processes each request in
+order, and (3) an unrealizable ideal controller, called the Optimistic controller, able
+to sustain 100% DRAM throughput if given enough demand by ignoring all timing
+and resource constraints, but otherwise modeling DRAM latency (as row bu↵er hits)
+and bandwidth. They simulated nine memory-intensive parallel workloads consisting of
+scientiﬁc and data-mining applications. Figure 16.4 shows the performance (the inverse
+of execution time normalized to the performance of FR-FCFS) of each controller for
+the nine applications, together with the geometric mean of their performances over the
+applications. The learning controller, labeled RL in the ﬁgure, improved over that of
+FR-FCFS by from 7% to 33% over the nine applications, with an average improvement of
+19%. Of course, no realizable controller can match the performance of Optimistic, which
+ignores all timing and resource constraints, but the learning controller’s performance
+closed the gap with Optimistic’s upper bound by an impressive 27%.
+Because the rationale for on-chip implementation of the learning algorithm was to
+allow the scheduling policy to adapt online to changing workloads, ˙Ipek et al. analyzed
+the impact of online learning compared to a previously-learned ﬁxed policy. They trained
+Figure 16.4: Performances of four controllers over a suite of 9 simulated benchmark applications.
+The controllers are: the simplest ‘in-order’ controller, FR-FCFS, the learning controller RL,
+and the unrealizable Optimistic controller which ignores all timing and resource constraints to
+provide a performance upper bound. Performance, normalized to that of FR-FCFS, is the inverse
+of execution time. At far right is the geometric mean of performances over the 9 benchmark
+applications for each controller. Controller RL comes closest to the ideal performance. ©2009
+IEEE. Reprinted, with permission, from J. F. Mart´ınez and E. ˙Ipek, Dynamic multicore resource
+management: A machine learning approach, Micro, IEEE, 29(5), p. 13.
+
+--- Page 458 ---
+436
+Chapter 16: Applications and Case Studies
+their controller with data from all nine benchmark applications and then held the resulting
+action values ﬁxed throughout the simulated execution of the applications. They found
+that the average performance of the controller that learned online was 8% better than
+that of the controller using the ﬁxed policy, leading them to conclude that online learning
+is an important feature of their approach.
+This learning memory controller was never committed to physical hardware because of
+the large cost of fabrication. Nevertheless, ˙Ipek et al. could convincingly argue on the basis
+of their simulation results that a memory controller that learns online via reinforcement
+learning has the potential to improve performance to levels that would otherwise require
+more complex and more expensive memory systems, while removing from human designers
+some of the burden required to manually design eﬃcient scheduling policies. Mukundan
+and Mart´ınez (2012) took this project forward by investigating learning controllers with
+additional actions, other performance criteria, and more complex reward functions derived
+using genetic algorithms. They considered additional performance criteria related to
+energy eﬃciency. The results of these studies surpassed the earlier results described
+above and signiﬁcantly surpassed the 2012 state-of-the-art for all of the performance
+criteria they considered. The approach is especially promising for developing sophisticated
+power-aware DRAM interfaces.
+16.5
+Human-level Video Game Play
+One of the greatest challenges in applying reinforcement learning to real-world problems
+is deciding how to represent and store value functions and/or policies. Unless the state
+set is ﬁnite and small enough to allow exhaustive representation by a lookup table—as in
+many of our illustrative examples—one must use a parameterized function approximation
+scheme. Whether linear or nonlinear, function approximation relies on features that
+have to be readily accessible to the learning system and able to convey the information
+necessary for skilled performance. Most successful applications of reinforcement learning
+owe much to sets of features carefully handcrafted based on human knowledge and
+intuition about the speciﬁc problem to be tackled.
+A team of researchers at Google DeepMind developed an impressive demonstration that
+a deep multi-layer ANN can automate the feature design process (Mnih et al., 2013, 2015).
+Multi-layer ANNs have been used for function approximation in reinforcement learning
+ever since the 1986 popularization of the backpropagation algorithm as a method for
+learning internal representations (Rumelhart, Hinton, and Williams, 1986; see Section 9.7).
+Striking results have been obtained by coupling reinforcement learning with backpropa-
+gation. The results obtained by Tesauro and colleagues with TD-Gammon and Watson
+discussed above are notable examples. These and other applications beneﬁted from the
+ability of multi-layer ANNs to learn task-relevant features. However, in all the examples
+of which we are aware, the most impressive demonstrations required the network’s input
+to be represented in terms of specialized features handcrafted for the given problem.
+This is vividly apparent in the TD-Gammon results. TD-Gammon 0.0, whose network
+input was essentially a “raw” representation of the backgammon board, meaning that it
+involved very little knowledge of backgammon, learned to play approximately as well as
+
+--- Page 459 ---
+16.5. Human-level Video Game Play
+437
+the best previous backgammon computer programs. Adding specialized backgammon
+features produced TD-Gammon 1.0 which was substantially better than all previous
+backgammon programs and competed well against human experts.
+Mnih et al. developed a reinforcement learning agent called deep Q-network (DQN)
+that combined Q-learning with a deep convolutional ANN, a many-layered, or deep,
+ANN specialized for processing spatial arrays of data such as images. We describe deep
+convolutional ANNs in Section 9.7. By the time of Mnih et al.’s work with DQN, deep
+ANNs, including deep convolutional ANNs, had produced impressive results in many
+applications, but they had not been widely used in reinforcement learning.
+Mnih et al. used DQN to show how a reinforcement learning agent can achieve a high
+level of performance on any of a collection of di↵erent problems without having to use
+di↵erent problem-speciﬁc feature sets. To demonstrate this, they let DQN learn to play
+49 di↵erent Atari 2600 video games by interacting with a game emulator. DQN learned a
+di↵erent policy for each of the 49 games (because the weights of its ANN were reset to
+random values before learning on each game), but it used the same raw input, network
+architecture, and parameter values (e.g., step size, discount rate, exploration parameters,
+and many more speciﬁc to the implementation) for all the games. DQN achieved levels
+of play at or beyond human level on a large fraction of these games. Although the games
+were alike in being played by watching streams of video images, they varied widely in other
+respects. Their actions had di↵erent e↵ects, they had di↵erent state-transition dynamics,
+and they needed di↵erent policies for learning high scores. The deep convolutional ANN
+learned to transform the raw input common to all the games into features specialized for
+representing the action values required for playing at the high level DQN achieved for
+most of the games.
+The Atari 2600 is a home video game console that was sold in various versions by Atari
+Inc. from 1977 to 1992. It introduced or popularized many arcade video games that are
+now considered classics, such as Pong, Breakout, Space Invaders, and Asteroids. Although
+much simpler than modern video games, Atari 2600 games are still entertaining and
+challenging for human players, and they have been attractive as testbeds for developing
+and evaluating reinforcement learning methods (Diuk, Cohen, Littman, 2008; Naddaf,
+2010; Cobo, Zang, Isbell, and Thomaz, 2011; Bellemare, Veness, and Bowling, 2013).
+Bellemare, Naddaf, Veness, and Bowling (2012) developed the publicly available Arcade
+Learning Environment (ALE) to encourage and simplify using Atari 2600 games to study
+learning and planning algorithms.
+These previous studies and the availability of ALE made the Atari 2600 game collection
+a good choice for Mnih et al.’s demonstration, which was also inﬂuenced by the impressive
+human-level performance that TD-Gammon was able to achieve in backgammon. DQN
+is similar to TD-Gammon in using a multi-layer ANN as the function approximation
+method for a semi-gradient form of a TD algorithm, with the gradients computed by
+the backpropagation algorithm. However, instead of using TD(λ) as TD-Gammon did,
+DQN used the semi-gradient form of Q-learning. TD-Gammon estimated the values of
+afterstates, which were easily obtained from the rules for making backgammon moves.
+To use the same algorithm for the Atari games would have required generating the next
+states for each possible action (which would not have been afterstates in that case).
+This could have been done by using the game emulator to run single-step simulations
+
+--- Page 460 ---
+438
+Chapter 16: Applications and Case Studies
+for all the possible actions (which ALE makes possible). Or a model of each game’s
+state-transition function could have been learned and used to predict next states (Oh,
+Guo, Lee, Lewis, and Singh, 2015). While these methods might have produced results
+comparable to DQN’s, they would have been more complicated to implement and would
+have signiﬁcantly increased the time needed for learning. Another motivation for using
+Q-learning was that DQN used the experience replay method, described below, which
+requires an o↵-policy algorithm. Being model-free and o↵-policy made Q-learning a
+natural choice.
+Before describing the details of DQN and how the experiments were conducted, we look
+at the skill levels DQN was able to achieve. Mnih et al. compared the scores of DQN with
+the scores of the best performing learning system in the literature at the time, the scores
+of a professional human games tester, and the scores of an agent that selected actions at
+random. The best system from the literature used linear function approximation with
+features designed using some knowledge about Atari 2600 games (Bellemare, Naddaf,
+Veness, and Bowling, 2013). DQN learned on each game by interacting with the game
+emulator for 50 million frames, which corresponds to about 38 days of experience with
+the game. At the start of learning on each game, the weights of DQN’s network were reset
+to random values. To evaluate DQN’s skill level after learning, its score was averaged
+over 30 sessions on each game, each lasting up to 5 minutes and beginning with a random
+initial game state. The professional human tester played using the same emulator (with
+the sound turned o↵to remove any possible advantage over DQN which did not process
+audio). After 2 hours of practice, the human played about 20 episodes of each game for up
+to 5 minutes each and was not allowed to take any break during this time. DQN learned
+to play better than the best previous reinforcement learning systems on all but 6 of the
+games, and played better than the human player on 22 of the games. By considering any
+performance that scored at or above 75% of the human score to be comparable to, or
+better than, human-level play, Mnih et al. concluded that the levels of play DQN learned
+reached or exceeded human level on 29 of the 46 games. See Mnih et al. (2015) for a
+more detailed account of these results.
+For an artiﬁcial learning system to achieve these levels of play would be impressive
+enough, but what makes these results remarkable—and what many at the time considered
+to be breakthrough results for artiﬁcial intelligence—is that the very same learning system
+achieved these levels of play on widely varying games without relying on any game-speciﬁc
+modiﬁcations.
+A human playing any of these 49 Atari games sees 210⇥160 pixel image frames with
+128 colors at 60Hz. In principle, exactly these images could have formed the raw input to
+DQN, but to reduce memory and processing requirements, Mnih et al. preprocessed each
+frame to produce an 84⇥84 array of luminance values. Because the full states of many
+of the Atari games are not completely observable from the image frames, Mnih et al.
+“stacked” the four most recent frames so that the inputs to the network had dimension
+84⇥84⇥4. This did not eliminate partial observability for all of the games, but it was
+helpful in making many of them more Markovian.
+An essential point here is that these preprocessing steps were exactly the same for all 46
+games. No game-speciﬁc prior knowledge was involved beyond the general understanding
+that it should still be possible to learn good policies with this reduced dimension and
+
+--- Page 461 ---
+16.5. Human-level Video Game Play
+439
+that stacking adjacent frames should help with the partial observability of some of the
+games. Because no game-speciﬁc prior knowledge beyond this minimal amount was used
+in preprocessing the image frames, we can think of the 84⇥84⇥4 input vectors as being
+“raw” input to DQN.
+The basic architecture of DQN is similar to the deep convolutional ANN illustrated in
+Figure 9.15 (though unlike that network, subsampling in DQN is treated as part of each
+convolutional layer, with feature maps consisting of units having only a selection of the
+possible receptive ﬁelds). DQN has three hidden convolutional layers, followed by one
+fully connected hidden layer, followed by the output layer. The three successive hidden
+convolutional layers of DQN produce 32 20⇥20 feature maps, 64 9⇥9 feature maps,
+and 64 7⇥7 feature maps. The activation function of the units of each feature map is a
+rectiﬁer nonlinearity (max(0, x)). The 3,136 (64⇥7⇥7) units in this third convolutional
+layer all connect to each of 512 units in the fully connected hidden layer, which then each
+connect to all 18 units in the output layer, one for each possible action in an Atari game.
+The activation levels of DQN’s output units were the estimated optimal action values
+of the corresponding state–action pairs, for the state represented by the network’s input.
+The assignment of output units to a game’s actions varied from game to game, and
+because the number of valid actions varied between 4 and 18 for the games, not all output
+units had functional roles in all of the games. It helps to think of the network as if it
+were 18 separate networks, one for estimating the optimal action value of each possible
+action. In reality, these networks shared their initial layers, but the output units learned
+to use the features extracted by these layers in di↵erent ways.
+DQN’s reward signal indicated how a games’s score changed from one time step to
+the next: +1 whenever it increased, −1 whenever it decreased, and 0 otherwise. This
+standardized the reward signal across the games and made a single step-size parameter
+work well for all the games despite their varying ranges of scores. DQN used an "-greedy
+policy, with " decreasing linearly over the ﬁrst million frames and remaining at a low
+value for the rest of the learning session. The values of the various other parameters,
+such as the learning step size, discount rate, and others speciﬁc to the implementation,
+were selected by performing informal searches to see which values worked best for a small
+selection of the games. These values were then held ﬁxed for all of the games.
+After DQN selected an action, the action was executed by the game emulator, which
+returned a reward and the next video frame. The frame was preprocessed and added
+to the four-frame stack that became the next input to the network. Skipping for the
+moment the changes to the basic Q-learning procedure made by Mnih et al., DQN used
+the following semi-gradient form of Q-learning to update the network’s weights:
+wt+1 = wt + ↵
+h
+Rt+1 + γ max
+a
+ˆq(St+1, a, wt) −ˆq(St, At, wt)
+i
+rˆq(St, At, wt), (16.3)
+where wt is the vector of the network’s weights, At is the action selected at time step t,
+and St and St+1 are respectively the preprocessed image stacks input to the network at
+time steps t and t + 1.
+The gradient in (16.3) was computed by backpropagation. Imagining again that there
+was a separate network for each action, for the update at time step t, backpropagation
+was applied only to the network corresponding to At. Mnih et al. took advantage of
+techniques shown to improve the basic backpropagation algorithm when applied to large
+
+--- Page 462 ---
+440
+Chapter 16: Applications and Case Studies
+networks. They used a mini-batch method that updated weights only after accumulating
+gradient information over a small batch of images (here after 32 images). This yielded
+smoother sample gradients compared to the usual procedure that updates weights after
+each action. They also used a gradient-ascent algorithm called RMSProp (Tieleman and
+Hinton, 2012) that accelerates learning by adjusting the step-size parameter for each
+weight based on a running average of the magnitudes of recent gradients for that weight.
+Mnih et al. modiﬁed the basic Q-learning procedure in three ways. First, they used
+a method called experience replay ﬁrst studied by Lin (1992). This method stores the
+agent’s experience at each time step in a replay memory that is accessed to perform the
+weight updates. It worked like this in DQN. After the game emulator executed action
+At in a state represented by the image stack St, and returned reward Rt+1 and image
+stack St+1, it added the tuple (St, At, Rt+1, St+1) to the replay memory. This memory
+accumulated experiences over many plays of the same game. At each time step multiple Q-
+learning updates—a mini-batch—were performed based on experiences sampled uniformly
+at random from the replay memory. Instead of St+1 becoming the new St for the next
+update as it would in the usual form of Q-learning, a new unconnected experience was
+drawn from the replay memory to supply data for the next update. Because Q-learning
+is an o↵-policy algorithm, it does not need to be applied along connected trajectories.
+Q-learning with experience replay provided several advantages over the usual form of
+Q-learning. The ability to use each stored experience for many updates allowed DQN to
+learn more eﬃciently from its experiences. Experience replay reduced the variance of the
+updates because successive updates were not correlated with one another as they would
+be with standard Q-learning. And by removing the dependence of successive experiences
+on the current weights, experience replay eliminated one source of instability.
+Mnih et al. modiﬁed standard Q-learning in a second way to improve its stability. As
+in other methods that bootstrap, the target for a Q-learning update depends on the
+current action-value function estimate. When a parameterized function approximation
+method is used to represent action values, the target is a function of the same parameters
+that are being updated.
+For example, the target in the update given by (16.3) is
+γ maxa ˆq(St+1, a, wt). Its dependence on wt complicates the process compared to the
+simpler supervised-learning situation in which the targets do not depend on the parameters
+being updated. As discussed in Chapter 11 this can lead to oscillations and/or divergence.
+To address this problem Mnih et al. used a technique that brought Q-learning closer
+to the simpler supervised-learning case while still allowing it to bootstrap. Whenever
+a certain number, C, of updates had been done to the weights w of the action-value
+network, they inserted the network’s current weights into another network and held
+these duplicate weights ﬁxed for the next C updates of w. The outputs of this duplicate
+network over the next C updates of w were used as the Q-learning targets. Letting ˜q
+denote the output of this duplicate network, then instead of (16.3) the update rule was:
+wt+1 = wt + ↵
+h
+Rt+1 + γ max
+a
+˜q(St+1, a, wt) −ˆq(St, At, wt)
+i
+rˆq(St, At, wt).
+A ﬁnal modiﬁcation of standard Q-learning was also found to improve stability. They
+clipped the error term Rt+1 + γ maxa ˜q(St+1, a, wt) −ˆq(St, At, wt) so that it remained in
+the interval [−1, 1].
+
+--- Page 463 ---
+16.6. Mastering the Game of Go
+441
+Mnih et al. conducted a large number of learning runs on 5 of the games to gain
+insight into the e↵ect that various of DQN’s design features had on its performance.
+They ran DQN with the four combinations of experience replay and the duplicate
+target network being included or not included. Although the results varied from game
+to game, each of these features alone signiﬁcantly improved performance, and very
+dramatically improved performance when used together. Mnih et al. also studied the role
+played by the deep convolutional ANN in DQN’s learning ability by comparing the deep
+convolutional version of DQN with a version having a network of just one linear layer, both
+receiving the same stacked preprocessed video frames. Here, the improvement of the deep
+convolutional version over the linear version was particularly striking across all 5 of the test
+games.
+Creating artiﬁcial agents that excel over a diverse collection of challenging tasks has
+been an enduring goal of artiﬁcial intelligence. The promise of machine learning as
+a means for achieving this has been frustrated by the need to craft problem-speciﬁc
+representations. DeepMind’s DQN stands as a major step forward by demonstrating
+that a single agent can learn problem-speciﬁc features enabling it to acquire human-
+competitive skills over a range of tasks. This demonstration did not produce one agent
+that simultaneously excelled at all the tasks (because learning occurred separately for
+each task), but it showed that deep learning can reduce, and possibly eliminate, the need
+for problem-speciﬁc design and tuning. As Mnih et al. point out, however, DQN is not
+a complete solution to the problem of task-independent learning. Although the skills
+needed to excel on the Atari games were markedly diverse, all the games were played by
+observing video images, which made a deep convolutional ANN a natural choice for this
+collection of tasks. In addition, DQN’s performance on some of the Atari 2600 games
+fell considerably short of human skill levels on these games. The games most diﬃcult
+for DQN—especially Montezuma’s Revenge on which DQN learned to perform about as
+well as the random player—require deep planning beyond what DQN was designed to
+do. Further, learning control skills through extensive practice, like DQN learned how to
+play the Atari games, is just one of the types of learning humans routinely accomplish.
+Despite these limitations, DQN advanced the state-of-the-art in machine learning by
+impressively demonstrating the promise of combining reinforcement learning with modern
+methods of deep learning.
+16.6
+Mastering the Game of Go
+The ancient Chinese game of Go has challenged artiﬁcial intelligence researchers for many
+decades. Methods that achieve human-level skill, or even superhuman-level skill, in other
+games have not been successful in producing strong Go programs. Thanks to a very
+active community of Go programmers and international competitions, the level of Go
+program play has improved signiﬁcantly over the years. Until recently, however, no Go
+program had been able to play anywhere near the level of a human Go master.
+A team at DeepMind (Silver et al., 2016) developed the program AlphaGo that broke
+this barrier by combining deep ANNs (Section 9.7), supervised learning, Monte Carlo
+
+--- Page 464 ---
+442
+Chapter 16: Applications and Case Studies
+tree search (MCTS, Section 8.11), and reinforcement learning. By the time of Silver et
+al.’s 2016 publication, AlphaGo had been shown to be decisively stronger than other Go
+programs, and it had defeated the European Go champion Fan Hui 5 games to 0. These
+were the ﬁrst victories of a Go program over a professional human Go player without
+handicap in full Go games. Shortly thereafter, a similar version of AlphaGo won stunning
+victories over the 18-time world champion Lee Sedol, winning 4 out of a 5 games in
+a challenge match, making worldwide headline news. Artiﬁcial intelligence researchers
+thought that it would be many more years, perhaps decades, before a program reached
+this level of play.
+Here we describe AlphaGo and a successor program called AlphaGo Zero (Silver et al.
+2017a). Where in addition to reinforcement learning, AlphaGo relied on supervised learn-
+ing from a large database of expert human moves, AlphaGo Zero used only reinforcement
+learning and no human data or guidance beyond the basic rules of the game (hence the
+Zero in its name). We ﬁrst describe AlphaGo in some detail in order to highlight the
+relative simplicity of AlphaGo Zero, which is both higher-performing and more of a pure
+reinforcement learning program.
+In many ways, both AlphaGo and AlphaGo Zero are descendants of Tesauro’s TD-
+Gammon (Section 16.1), itself a descendant of Samuel’s checkers player (Section 16.2).
+All these programs included reinforcement learning over simulated games of self-play.
+AlphaGo and AlphaGo Zero also built upon the progress made by DeepMind on playing
+Atari games with the program DQN (Section 16.5) that used deep convolutional ANNs
+to approximate optimal value functions.
+A Go board conﬁguration
+Go is a game between two players who alter-
+nately place black and white ‘stones’ on unoccu-
+pied intersections, or ‘points,’ on a board with
+a grid of 19 horizontal and 19 vertical lines to
+produce positions like that shown to the right.
+The game’s goal is to capture an area of the
+board larger than that captured by the oppo-
+nent. Stones are captured according to simple
+rules. A player’s stones are captured if they
+are completely surrounded by the other player’s
+stones, meaning that there is no horizontally
+or vertically adjacent point that is unoccupied.
+For example, the left panel of Figure 16.5 (on
+the next page) shows three white stones with
+an unoccupied adjacent point (labeled X). If
+black were to place a stone on X, then the three
+white stones would be captured and taken o↵
+the board (middle panel). However, if white were to place a stone on point X ﬁrst, then
+the possibility of this capture would be blocked (right panel). Other rules are needed to
+prevent inﬁnite capturing/recapturing loops. The game ends when neither player wishes
+to place another stone. These rules are simple, but they produce a very complex game
+that has had wide appeal for thousands of years.
+
+--- Page 465 ---
+16.6. Mastering the Game of Go
+443
+X
+Figure 16.5: Go capturing rule. Left: the three white stones are not surrounded because point
+X is unoccupied. Middle: if black places a stone on X, the three white stones are captured and
+removed from the board. Right: if white places a stone on point X ﬁrst, the capture is blocked.
+Methods that produce strong play for other games, such as chess, have not worked as
+well for Go. The search space for Go is signiﬁcantly larger than that of chess because
+Go has a larger number of legal moves per position than chess (⇡250 versus ⇡35) and
+Go games tend to involve more moves than chess games (⇡150 versus ⇡80). But the
+size of the search space is not the major factor that makes Go so diﬃcult. Exhaustive
+search is infeasible for both chess and Go, and Go on smaller boards (e.g., 9 ⇥9) has
+proven to be exceedingly diﬃcult as well. Experts agree that the major stumbling block
+to creating stronger-than-amateur Go programs is the diﬃculty of deﬁning an adequate
+position evaluation function. A good evaluation function allows search to be truncated at
+a feasible depth by providing relatively easy-to-compute predictions of what deeper search
+would likely yield. According to M¨uller (2002): “No simple yet reasonable evaluation
+function will ever be found for Go.” A major step forward was the introduction of MCTS
+to Go programs. The strongest programs at the time of AlphaGo’s development all
+included MCTS, but master-level skill remained elusive.
+Recall from Section 8.11 that MCTS is a decision-time planning procedure that does
+not attempt to learn and store a global evaluation function. Like a rollout algorithm
+(Section 8.10), it runs many Monte Carlo simulations of entire episodes (here, entire
+Go games) to select each action (here, each Go move: where to place a stone or to
+resign). Unlike a simple rollout algorithm, however, MCTS is an iterative procedure that
+incrementally extends a search tree whose root node represents the current environment
+state.
+As illustrated in Figure 8.10, each iteration traverses the tree by simulating
+actions guided by statistics associated with the tree’s edges. In its basic version, when
+a simulation reaches a leaf node of the search tree, MCTS expands the tree by adding
+some, or all, of the leaf node’s children to the tree. From the leaf node, or one of its
+newly added child nodes, a rollout is executed: a simulation that typically proceeds all
+the way to a terminal state, with actions selected by a rollout policy. When the rollout
+completes, the statistics associated with the search tree’s edges that were traversed in
+this iteration are updated by backing up the return produced by the rollout. MCTS
+continues this process, starting each time at the search tree’s root at the current state, for
+as many iterations as possible given the time constraints. Then, ﬁnally, an action from
+the root node (which still represents the current environment state) is selected according
+to statistics accumulated in the root node’s outgoing edges. This is the action the agent
+takes. After the environment transitions to its next state, MCTS is executed again with
+the root node set to represent the new current state. The search tree at the start of this
+next execution might be just this new root node, or it might include descendants of this
+node left over from MCTS’s previous execution. The remainder of the tree is discarded.
+
+--- Page 466 ---
+444
+Chapter 16: Applications and Case Studies
+16.6.1
+AlphaGo
+The main innovation that made AlphaGo such a strong player is that it selected moves by
+a novel version of MCTS that was guided by both a policy and a value function learned
+by reinforcement learning with function approximation provided by deep convolutional
+ANNs. Another key feature is that instead of reinforcement learning starting from random
+network weights, it started from weights that were the result of previous supervised
+learning from a large collection of human expert moves.
+The DeepMind team called AlphaGo’s modiﬁcation of basic MCTS “asynchronous
+policy and value MCTS,” or APV-MCTS. It selected actions via basic MCTS as described
+above but with some twists in how it extended its search tree and how it evaluated action
+edges. In contrast to basic MCTS, which expands its current search tree by using stored
+action values to select an unexplored edge from a leaf node, APV-MCTS, as implemented
+in AlphaGo, expanded its tree by choosing an edge according to probabilities supplied by
+a 13-layer deep convolutional ANN, called the SL-policy network, trained previously by
+supervised learning to predict moves contained in a database of nearly 30 million human
+expert moves.
+Then, also in contrast to basic MCTS, which evaluates the newly-added state node
+solely by the return of a rollout initiated from it, APV-MCTS evaluated the node in two
+ways: by this return of the rollout, but also by a value function, v✓, learned previously by
+a reinforcement learning method. If s was the newly-added node, its value became
+v(s) = (1 −⌘)v✓(s) + ⌘G,
+(16.4)
+where G was the return of the rollout and ⌘controlled the mixing of the values resulting
+from these two evaluation methods. In AlphaGo, these values were supplied by the
+value network, another 13-layer deep convolutional ANN that was trained as we describe
+below to output estimated values of board positions. APV-MCTS’s rollouts in AlphaGo
+were simulated games with both players using a fast rollout policy provided by a simple
+linear network, also trained by supervised learning before play. Throughout its execution,
+APV-MCTS kept track of how many simulations passed through each edge of the search
+tree, and when its execution completed, the most-visited edge from the root node was
+selected as the action to take, here the move AlphaGo actually made in a game.
+The value network had the same structure as the deep convolutional SL policy network
+except that it had a single output unit that gave estimated values of game positions
+instead of the SL policy network’s probability distributions over legal actions. Ideally,
+the value network would output optimal state values, and it might have been possible to
+approximate the optimal value function along the lines of TD-Gammon described above:
+self-play with nonlinear TD(λ) coupled to a deep convolutional ANN. But the DeepMind
+team took a di↵erent approach that held more promise for a game as complex as Go.
+They divided the process of training the value network into two stages. In the ﬁrst stage,
+they created the best policy they could by using reinforcement learning to train an RL
+policy network. This was a deep convolutional ANN with the same structure as the SL
+policy network. It was initialized with the ﬁnal weights of the SL policy network that
+were learned via supervised learning, and then policy-gradient reinforcement learning was
+used to improve upon the SL policy. In the second stage of training the value network,
+
+--- Page 467 ---
+16.6. Mastering the Game of Go
+445
+the team used Monte Carlo policy evaluation on data obtained from a large number of
+simulated self-play games with moves selected by the RL policy network.
+Figure 16.6 illustrates the networks used by AlphaGo and the steps taken to train them
+in what the DeepMind team called the “AlphaGo pipeline.” All these networks were
+trained before any live game play took place, and their weights remained ﬁxed throughout
+live play.
+Regression
+Classiﬁcation
+Classiﬁcation
+Self Play
+Policy gradient
+Human expert positions
+Self-play positions
+Rollout Policy         SL policy network                       RL policy Network          Value Network
+Policy gradient
+Supervised Learning
+MC Policy Evaluation
+Self Play
+Supervised Learning
+]
+]
+Networks
+Data
+Figure 16.6: AlphaGo pipeline. Adapted with permission from Macmillan Publishers Ltd:
+Nature, vol. 529(7587), p. 485, ©2016.
+Here is some more detail about AlphaGo’s ANNs and their training. The identically-
+structured SL and RL policy networks were similar to DQN’s deep convolutional network
+described in Section 16.5 for playing Atari games, except that they had 13 convolutional
+layers with the ﬁnal layer consisting of a soft-max unit for each point on the 19 ⇥19
+Go board. The networks’ input was a 19 ⇥19 ⇥48 image stack in which each point
+on the Go board was represented by the values of 48 binary or integer-valued features.
+For example, for each point, one feature indicated if the point was occupied by one of
+AlphaGo’s stones, one of its opponent’s stones, or was unoccupied, thus providing the
+“raw” representation of the board conﬁguration. Other features were based on the rules
+of Go, such as the number of adjacent points that were empty, the number of opponent
+stones that would be captured by placing a stone there, the number of turns since a stone
+was placed there, and other features that the design team considered to be important.
+Training the SL policy network took approximately 3 weeks using a distributed
+implementation of stochastic gradient ascent on 50 processors. The network achieved 57%
+accuracy, where the best accuracy achieved by other groups at the time of publication
+was 44.4%. Training the RL policy network was done by policy gradient reinforcement
+learning over simulated games between the RL policy network’s current policy and
+opponents using policies randomly selected from policies produced by earlier iterations
+of the learning algorithm. Playing against a randomly selected collection of opponents
+
+--- Page 468 ---
+446
+Chapter 16: Applications and Case Studies
+prevented overﬁtting to the current policy. The reward signal was +1 if the current
+policy won, −1 if it lost, and zero otherwise. These games directly pitted the two policies
+against one another without involving MCTS. By simulating many games in parallel on
+50 processors, the DeepMind team trained the RL policy network on a million games
+in a single day. In testing the ﬁnal RL policy, they found that it won more than 80%
+of games played against the SL policy, and it won 85% of games played against a Go
+program using MCTS that simulated 100,000 games per move.
+The value network, whose structure was similar to that of the SL and RL policy
+networks except for its single output unit, received the same input as the SL and RL
+policy networks with the exception that there was an additional binary feature giving
+the current color to play. Monte Carlo policy evaluation was used to train the network
+from data obtained from a large number of self-play games played using the RL policy.
+To avoid overﬁtting and instability due to the strong correlations between positions
+encountered in self-play, the DeepMind team constructed a data set of 30 million positions
+each chosen randomly from a unique self-play game. Then training was done using 50
+million mini-batches each of 32 positions drawn from this data set. Training took one
+week on 50 GPUs.
+The rollout policy was learned prior to play by a simple linear network trained by
+supervised learning from a corpus of 8 million human moves. The rollout policy network
+had to output actions quickly while still being reasonably accurate. In principle, the SL
+or RL policy networks could have been used in the rollouts, but the forward propagation
+through these deep networks took too much time for either of them to be used in rollout
+simulations, a great many of which had to be carried out for each move decision during
+live play. For this reason, the rollout policy network was less complex than the other
+policy networks, and its input features could be computed more quickly than the features
+used for the policy networks. The rollout policy network allowed approximately 1,000
+complete game simulations per second to be run on each of the processing threads that
+AlphaGo used.
+One may wonder why the SL policy was used instead of the better RL policy to select
+actions in the expansion phase of APV-MCTS. These policies took the same amount of
+time to compute because they used the same network architecture. The team actually
+found that AlphaGo played better against human opponents when APV-MCTS used as
+the SL policy instead of the RL policy. They conjectured that the reason for this was
+that the latter was tuned to respond to optimal moves rather than to the broader set
+of moves characteristic of human play. Interestingly, the situation was reversed for the
+value function used by APV-MCTS. They found that when APV-MCTS used the value
+function derived from the RL policy, it performed better than if it used the value function
+derived from the SL policy.
+Several methods worked together to produce AlphaGo’s impressive playing skill. The
+DeepMind team evaluated di↵erent versions of AlphaGo in order to assess the contributions
+made by these various components. The parameter ⌘in (16.4) controlled the mixing
+of game state evaluations produced by the value network and by rollouts. With ⌘= 0,
+AlphaGo used just the value network without rollouts, and with ⌘= 1, evaluation
+relied just on rollouts. They found that AlphaGo using just the value network played
+
+--- Page 469 ---
+16.6. Mastering the Game of Go
+447
+better than the rollout-only AlphaGo, and in fact played better than the strongest of all
+other Go programs existing at the time. The best play resulted from setting ⌘= 0.5,
+indicating that combining the value network with rollouts was particularly important
+to AlphaGo’s success. These evaluation methods complemented one another: the value
+network evaluated the high-performance RL policy that was too slow to be used in live
+play, while rollouts using the weaker but much faster rollout policy were able to add
+precision to the value network’s evaluations for speciﬁc states that occurred during games.
+Overall, AlphaGo’s remarkable success fueled a new round of enthusiasm for the promise
+of artiﬁcial intelligence, speciﬁcally for systems combining reinforcement learning with
+deep ANNs, to address problems in other challenging domains.
+16.6.2
+AlphaGo Zero
+Building upon the experience with AlphaGo, a DeepMind team developed AlphaGo Zero
+(Silver et al. 2017a). In contrast to AlphaGo, this program used no human data or
+guidance beyond the basic rules of the game (hence the Zero in its name). It learned
+exclusively from self-play reinforcement learning, with input giving just “raw” descriptions
+of the placements of stones on the Go board. AlphaGo Zero implemented a form of
+policy iteration (Section 4.3), interleaving policy evaluation with policy improvement.
+Figure 16.7 is an overview of AlphaGo Zero’s algorithm. A signiﬁcant di↵erence between
+AlphaGo Zero and AlphaGo is that AlphaGo Zero used MCTS to select moves throughout
+self-play reinforcement learning, whereas AlphaGo used MCTS for live play after—but not
+during—learning. Other di↵erences besides not using any human data or human-crafted
+features are that AlphaGo Zero used only one deep convolutional ANN and used a simpler
+version of MCTS.
+AlphaGo Zero’s MCTS was simpler than the version used by AlphaGo in that it did
+not include rollouts of complete games, and therefore did not need a rollout policy. Each
+iteration of AlphaGo Zero’s MCTS ran a simulation that ended at a leaf node of the
+current search tree instead of at the terminal position of a complete game simulation.
+But as in AlphaGo, each iteration of MCTS in AlphaGo Zero was guided by the output of
+a deep convolutional network, labeled f✓in Figure 16.7, where ✓is the network’s weight
+vector. The input to the network, whose architecture we describe below, consisted of raw
+representations of board positions, and its output had two parts: a scalar value, v, an
+estimate of the probability that the current player will win from from the current board
+position, and a vector, p, of move probabilities, one for each possible stone placement on
+the current board, plus the pass, or resign, move.
+Instead of selecting self-play actions according to the probabilities p, however, AlphaGo
+Zero used these probabilities, together with the network’s value output, to direct each
+execution of MCTS, which returned new move probabilities, shown in Figure 16.7 as the
+policies ⇡i. These policies beneﬁtted from the many simulations that MCTS conducted
+each time it executed. The result was that the policy actually followed by AlphaGo
+Zero was an improvement over the policy given by the network’s outputs p. Silver et al.
+(2017a) wrote that “MCTS may therefore be viewed as a powerful policy improvement
+operator.”
+
+--- Page 470 ---
+448
+Chapter 16: Applications and Case Studies
+Figure 16.7: AlphaGo Zero self-play reinforcement learning. a) The program played many
+games against itself, one shown here as a sequence of board positions si, i = 1, 2, . . . , T, with
+moves ai, i = 1, 2, . . . , T, and winner z. Each move ai was determined by action probabilities ⇡i
+returned by MCTS executed from root node si and guided by a deep convolutional network,
+here labeled f✓, with latest weights ✓. Shown here for just one position s but repeated for all
+si, the network’s inputs were raw representations of board positions si (together with several
+past positions, though not shown here), and its outputs were vectors p of move probabilities
+that guided MCTS’s forward searches, and scalar values v that estimated the probability of the
+current player winning from each position si. b) Deep convolutional network training. Training
+examples were randomly sampled steps from recent self-play games. Weights ✓were updated
+to move the policy vector p toward the probabilities ⇡returned by MCTS, and to include the
+winners z in the estimated win probability v. Reprinted from draft of Silver et al. (2017a) with
+permission of the authors and DeepMind.
+Here is more detail about AlphaGo Zero’s ANN and how it was trained. The network
+took as input a 19 ⇥19 ⇥17 image stack consisting of 17 binary feature planes. The ﬁrst
+8 feature planes were raw representations of the positions of the current player’s stones in
+the current and seven past board conﬁgurations: a feature value was 1 if a player’s stone
+was on the corresponding point, and was 0 otherwise. The next 8 feature planes similarly
+coded the positions of the opponent’s stones. A ﬁnal input feature plane had a constant
+value indicating the color of the current play: 1 for black; 0 for white. Because repetition
+is not allowed in Go and one player is given some number of “compensation points” for
+not getting the ﬁrst move, the current board position is not a Markov state of Go. This
+is why features describing past board positions and the color feature were needed.
+The network was “two-headed,” meaning that after a number of initial layers, the
+network split into two separate “heads” of additional layers that separately fed into two
+sets of output units. In this case, one head fed 362 output units producing 192 + 1 move
+
+--- Page 471 ---
+16.6. Mastering the Game of Go
+449
+probabilities p, one for each possible stone placement plus pass; the other head fed just
+one output unit producing the scalar v, an estimate of the probability that the current
+player will win from the current board position. The network before the split consisted of
+41 convolutional layers, each followed by batch normalization, and with skip connections
+added to implement residual learning by pairs of layers (see Section 9.7). Overall, move
+probabilities and values were computed by 43 and 44 layers respectively.
+Starting with random weights, the network was trained by stochastic gradient descent
+(with momentum, regularization, and step-size parameter decreasing as training continues)
+using batches of examples sampled uniformly at random from all the steps of the most
+recent 500,000 games of self-play with the current best policy. Extra noise was added
+to the network’s output p to encourage exploration of all possible moves. At periodic
+checkpoints during training, which Silver et al. (2017a) chose to be at every 1,000 training
+steps, the policy output by the ANN with the latest weights was evaluated by simulating
+400 games (using MCTS with 1,600 iterations to select each move) against the current
+best policy. If the new policy won (by a margin set to reduce noise in the outcome), then
+it became the best policy to be used in subsequent self-play. The network’s weights were
+updated to make the network’s policy output p more closely match the policy returned
+by MCTS, and to make its value output, v, more closely match the probability that the
+current best policy wins from the board position represented by the network’s input.
+The DeepMind team trained AlphaGo Zero over 4.9 million games of self-play, which
+took about 3 days. Each move of each game was selected by running MCTS for 1,600
+iterations, taking approximately 0.4 second per move. Network weights were updated over
+700,000 batches each consisting of 2,048 board conﬁgurations. They then ran tournaments
+with the trained AlphaGo Zero playing against the version of AlphaGo that defeated Fan
+Hui by 5 games to 0, and against the version that defeated Lee Sedol by 4 games to 1.
+They used the Elo rating system to evaluate the relative performances of the programs.
+The di↵erence between two Elo ratings is meant to predict the outcome of games between
+the players. The Elo ratings of AlphaGo Zero, the version of AlphaGo that played against
+Fan Hui, and the version that played against Lee Sedol were respectively 4,308, 3,144,
+and 3,739. The gaps in these Elo ratings translate into predictions that AlphaGo Zero
+would defeat these other programs with probabilities very close to one. In a match of 100
+games between AlphaGo Zero, trained as described, and the exact version of AlphaGo
+that defeated Lee Sedol held under the same conditions that were used in that match,
+AlphaGo Zero defeated AlphaGo in all 100 games.
+The DeepMind team also compared AlphaGo Zero with a program using an ANN with
+the same architecture but trained by supervised learning to predict human moves in a
+data set containing nearly 30 million positions from 160,000 games. They found that the
+supervised-learning player initially played better than AlphaGo Zero, and was better at
+predicting human expert moves, but played less well after AlphaGo Zero was trained for
+a day. This suggested that AlphaGo Zero had discovered a strategy for playing that was
+di↵erent from how humans play. In fact, AlphaGo Zero discovered, and came to prefer,
+some novel variations of classical move sequences.
+Final tests of AlphaGo Zero’s algorithm were conducted with a version having a larger
+ANN and trained over 29 million self-play games, which took about 40 days, again starting
+
+--- Page 472 ---
+450
+Chapter 16: Applications and Case Studies
+with random weights. This version achieved an Elo rating of 5,185. The team pitted
+this version of AlphaGo Zero against a program called AlphaGo Master, the strongest
+program at the time, that was identical to AlphaGo Zero but, like AlphaGo, used human
+data and features. AlphaGo Master’s Elo rating was 4,858, and it had defeated the
+strongest human professional players 60 to 0 in online games. In a 100 game match,
+AlphaGo Zero with the larger network and more extensive learning defeated AlphaGo
+Master 89 games to 11, thus providing a convincing demonstration of the problem-solving
+power of AlphaGo Zero’s algorithm.
+AlphaGo Zero soundly demonstrated that superhuman performance can be achieved
+by pure reinforcement learning, augmented by a simple version of MCTS, and deep ANNs
+with very minimal knowledge of the domain and no reliance on human data or guidance.
+We will surely see systems inspired by the DeepMind accomplishments of both AlphaGo
+and AlphaGo Zero applied to challenging problems in other domains.
+Recently, yet a better program, AlphaZero, was described by Silver et al. (2017b) that
+does not even incorporate knowledge of Go. AlphaZero is a general reinforcement learning
+algorithm that improves over the world’s hitherto best programs in the diverse games of
+Go, chess, and shogi.
+16.7
+Personalized Web Services
+Personalizing web services such as the delivery of news articles or advertisements is one
+approach to increasing users’ satisfaction with a website or to increase the yield of a
+marketing campaign. A policy can recommend content considered to be the best for each
+particular user based on a proﬁle of that user’s interests and preferences inferred from
+their history of online activity. This is a natural domain for machine learning, and in
+particular, for reinforcement learning. A reinforcement learning system can improve a
+recommendation policy by making adjustments in response to user feedback. One way
+to obtain user feedback is by means of website satisfaction surveys, but for acquiring
+feedback in real time it is common to monitor user clicks as indicators of interest in a
+link.
+A method long used in marketing called A/B testing is a simple type of reinforcement
+learning used to decide which of two versions, A or B, of a website users prefer. Because
+it is non-associative, like a two-armed bandit problem, this approach does not personalize
+content delivery. Adding context consisting of features describing individual users and
+the content to be delivered allows personalizing service. This has been formalized as a
+contextual bandit problem (or an associative reinforcement learning problem, Section 2.9)
+with the objective of maximizing the total number of user clicks. Li, Chu, Langford, and
+Schapire (2010) applied a contextual bandit algorithm to the problem of personalizing
+the Yahoo! Front Page Today webpage (one of the most visited pages on the internet at
+the time of their research) by selecting the news story to feature. Their objective was to
+maximize the click-through rate (CTR), which is the ratio of the total number of clicks
+all users make on a webpage to the total number of visits to the page. Their contextual
+bandit algorithm improved over a standard non-associative bandit algorithm by 12.5%.
+Theocharous, Thomas, and Ghavamzadeh (2015) argued that better results are possible
+
+--- Page 473 ---
+16.7. Personalized Web Services
+451
+by formulating personalized recommendation as a Markov decision problem (MDP) with
+the objective of maximizing the total number of clicks users make over repeated visits to
+a website. Policies derived from the contextual bandit formulation are greedy in the sense
+that they do not take long-term e↵ects of actions into account. These policies e↵ectively
+treat each visit to a website as if it were made by a new visitor uniformly sampled from
+the population of the website’s visitors. By not using the fact that many users repeatedly
+visit the same websites, greedy policies do not take advantage of possibilities provided by
+long-term interactions with individual users.
+As an example of how a marketing strategy might take advantage of long-term user
+interaction, Theocharous et al. contrasted a greedy policy with a longer-term policy for
+displaying ads for buying a product, say a car. The ad displayed by the greedy policy
+might o↵er a discount if the user buys the car immediately. A user either takes the o↵er
+or leaves the website, and if they ever return to the site, they would likely see the same
+o↵er. A longer-term policy, on the other hand, can transition the user “down a sales
+funnel” before presenting the ﬁnal deal. It might start by describing the availability of
+favorable ﬁnancing terms, then praise an excellent service department, and then, on the
+next visit, o↵er the ﬁnal discount. This type of policy can result in more clicks by a user
+over repeated visits to the site, and if the policy is suitably designed, more eventual sales.
+Working at Adobe Systems Incorporated, Theocharous et al. conducted experiments
+to see if policies designed to maximize clicks over the long term could in fact improve
+over short-term greedy policies. The Adobe Marketing Cloud, a set of tools that many
+companies use to run digital marketing campaigns, provides infrastructure for automating
+user-targeted advertising and fund-raising campaigns. Actually deploying novel policies
+using these tools entails signiﬁcant risk because a new policy may end up performing
+poorly. For this reason, the research team needed to assess what a policy’s performance
+would be if it were to be actually deployed, but to do so on the basis of data collected
+under the execution of other policies. A critical aspect of this research, then, was o↵-policy
+evaluation. Further, the team wanted to do this with high conﬁdence to reduce the
+risk of deploying a new policy. Although high conﬁdence o↵-policy evaluation was a
+central component of this research (see also Thomas, 2015; Thomas, Theocharous, and
+Ghavamzadeh, 2015), here we focus only on the algorithms and their results.
+Theocharous et al. compared the results of two algorithms for learning ad recommen-
+dation policies. The ﬁrst algorithm, which they called greedy optimization, had the goal
+of maximizing only the probability of immediate clicks. As in the standard contextual
+bandit formulation, this algorithm did not take the long-term e↵ects of recommendations
+into account. The other algorithm, a reinforcement learning algorithm based on an MDP
+formulation, aimed at improving the number of clicks users made over multiple visits to
+a website. They called this latter algorithm life-time value (LTV) optimization. Both
+algorithms faced challenging problems because the reward signal in this domain is very
+sparse because users usually do not click on ads, and user clicking is very random so that
+returns have high variance.
+Data sets from the banking industry were used for training and testing these algorithms.
+The data sets consisted of many complete trajectories of customer interaction with a
+bank’s website that showed each customer one out of a collection of possible o↵ers. If
+
+--- Page 474 ---
+452
+Chapter 16: Applications and Case Studies
+a customer clicked, the reward was 1, and otherwise it was 0. One data set contained
+approximately 200,000 interactions from a month of a bank’s campaign that randomly
+o↵ered one of 7 o↵ers. The other data set from another bank’s campaign contained
+4,000,000 interactions involving 12 possible o↵ers. All interactions included customer
+features such as the time since the customer’s last visit to the website, the number of their
+visits so far, the last time the customer clicked, geographic location, one of a collection of
+interests, and features giving demographic information.
+Greedy optimization was based on a mapping estimating the probability of a click
+as a function of user features. The mapping was learned via supervised learning from
+one of the data sets by means of a random forest (RF) algorithm (Breiman, 2001). RF
+algorithms have been widely used for large-scale applications in industry because they are
+e↵ective predictive tools that tend not to overﬁt and are relatively insensitive to outliers
+and noise. Theocharous et al. then used the mapping to deﬁne an "-greedy policy that
+selected with probability 1-" the o↵er predicted by the RF algorithm to have the highest
+probability of producing a click, and otherwise selected from the other o↵ers uniformly at
+random.
+LTV optimization used a batch-mode reinforcement learning algorithm called ﬁtted
+Q iteration (FQI). It is a variant of ﬁtted value iteration (Gordon, 1999) adapted to
+Q-learning. Batch mode means that the entire data set for learning is available from
+the start, as opposed to the online mode of the algorithms we focus on in this book in
+which data are acquired sequentially while the learning algorithm executes. Batch-mode
+reinforcement learning algorithms are sometimes necessary when online learning is not
+practical, and they can use any batch-mode supervised learning regression algorithm,
+including algorithms known to scale well to high-dimensional spaces. The convergence of
+FQI depends on properties of the function approximation algorithm (Gordon, 1999). For
+their application to LTV optimization, Theocharous et al. used the same RF algorithm
+they used for the greedy optimization approach. Because in this case FQI convergence
+is not monotonic, Theocharous et al. kept track of the best FQI policy by o↵-policy
+evaluation using a validation training set. The ﬁnal policy for testing the LTV approach
+was the "-greedy policy based on the best policy produced by FQI with the initial
+action-value function set to the mapping produced by the RF for the greedy optimization
+approach.
+To measure the performance of the policies produced by the greedy and LTV approaches,
+Theocharous et al. used the CTR metric and a metric they called the LTV metric. These
+metrics are similar, except that the LTV metric critically distinguishes between individual
+website visitors:
+CTR = Total # of Clicks
+Total # of Visits ,
+LTV = Total # of Clicks
+Total # of Visitors.
+Figure 16.8 illustrates how these metrics di↵er. Each circle represents a user visit to
+the site; black circles are visits at which the user clicks. Each row represents visits by
+a particular user. By not distinguishing between visitors, the CTR for these sequences
+is 0.35, whereas the LTV is 1.5. Because LTV is larger than CTR to the extent that
+
+--- Page 475 ---
+16.8. Thermal Soaring
+453
+individual users revisit the site, it is an indicator of how successful a policy is in encouraging
+users to engage in extended interactions with the site.
+Figure 16.8: Click through rate (CTR) versus life-time value (LTV). Each circle represents
+a user visit; black circles are visits at which the user clicks. Adapted from Theocharous et
+al. (2015).
+Testing the policies produced by the greedy and LTV approaches was done using
+a high conﬁdence o↵-policy evaluation method on a test data set consisting of real-
+world interactions with a bank website served by a random policy. As expected, results
+showed that greedy optimization performed best as measured by the CTR metric, while
+LTV optimization performed best as measured by the LTV metric.
+Furthermore—
+although we have omitted its details—the high conﬁdence o↵-policy evaluation method
+provided probabilistic guarantees that the LTV optimization method would, with high
+probability, produce policies that improve upon policies currently deployed. Assured by
+these probabilistic guarantees, Adobe announced in 2016 that the new LTV algorithm
+would be a standard component of the Adobe Marketing Cloud so that a retailer could
+issue a sequence of o↵ers following a policy likely to yield higher return than a policy
+that is insensitive to long-term results.
+16.8
+Thermal Soaring
+Birds and gliders take advantage of upward air currents—thermals—to gain altitude in
+order to maintain ﬂight while expending little, or no, energy. Thermal soaring, as this
+behavior is called, is a complex skill requiring responding to subtle environmental cues
+to increase altitude by exploiting a rising column of air for as long as possible. Reddy,
+Celani, Sejnowski, and Vergassola (2016) used reinforcement learning to investigate
+thermal soaring policies that are e↵ective in the strong atmospheric turbulence usually
+accompanying rising air currents. Their primary goal was to provide insight into the
+cues birds sense and how they use them to achieve their impressive thermal soaring
+performance, but the results also contribute to technology relevant to autonomous gliders.
+Reinforcement learning had previously been applied to the problem of navigating eﬃciently
+to the vicinity of a thermal updraft (Woodbury, Dunn, and Valasek, 2014) but not to the
+more challenging problem of soaring within the turbulence of the updraft itself.
+Reddy et al. modeled the soaring problem as a continuing MDP with discounting.
+The agent interacted with a detailed model of a glider ﬂying in turbulent air. They
+
+--- Page 476 ---
+454
+Chapter 16: Applications and Case Studies
+devoted signiﬁcant e↵ort toward making the model generate realistic thermal soaring
+conditions, including investigating several di↵erent approaches to atmospheric modeling.
+For the learning experiments, air ﬂow in a three-dimensional box with one kilometer
+sides, one of which was at ground level, was modeled by a sophisticated physics-based
+set of partial di↵erential equations involving air velocity, temperature, and pressure.
+Introducing small random perturbations into the numerical simulation caused the model
+to produce analogs of thermal updrafts and accompanying turbulence (Figure 16.9 Left)
+Glider ﬂight was modeled by aerodynamic equations involving velocity, lift, drag, and
+other factors governing powerless ﬂight of a ﬁxed-wing aircraft. Maneuvering the glider
+involved changing its angle of attack (the angle between the glider’s wing and the direction
+of air ﬂow) and its bank angle (Figure 16.9 Right).
+A
+z
+y
+Lift L
+z
+x
+Lift L
+Drag D
+velocity direction
+wing direction
+bank angle
+glide angle
+angle of attack
+↵
+Figure 16.9:
+Thermal soaring model: Left: snapshot of the vertical velocity ﬁeld of the
+simulated cube of air: in red (blue) is a region of large upward (downward) ﬂow. Right: diagram
+of powerless ﬂight showing bank angle µ and angle of attack ↵. Adapted with permission From
+PNAS vol. 113(22), p. E4879, 2016, Reddy, Celani, Sejnowski, and Vergassola, Learning to Soar
+in Turbulent Environments.
+The interface between the agent and the environment required deﬁning the agent’s
+actions, the state information the agent receives from the environment, and the reward
+signal. By experimenting with various possibilities, Reddy et al. decided that three actions
+each for the angle of attack and the bank angle were enough for their purposes: increment
+or decrement the current bank angle and angle of attack by 5◦and 2.5◦, respectively, or
+leave them unchanged. This resulted in 32 possible actions. The bank angle was bounded
+to remain between −15◦and +15◦.
+Because a goal of their study was to try to determine what minimal set of sensory
+cues are necessary for e↵ective soaring, both to shed light on the cues birds might use for
+soaring and to minimize the sensing complexity required for automated glider soaring,
+the authors tried various sets of signals as input to the reinforcement learning agent.
+They started by using state aggregation (Section 9.3) of a four-dimensional state space
+with dimensions giving local vertical wind speed, local vertical wind acceleration, torque
+depending on the di↵erence between the vertical wind velocities at the left and right wing
+tips, and the local temperature. Each dimension was discretized into three bins: positive
+
+--- Page 477 ---
+16.8. Thermal Soaring
+455
+high, negative high, and small. Results, described below, showed that only two of these
+dimensions were critical for e↵ective soaring behavior.
+The overall objective of thermal soaring is to gain as much altitude as possible from
+each rising column of air. Reddy et al. tried a straightforward reward signal that rewarded
+the agent at the end of each episode based on the altitude gained over the episode, a
+large negative reward signal if the glider touched the ground, and zero otherwise. They
+found that learning was not successful with this reward signal for episodes of realistic
+duration and that eligibility traces did not help. By experimenting with various reward
+signals, they found that learning was best with a reward signal that at each time step
+linearly combined the vertical wind velocity and vertical wind acceleration observed on
+the previous time step.
+Learning was by one-step Sarsa, with actions selected according to a soft-max dis-
+tribution based on normalized action values. Speciﬁcally, the action probabilities were
+computed according to (13.2) with action preferences:
+h(s, a, ✓) =
+ˆq(s, a, ✓) −minb ˆq(s, b, ✓)
+⌧
+#
+maxb ˆq(s, b, ✓) −minb ˆq(s, b, ✓)
+$,
+where ✓is a parameter vector with one component for each action and aggregated group
+of states, and ˆq(s, a, ✓) merely returned the component corresponding to s, a in the usual
+way for state aggregation methods. The above equation forms the action preferences
+by normalizing the approximate action values to the interval [0, 1] then dividing by ⌧, a
+positive “temperature parameter.”3 As ⌧increases, the probability of selecting an action
+becomes less dependent on its preference; as ⌧decreases toward zero, the probability of
+selecting the most highly-preferred action approaches one, making the policy approach
+the greedy policy. The temperature parameter ⌧was initialized to 2.0 and incrementally
+decreased to 0.2 during learning. Action preferences were computed from the current
+estimates of the action values: the action with the maximum estimated action value was
+given preference 1/⌧, the action with the minimum estimated action value was given
+preference 0, and the preferences of the other actions were scaled between these extremes.
+The step-size and discount-rate parameters were ﬁxed at 0.1 and 0.98 respectively.
+Each learning episode took place with the agent controlling simulated ﬂight in an
+independently generated period of simulated turbulent air currents. Each episode lasted
+2.5 minutes simulated with a 1 second time step. Learning e↵ectively converged after a
+few hundred episodes. The left panel of Figure 16.10 shows a sample trajectory before
+learning where the agent selects actions randomly. Starting at the top of the volume
+shown, the glider’s trajectory is in the direction indicated by the arrow and quickly loses
+altitude. Figure 16.10’s right panel is a trajectory after learning. The glider starts at the
+same place (here appearing at the bottom of the volume) and gains altitude by spiraling
+within the rising column of air. Although Reddy et al. found that performance varied
+widely over di↵erent simulated periods of air ﬂow, the number of times the glider touched
+the ground consistently decreased to nearly zero as learning progressed.
+After experimenting with di↵erent sets of features available to the learning agent, it
+turned out that the combination of just vertical wind acceleration and torques worked
+3Reddy et al. described this slightly di↵erently, but our version is equivalent to theirs.
+
+--- Page 478 ---
+456
+Chapter 16: Applications and Case Studies
+Figure 16.10:
+Sample thermal soaring trajectories, with arrows showing the direction of
+ﬂight from the same starting point (note that the altitude scales are shifted). Left: before
+learning: the agent selects actions randomly and the glider descends. Right: after learning:
+the glider gains altitude by following a spiral trajectory. Adapted with permission from PNAS
+vol. 113(22), p. E4879, 2016, Reddy, Celani, Sejnowski, and Vergassola, Learning to Soar in
+Turbulent Environments.
+best. The authors conjectured that because these features give information about the
+gradient of vertical wind velocity in two di↵erent directions, they allow the controller to
+select between turning by changing the bank angle or continuing along the same course
+by leaving the bank angle alone. This allows the glider to stay within a rising column of
+air. Vertical wind velocity is indicative of the strength of the thermal but does not help
+in staying within the ﬂow. They found that sensitivity to temperature was of little help.
+They also found that controlling the angle of attack is not helpful in staying within a
+particular thermal, being useful instead for traveling between thermals when covering
+large distances, as in cross-country gliding and bird migration.
+Due to the fact that soaring in di↵erent levels of turbulence requires di↵erent policies,
+training was done in conditions ranging from weak to strong turbulence. In strong
+turbulence the rapidly changing wind and glider velocities allowed less time for the
+controller to react. This reduced the amount of control possible compared to what
+was possible for maneuvering when ﬂuctuations were weak. Reddy et al. examined the
+policies Sarsa learned under these di↵erent conditions. Common to policies learned in all
+regimes were these features: when sensing negative wind acceleration, bank sharply in the
+direction of the wing with the higher lift; when sensing large positive wind acceleration
+and no torque, do nothing. However, di↵erent levels of turbulence led to policy di↵erences.
+Policies learned in strong turbulence were more conservative in that they preferred small
+bank angles, whereas in weak turbulence, the best action was to turn as much as possible
+by banking sharply. Systematic study of the bank angles preferred by the policies learned
+under the di↵erent conditions led the authors to suggest that by detecting when vertical
+
+--- Page 479 ---
+16.8. Thermal Soaring
+457
+wind acceleration crosses a certain threshold the controller can adjust its policy to cope
+with di↵erent turbulence regimes.
+Reddy et al. also conducted experiments to investigate the e↵ect of the discount-rate
+parameter γ on the performance of the learned policies. They found that the altitude
+gained in an episode increased as γ increased, reaching a maximum for γ = .99, suggesting
+that e↵ective thermal soaring requires taking into account long-term e↵ects of control
+decisions.
+This computational study of thermal soaring illustrates how reinforcement learning
+can further progress toward di↵erent kinds of objectives.
+Learning policies having
+access to di↵erent sets of environmental cues and control actions contributes to both
+the engineering objective of designing autonomous gliders and the scientiﬁc objective of
+improving understanding of the soaring skills of birds. In both cases, hypotheses resulting
+from the learning experiments can be tested in the ﬁeld by instrumenting real gliders4
+and by comparing predictions with observed bird soaring behavior.
+4This work has recently been applied to real gliders. See Reddy, Wong-Ng, Celani, Sejnowski, and
+Vergassola, “Glider soaring via reinforcement learning in the ﬁeld.” Nature 562:236–239, 2018.
+
+--- Page 480 ---
+
+
+--- Page 481 ---
+Chapter 17
+Frontiers
+In this ﬁnal chapter we touch on some topics that are beyond the scope of this book but
+that we see as particularly important for the future of reinforcement learning. Many of
+these topics bring us beyond what is reliably known, and some bring us beyond the MDP
+framework.
+17.1
+General Value Functions and Auxiliary Tasks
+Over the course of this book, our notion of value function has become quite general.
+With o↵-policy learning we allowed a value function to be conditional on an arbitrary
+target policy. Then in Section 12.8 we generalized discounting to a termination function
+γ : S 7! [0, 1], so that a di↵erent discount rate could be applied at each time step in
+determining the return (12.17). This allowed us to express predictions about how much
+reward we will get over an arbitrary, state-dependent horizon. The next, and perhaps
+ﬁnal, step is to generalize beyond rewards to permit predictions about arbitrary signals.
+Rather than predicting the sum of future rewards, we might predict the sum of the future
+values of a sound or color sensation, or of an internal, highly processed signal such as
+another prediction. Whatever signal is added up in this way in a value-function-like
+prediction, we call it the cumulant of that prediction. We formalize it in a cumulant
+signal Ct 2 R. Using this, a general value function, or GVF, is written
+v⇡,γ,C(s) .= E
+" 1
+X
+k=t
+ 
+k
+Y
+i=t+1
+γ(Si)
+!
+Ck+1
+44444 St =s, At:1 ⇠⇡
+#
+.
+(17.1)
+As with conventional value functions (such as v⇡or q⇤) this is an ideal function that
+we seek to approximate with a parameterized form, which we might continue to denote
+ˆv(s,w), although of course there would have to be a di↵erent w for each prediction, that
+is, for each choice of ⇡, γ, and C. Because a GVF has no necessary connection to reward,
+it is perhaps a misnomer to call it a value function. You might simply call it a prediction
+or, to make it more distinctive, a forecast (Ring, in preparation). Whatever it is called, it
+
+--- Page 482 ---
+460
+Chapter 17: Frontiers
+is in the form of a value function and thus can be learned in the usual ways using the
+methods developed in this book for learning approximate value functions. Along with
+the learned predictions, we might also learn policies to maximize the predictions in the
+usual ways by Generalized Policy Iteration (Section 4.6) or by actor–critic methods. In
+this way an agent could learn to predict and control great numbers of signals, not just
+long-term reward.
+Why might it be useful to predict and control signals other than long-term reward?
+These are auxiliary tasks in that they are extra (in addition to) the main task of
+maximizing reward. One answer is that the ability to predict and control a diverse
+multitude of signals can constitute a powerful kind of environmental model. As we saw
+in Chapter 8, a good model can enable the agent to get reward more eﬃciently. It takes
+a couple of further concepts to develop this answer clearly, so we postpone it to the next
+section. First let’s consider two simpler ways in which a multitude of diverse predictions
+can be helpful to a reinforcement learning agent.
+One simple way in which auxiliary tasks can help on the main task is that they may
+require some of the same representations as are needed on the main task. Some of the
+auxiliary tasks may be easier, with less delay and a clearer connection between actions
+and outcomes. If good features can be found early on easy auxiliary tasks, then those
+features may signiﬁcantly speed learning on the main task. There is no necessary reason
+why this has to be true, but in many cases it seems plausible. For example, if you learn
+to predict and control your sensors over short time scales, say seconds, then you might
+plausibly come up with part of the idea of physical objects, which would then greatly
+help with the prediction and control of long-term reward.
+We might imagine an artiﬁcial neural network (ANN) in which the last layer is split
+into multiple parts, or heads, each working on a di↵erent task. One head might produce
+the approximate value function for the main task (with reward as its cumulant) whereas
+the others would produce solutions to various auxiliary tasks. All heads could propagate
+errors by stochastic gradient descent into the same body—the shared preceding part
+of the network—which would then try to form representations, in its next-to-last layer,
+to support all the heads. Researchers have experimented with auxiliary tasks such as
+predicting change in pixels, predicting the next time step’s reward, and predicting the
+distribution of the return. In many cases this approach has been shown to greatly
+accelerate learning on the main task (Jaderberg et al., 2017).
+Multiple predictions
+have similarly been repeatedly proposed as a way of directing the construction of state
+estimates (see Section 17.3).
+Another simple way in which the learning of auxiliary tasks can improve performance
+is best explained by analogy to the psychological phenomena of classical conditioning
+(Section 14.2). One way of understanding classical conditioning is that evolution has
+built in a reﬂexive (non-learned) association to a particular action from the prediction
+of a particular signal. For example, humans and many other animals appear to have a
+built-in reﬂex to blink whenever their prediction of being poked in the eye exceeds some
+threshold. The prediction is learned, but the association from prediction to eye closure
+is built in, and thus the animal is saved many unprotected pokes in its eye. Similarly,
+the association from fear to increased heart rate, or to freezing, may be built in. Agent
+
+--- Page 483 ---
+17.2. Temporal Abstraction via Options
+461
+designers can do something similar, connecting by design (without learning) predictions
+of speciﬁc events to predetermined actions. For example, a self-driving car that learns to
+predict whether going forward will produce a collision could be given a built-in reﬂex to
+stop, or to turn away, whenever the prediction is above some threshold. Or consider a
+vacuum-cleaning robot that learned to predict whether it might run out of battery power
+before returning to the charger and that reﬂexively headed back to the charger whenever
+the prediction became non-zero. The correct prediction would depend on the size of the
+house, the room the robot was in, and the age of the battery, all of which would be hard
+for the robot designer to know. It would be diﬃcult for the designer to build in a reliable
+algorithm for deciding whether to head back to the charger in sensory terms, but it might
+be easy to do this in terms of the learned prediction. We foresee many possible ways
+like this in which learned predictions might combine usefully with built-in algorithms for
+controlling behavior.
+Finally, perhaps the most important role for auxiliary tasks is in moving beyond the
+assumption we have made throughout this book that the state representation is ﬁxed
+and given to the agent. To explain this role, we ﬁrst have to take a few steps back to
+appreciate the magnitude of this assumption and the implications of removing it. We do
+that in Section 17.3.
+17.2
+Temporal Abstraction via Options
+An appealing aspect of the MDP formalism is that it can be applied usefully to tasks
+at many di↵erent time scales. It can be used to formalize the task of deciding which
+muscles to twitch to grasp an object, which airplane ﬂight to take to arrive conveniently
+at a distant city, and which job to take to lead a satisfying life. These tasks di↵er greatly
+in their time scales, yet each can be usefully formulated as an MDP that can be solved
+by planning or learning processes as described in this book. All involve interaction with
+the world, sequential decision making, and a goal usefully conceived of as accumulating
+rewards over time, and so all can be formulated as MDPs.
+Although all these tasks can be formulated as MDPs, you might think that they cannot
+be formulated as a single MDP. They involve such di↵erent time scales, such di↵erent
+notions of choice and action! It would be no good, for example, to plan a ﬂight across a
+continent at the level of muscle twitches. Yet for other tasks—such as grasping objects,
+throwing darts, or hitting a baseball—low-level muscle twitches may be just the right
+level. People do all these things seamlessly without appearing to switch between levels.
+Can the MDP framework be stretched to cover all the levels simultaneously?
+Perhaps it can. One popular idea is to formalize an MDP at a detailed level, with a
+small time step, yet enable planning at higher levels using extended courses of action that
+correspond to many base-level time steps. To do this we need a notion of course of action
+that extends over many time steps and includes a notion of termination. A general way to
+formulate these two ideas is as a policy, ⇡, and a state-dependent termination function, γ,
+as in GVFs. We deﬁne a pair of these as a generalized notion of action termed an option.
+To execute an option ! = h⇡!, γ!i at time t is to obtain the action to take, At, from
+⇡!(·|St), then terminate at time t + 1 with probability 1 −γ!(St+1). If the option does
+
+--- Page 484 ---
+462
+Chapter 17: Frontiers
+not terminate at t+1, then At+1 is selected from ⇡!(·|St+1), and the option terminates at
+t + 2 with probability 1 −γ!(St+2), and so on until eventual termination. It is convenient
+to consider low-level actions to be special cases of options—each action a corresponds
+to an option h⇡!, γ!i whose policy picks the action (⇡!(s)=a for all s 2 S) and whose
+termination function is zero (γ!(s) = 0 for all s 2 S+). Options e↵ectively extend the
+action space. The agent can either select a low-level action/option, terminating after one
+time step, or select an extended option that might execute for many time steps before
+terminating.
+Options are designed so that they are interchangable with low-level actions. For
+example, the notion of an action-value function q⇡naturally generalizes to an option-
+value function that takes a state and option as input and returns the expected return
+starting from that state, executing that option to termination, and thereafter following
+the policy, ⇡. We can also generalize the notion of policy to a hierarchical policy that
+selects from options rather than actions, where options, when selected, execute until
+termination. With these ideas, many of the algorithms in this book can be generalized to
+learn approximate option-value functions and hierarchical policies. In the simplest case,
+the learning process ‘jumps’ from option initiation to option termination, with an update
+only occurring when an option terminates. More subtly, updates can be made on each
+time step, using “intra-option” learning algorithms, which in general require o↵-policy
+learning.
+Perhaps the most important generalization made possible by option ideas is that of the
+environmental model as developed in Chapters 3, 4, and 8. The conventional model of an
+action is the state-transition probabilities and the expected immediate reward for taking
+the action in each state. How do conventional action models generalize to option models?
+For options, the appropriate model is again of two parts, one corresponding to the state
+transition resulting from executing the option and one corresponding to the expected
+cumulative reward along the way. The reward part of an option model, analogous to the
+expected reward for state–action pairs (3.5), is
+r(s, !) .= E
+⇥
+R1 + γR2 + γ2R3 + · · · + γ⌧−1R⌧
+44 S0 =s, A0:⌧−1 ⇠⇡!, ⌧⇠γ!
+⇤
+, (17.2)
+for all options ! and all states s 2 S, where ⌧is the random time step at which the option
+terminates according to γ!. Note the role of the overall discounting parameter γ in this
+equation—discounting is according to γ, but termination of the option is according to
+γ!. The state-transition part of an option model is a little more subtle. This part of
+the model characterizes the probability of each possible resulting state (as in (3.4)), but
+now this state may result after various numbers of time steps, each of which must be
+discounted di↵erently. The model for option ! speciﬁes, for each state s that ! might
+start executing in, and for each state s0 that ! might terminate in,
+p(s0|s, !) .=
+1
+X
+k=1
+γk Pr{Sk =s0, ⌧=k | S0 =s, A0:k−1 ⇠⇡!, ⌧⇠γ!}.
+(17.3)
+Note that, because of the factor of γk, this p(s0|s, !) is no longer a transition probability
+and no longer sums to one over all values of s0. (Nevertheless, we continue to use the ‘|’
+notation in p.)
+
+--- Page 485 ---
+17.2. Temporal Abstraction via Options
+463
+The above deﬁnition of the transition part of an option model allows us to formulate
+Bellman equations and dynamic programming algorithms that apply to all options,
+including low-level actions as a special case. For example, the general Bellman equation
+for the state values of a hierarchical policy ⇡is
+v⇡(s) =
+X
+!2⌦(s)
+⇡(!|s)
+"
+r(s, !) +
+X
+s0
+p(s0|s, !)v⇡(s0)
+#
+,
+(17.4)
+where ⌦(s) denotes the set of options available in state s. If ⌦(s) includes only the
+low-level actions, then this equation reduces to a version of the usual Bellman equation
+(3.14), except of course γ is included in the new p (17.3) and thus does not appear.
+Similarly, the corresponding planning algorithms also have no γ. For example, the value
+iteration algorithm with options, analogous to (4.10), is
+vk+1(s) .= max
+!2⌦(s)
+"
+r(s, !) +
+X
+s0
+p(s0|s, !)vk(s0)
+#
+, for all s 2 S.
+If ⌦(s) includes all the low-level actions available in each state s, then this algorithm
+converges to the conventional v⇤, from which the optimal policy can be computed.
+However, it is particularly useful to plan with options when only a subset of the possible
+options are considered (in ⌦(s)) in each state. Value iteration will then converge to the
+best hierarchical policy limited to the restricted set of options. Although this policy may
+be sub-optimal, convergence can be much faster because fewer options are considered
+and because each option can jump over many time steps.
+To plan with options, the agent must either be given the option models, or learn them.
+One natural way to learn an option model is to formulate it as a collection of GVFs (as
+deﬁned in the preceding section) and then learn the GVFs using the methods presented
+in this book. It is not diﬃcult to see how this could be done for the reward part of the
+option model. You merely choose one GVF’s cumulant to be the reward (Ct = Rt), its
+policy to be the option’s policy (⇡=⇡!), and its termination function to be the discount
+rate times the option’s termination function (γ(s) = γ · γ!(s)). The true GVF then
+equals the reward part of the option model, v⇡,γ,C(s) = r(s, !), and the learning methods
+described in this book can be used to approximate it. The state-transition part of the
+option model is a little more complicated. You need to allocate one GVF for each state
+that the option might terminate in. We don’t want these GVFs to accumulate anything
+except when the option terminates, and then only when termination is in the appropriate
+state. This can be achieved by choosing the cumulant of the GVF that predicts transition
+to state s0 to be Ct = (1 −γ!(St))
+St=s0. The GVF’s policy and termination functions
+are chosen the same as for the reward part of the option model. The true GVF then
+equals the s0 portion of the option’s state-transition model, v⇡,γ,C(s) = p(s0|s, !), and
+again this book’s methods could be employed to learn it. Although each of these steps
+is seemingly natural, putting them all together (including function approximation and
+other essential components) is quite challenging and beyond the current state of the art.
+
+--- Page 486 ---
+464
+Chapter 17: Frontiers
+Exercise 17.1 This section has presented options for the discounted case, but discounting
+is arguably inappropriate for control when using function approximation (Section 10.4).
+What is the natural Bellman equation for a hierarchical policy, analogous to (17.4), but
+for the average reward setting (Section 10.3)? What are the two parts of the option
+model, analogous to (17.2) and (17.3), for the average reward setting?
+⇤
+17.3
+Observations and State
+Throughout this book we have written the learned approximate value functions (and
+the policies in Chapter 13) as functions of the environment’s state. This is a signiﬁcant
+limitation of the methods presented in Part I, in which the learned value function was
+implemented as a table such that any value function could be exactly approximated;
+that case is tantamount to assuming that the state of the environment is completely
+observed by the agent. But in many cases of interest, and certainly in the lives of all
+natural intelligences, the sensory input gives only partial information about the state of
+the world. Some objects may be occluded by others, or behind the agent, or miles away.
+In these cases, potentially important aspects of the environment’s state are not directly
+observable, and it is a strong, unrealistic, and limiting assumption to assume that the
+learned value function is implemented as a table over the environment’s state space.
+The framework of parametric function approximation that we developed in Part II is far
+less restrictive and, arguably, no limitation at all. In Part II we retained the assumption
+that the learned value functions (and policies) are functions of the environment’s state,
+but allowed these functions to be arbitrarily restricted by the parameterization. It is
+somewhat surprising and not widely recognized that function approximation includes
+important aspects of partial observability. For example, if there is a state variable that is
+not observable, then the parameterization can be chosen such that the approximate value
+does not depend on that state variable. The e↵ect is just as if the state variable were not
+observable. Because of this, all the results obtained for the parameterized case apply to
+partial observability without change. In this sense, the case of parameterized function
+approximation includes the case of partial observability.
+Nevertheless, there are many issues that cannot be investigated without a more explicit
+treatment of partial observability. Although we cannot give them a full treatment here,
+we can outline the changes that would be needed to do so. There are four steps.
+First, we would change the problem. The environment would emit not its states, but
+only observations—signals that depend on its state but, like a robot’s sensors, provide
+only partial information about it. For convenience, without loss of generality, we assume
+that the reward is a direct, known function of the observation (perhaps the observation is
+a vector, and the reward is one of its components). The environmental interaction would
+then have no explicit states or rewards, but could simply be an alternating sequence of
+actions At 2 A and observations Ot 2 O:
+A0, O1, A1, O2, A2, O3, A3, O4, . . . ,
+going on forever (cf. Equation 3.1) or forming episodes each ending with a special terminal
+observation.
+
+--- Page 487 ---
+17.3. Observations and State
+465
+Second, we can recover the idea of state as used in this book from the sequence of
+observations and actions. Let us use the word history, and the notation Ht, for an initial
+portion of the trajectory up to an observation: Ht .= A0, O1, . . . , At−1, Ot. The history
+represents the most that we can know about the past without looking outside of the
+data stream (because the history is the whole past data stream). Of course, the history
+grows with t and can become large and unwieldy. The idea of state is that of a compact
+summary of the history that is useful for predicting future sequences. To be a summary
+of the history, a state must be a function of history, St = f(Ht). The summary would be
+informationally perfect if it retained all information about the history (and thus could
+be used to predict futures as accurately as could be done from the full history). In this
+case, the state St and the function f are said to have the Markov property, and St is a
+state as we have used the term in this book. Let us henceforth call it a Markov state
+to distinguish it from states that are summaries of the history but are not suﬃcient to
+predict all futures. In practice, the states of real agents will not be Markov but may
+approach it as an ideal.
+To be more explicit about the Markov property it is useful to formalize possible futures.
+Let a test be any speciﬁc sequence of alternating actions and observations that might
+occur in the future. For example, a three-step test might be denoted ⌧= a1o1a2o2a3o3.
+The probability of this test given a speciﬁc history h is deﬁned as
+p(⌧|h) .= Pr{Ot+1 =o1, Ot+2 =o2, Ot+3 =o3 | Ht =h, At =a1, At+1 =a2, At+2 =a3}.(17.5)
+Formally, f is Markov if and only if, for any test ⌧, and for any histories h and h0 that
+map to the same state under f, the test’s probabilities given the two histories are equal:
+f(h) = f(h0)
+)
+p(⌧|h) = p(⌧|h0),
+for all h, h0, ⌧2 {A ⇥O}⇤.
+(17.6)
+A Markov state summarizes all the information in the history necessary for determining
+any test’s probability. In fact, it summarizes all that is necessary for making any prediction,
+including any GVF. It also summarizes all that is necessary for optimal behavior: if f is
+Markov, then there is always a deterministic function ⇡such that choosing At .= ⇡(f(Ht))
+is an optimal policy.
+The third step in extending reinforcement learning to partial observability is to deal
+with certain computational considerations. As mentioned earlier, we want the state to be
+compact—relatively small compared to the history. (The identity function, for example,
+is not a good f even though it is Markov, because the corresponding state St =Ht would
+grow unboundedly with time.) In addition, we don’t really want a function f that takes
+whole histories. Instead, we want an f that can be compactly implemented with an
+incremental, recursive update that computes St+1 from St, incorporating only the next
+increment of data, At and Ot+1:
+St+1 .= u(St, At, Ot+1), for all t ≥0,
+(17.7)
+with the ﬁrst state S0 given. The function u is called the state-update function. For
+example, if f were the identity (St =Ht), then u would merely extend St by appending At
+and Ot+1 to it. Given f, it is always possible to construct a corresponding u, but it may
+
+--- Page 488 ---
+466
+Chapter 17: Frontiers
+Policy, 
+Value fn.
+World
+Planner
+Model
+A
+O
+R
+A, R
+S
+u
+A
+Figure 17.1: A conceptual agent architecture including a model, a planner, and a state-update
+function. The world in this case receives actions A and emits observations O. The observations
+and a copy of the action are used by the state-update function u to produce the new state. The
+new state is input to the policy and value function, producing the next action, and is also input
+to the planner (and to u). The information ﬂows most responsible for learning are shown by
+dashed lines that pass diagonally across the boxes that they change. The reward R directly
+changes the policy and value function. The action, reward, and state change the model, which
+works closely with the planner to also change the policy and value function. Note that the
+operation of the planner can be decoupled from the agent–environment interaction, whereas the
+other processes should operate in lock step with this interaction to keep up with the arrival of
+new data. Also note that the model and planner do not deal with observations directly, but only
+with the states produced by u, which can act as targets for model learning.
+not be computationally convenient and, as in the identity example, it may not produce
+a compact state. The state-update function is a central part of any agent architecture
+that handles partial observability. It must be eﬃciently computable, as no actions or
+predictions can be made until the state is available. An overall diagram of such an agent
+architecture is given in Figure 17.1.
+A common strategy for ﬁnding a Markov state is to look for something compact that
+is recursively updatable and enables accurate short-term predictions. In fact, it is only
+necessary to make accurate one-step predictions. An important fact is that, if an f
+is incrementally updatable, then it is Markov if and only if all one-step tests can be
+accurately predicted, that is, if and only if
+f(h) = f(h0)
+)
+Pr{Ot+1 =o|Ht =h, At =a} = Pr{Ot+1 =o|Ht =h0, At =a}, (17.8)
+for all h, h0 2 {A ⇥O}⇤, o 2 O and a 2 A. Accurate one-step predictions are informa-
+tionally suﬃcient, together with the state-update function, to accurately predict the
+probability of any test of any length. This can be done by iteratively and alternately
+making one-step predictions and applying the state-update function. From the whole
+tree of possibilities the exact probability of any test or the expectation of any GVF
+can be determined. These observations have led many researchers to focus on one-step
+predictions rather than directly on multi-step predictions such as GVFs. However, note
+
+--- Page 489 ---
+17.3. Observations and State
+467
+that determining long-term predictions from single-step predictions is exponentially com-
+plex in the length of the predictions. Moreover, one-step predictions can be iterated
+to give accurate long-term predictions only if they are exact. If there is any error or
+approximation in the one-step predictions, then it can compound to make the long-term
+predictions wildly inaccurate. In practice this is often what happens.
+An example of obtaining Markov states through a state-update function is provided
+by the popular Bayesian approach known as Partially Observable MDPs, or POMDPs.
+In this approach the environment is assumed to have a well deﬁned latent state Xt that
+underlies and produces the environment’s observations, but is never available to the agent
+(and is not to be confused with the state St used by the agent to make predictions and
+decisions). The natural Markov state, St, for a POMDP is the distribution over the latent
+states given the history, called the belief state. For concreteness, assume the usual case in
+which there are a ﬁnite number of hidden states, Xt 2 {1, 2, . . . , d}. Then the belief state
+is the vector St .= st 2 [0, 1]d with components
+st[i] .= Pr{Xt =i | Ht}, for all possible latent states i 2 {1, 2, . . . , d}.
+(17.9)
+The belief state remains the same size (same number of components) even as t grows. It
+can also be incrementally updated by Bayes’ rule, assuming complete knowledge of the
+internal workings of the environment. Speciﬁcally, the ith component of the belief-state
+update function is
+u(s, a, o)[i] .=
+Pd
+x=1 s[x]p(i, o|x, a)
+Pd
+x=1
+Pd
+x0=1 s[x]p(x0, o|x, a)
+,
+for all a 2 A, o 2 O,
+(17.10)
+and for all belief states s with components s[x], where the four-argument p function here
+is not the usual one for MDPs (as in Chapter 3), but the analogous one for POMDPs,
+in terms of the latent state: p(x0, o|x, a) .= Pr{Xt =x0, Ot =o |Xt−1 =x, At−1 =a}. This
+approach is popular in theoretical work and has many signiﬁcant applications, but its
+assumptions and computational complexity scale poorly, and we do not recommend it as
+an approach to artiﬁcial intelligence.
+Another example of Markov states is provided by Predictive State Representations,
+or PSRs. PSRs address the weakness of the POMDP approach that the semantics of
+its agent state St are grounded in the environment state, Xt, which is never observed
+and thus is diﬃcult to learn about. In PSRs and related approaches, the semantics of
+the agent state is instead grounded in predictions about future observations and actions,
+which are readily observable. In PSRs, a Markov state is deﬁned as a d-vector of the
+probabilities of d specially chosen “core” tests as deﬁned above (17.5). The vector is then
+updated by a state-update function u that is analogous to Bayes rule, but with a semantics
+grounded in observable data, which arguably makes it easier to learn. This approach has
+been extended in many ways, including end-tests, compositional tests, powerful “spectral”
+methods, and closed-loop and temporally abstract tests learned by TD methods. Some of
+the best theoretical developments are for systems known as Observable Operator Models
+(OOMs) and Sequential Systems (Thon, 2017).
+The fourth and ﬁnal step in our brief outline of how to handle partial observability in
+reinforcement learning is to re-introduce approximation. As discussed in the introduction
+
+--- Page 490 ---
+468
+Chapter 17: Frontiers
+to Part II, to approach artiﬁcial intelligence ambitiously we must embrace approximation.
+This is just as true for states as it is for value functions. We must accept and work with
+an approximate notion of state. The approximate state will play the same role in our
+algorithms as before, so we continue to use the notation St for the state used by the
+agent, even though it may not be Markov.
+Perhaps the simplest example of an approximate state is just the latest observation,
+St .=Ot. Of course this approach cannot handle any hidden state information. It would
+be better to use the last k observations and actions, St .= Ot, At−1, Ot−1, . . . , At−k, for
+some k ≥1, which can be achieved by a state-update function that just shifts the new
+data in and the oldest data out. This kth-order history approach is still very simple,
+but can greatly increase the agent’s capabilities compared to trying to use the single
+immediate observation directly as the state.
+What happens when the Markov property (17.8) is only approximately satisﬁed?
+Unfortunately, long-term prediction performance can degrade dramatically when one-
+step predictions become even slightly inaccurate. Longer-term tests, GVFs, and state-
+update functions may or may not approximate better. The short-term and long-term
+approximation objectives are just di↵erent, and there are no useful theoretical guarantees
+at present.
+Nevertheless, there are still reasons to think that the general idea outlined in this
+section applies to the approximate case. The general idea is that a state that is good for
+some predictions is also good for others—in particular, that a Markov state, suﬃcient for
+one-step predictions, is also suﬃcient for all others. If we step back from that speciﬁc
+result for the Markov case, the general idea is similar to what we discussed in Section 17.1
+with multi-headed learning and auxiliary tasks. We discussed how representations that
+were good for the auxiliary tasks were often also good for the main task. Taken together,
+these suggest an approach to both partial observability and representation learning in
+which multiple predictions are pursued and used to direct the construction of state
+features. The guarantee provided by the perfect-but-impractical Markov property is
+replaced by the heuristic that what’s good for some predictions may be good for others.
+This approach scales well with computational resources. With a powerful computer we
+could experiment with large numbers of predictions, perhaps favoring those that are most
+similar to the ones of ultimate interest, that are easiest to learn reliably, or that satisfy
+other criteria. It is important here to move beyond selecting the predictions manually.
+The agent should do it. This would require a general language for predictions, so that
+the agent can systematically explore a large space of possible predictions, sifting through
+them for the ones that are most useful.
+In particular, both POMDP and PSR approaches can be applied with approximate
+states. The semantics of the state is often useful in forming the state-update function, as
+it is in these two approaches and in the kth-order history approach. However, there is not
+a strong need for the state to be accurate with respect to its semantics in order to retain
+useful information. Some approaches to state augmentation, such as Echo state networks
+(Jaeger, 2002), keep almost arbitrary information about the history and can nevertheless
+perform well. There are many possibilities, and we expect more work and ideas in this
+area. Learning the state-update function for an approximate state is a major part of the
+representation learning problem as it arises in reinforcement learning.
+
+--- Page 491 ---
+17.4. Designing Reward Signals
+469
+17.4
+Designing Reward Signals
+A major advantage of reinforcement learning over supervised learning is that reinforcement
+learning does not rely on detailed instructional information: generating a reward signal
+does not depend on knowledge of what the agent’s correct actions should be. But the
+success of a reinforcement learning application strongly depends on how well the reward
+signal frames the goal of the application’s designer and how well the signal assesses
+progress in reaching that goal. For these reasons, designing a reward signal is a critical
+part of any application of reinforcement learning.
+By designing a reward signal we mean designing the part of an agent’s environment
+that is responsible for computing each scalar reward Rt and sending it to the agent at
+each time t. In our discussion of terminology at the end of Chapter 14, we said that Rt
+is more like a signal generated inside an animal’s brain than it is like an object or event
+in the animal’s external environment. The parts of our brains that generate these signals
+for us evolved over millions of years to be well suited to the challenges our ancestors
+had to face in their struggles to propagate their genes to future generations. We should
+therefore not think that designing a good reward signal is always an easy thing to do!
+One challenge is to design a reward signal so that as an agent learns, its behavior
+approaches, and ideally eventually achieves, what the application’s designer actually
+desires. This can be easy if the designer’s goal is simple and easy to identify, such as
+ﬁnding the solution to a well-deﬁned problem or earning a high score in a well-deﬁned
+game. In cases like these, it is usual to reward the agent according to its success in solving
+the problem or its success in improving its score. But some problems involve goals that
+are diﬃcult to translate into reward signals. This is especially true when the problem
+requires the agent to skillfully perform a complex task or set of tasks, such as would be
+required of a useful household robotic assistant. Further, reinforcement learning agents
+can discover unexpected ways to make their environments deliver reward, some of which
+might be undesirable, or even dangerous. This is a longstanding and critical challenge for
+any method, like reinforcement learning, that is based on optimization. We discuss this
+issue more in Section 17.6, the ﬁnal section of this book.
+Even when there is a simple and easily identiﬁable goal, the problem of sparse reward
+often arises. Delivering non-zero reward frequently enough to allow the agent to achieve
+the goal once, let alone to learn to achieve it eﬃciently from multiple initial conditions,
+can be a daunting challenge. State–action pairs that clearly deserve to trigger reward may
+be few and far between, and rewards that mark progress toward a goal can be infrequent
+because progress is diﬃcult or even impossible to detect. The agent may wander aimlessly
+for long periods of time (what Minsky, 1961, called the “plateau problem”).
+In practice, designing a reward signal is often left to an informal trial-and-error search
+for a signal that produces acceptable results. If the agent fails to learn, learns too slowly,
+or learns the wrong thing, then the designer tweaks the reward signal and tries again.
+To do this, the designer judges the agent’s performance by criteria that he or she is
+attempting to translate into a reward signal so that the agent’s goal matches his or her
+own. And if learning is too slow, the designer may try to design a non-sparse reward signal
+that e↵ectively guides learning throughout the agent’s interaction with its environment.
+
+--- Page 492 ---
+470
+Chapter 17: Frontiers
+It is tempting to address the sparse reward problem by rewarding the agent for achieving
+subgoals that the designer thinks are important way stations to the overall goal. But
+augmenting the reward signal with well-intentioned supplemental rewards may lead the
+agent to behave di↵erently from what is intended; the agent may end up not achieving
+the overall goal. A better way to provide such guidance is to leave the reward signal
+alone and instead augment the value-function approximation with an initial guess of what
+it should ultimately be, or augment it with initial guesses as to what certain parts of it
+should be. For example, suppose we wants to o↵er v0 : S ! R as an initial guess at the
+true optimal value function v⇤, and that we are using linear function approximation with
+features x : S ! Rd. Then we would deﬁne the initial value function approximation as
+ˆv(s,w) .= w>x(s) + v0(s),
+(17.11)
+and update the weights w as usual. If the initial weight vector is 0, then the initial
+value function will be v0, but the asymptotic solution quality will be determined by the
+feature vectors as usual. This initialization can also be done for arbitrary nonlinear
+approximators and arbitrary forms of v0, though it is not guaranteed to always accelerate
+learning.
+A particularly e↵ective approach to the sparse reward problem is the shaping tech-
+nique introduced by the psychologist B. F. Skinner and described in Section 14.3. The
+e↵ectiveness of this technique relies on the fact that sparse reward problems are not just
+problems with the reward signal; they are also problems with an agent’s policy in that
+it prevents the agent from frequently encountering rewarding states. Shaping involves
+changing the reward signal as learning proceeds, starting from a reward signal that is
+not sparse given the agent’s initial behavior, and gradually modifying it toward a reward
+signal suited to the problem of original interest. Shaping might also involve modifying
+the dynamics of the task as learning proceeds. Each modiﬁcation is made so that the
+agent is frequently rewarded given its current behavior. The agent faces a sequence of
+increasingly-diﬃcult reinforcement learning problems, where what is learned at each stage
+makes the next-harder problem relatively easy because the agent now encounters reward
+more frequently than it would if it did not have prior experience with easier problems.
+This kind of shaping is an essential technique in training animals, and it is e↵ective in
+computational reinforcement learning as well.
+What if you have no idea what the rewards should be, but there is another agent,
+perhaps a person, who is already expert at the task and whose behavior can be observed?
+In this case you could use methods known variously as “imitation learning,” “learning
+from demonstration,” and “apprenticeship learning.” The idea here is to beneﬁt from
+the expert agent but leave open the possibility of eventually performing better. Learning
+from an expert’s behavior can be done either by learning directly by supervised learning
+or by extracting a reward signal using what is known as “inverse reinforcement learning”
+and then using a reinforcement learning algorithm with that reward signal to learn a
+policy. The task of inverse reinforcement learning as explored by Ng and Russell (2000)
+is to try to recover the expert’s reward signal from the expert’s behavior alone. This
+cannot be done exactly because a policy can be optimal with respect to many di↵erent
+reward signals (for example, all policies are optimal with respect to a constant reward
+signal), but it is possible to ﬁnd plausible reward signal candidates. Unfortunately, strong
+
+--- Page 493 ---
+17.4. Designing Reward Signals
+471
+assumptions are required, including knowledge of the environment’s dynamics and of the
+feature vectors in which the reward signal is linear. The method also requires completely
+solving the problem (e.g., by dynamic programming methods) multiple times. These
+diﬃculties notwithstanding, Abbeel and Ng (2004) argue that the inverse reinforcement
+learning approach can sometimes be more e↵ective than supervised learning for beneﬁting
+from the behavior of an expert.
+Another approach to ﬁnding a good reward signal is to automate the trial-and-error
+search for a good signal that we mentioned above. From an application perspective, the
+reward signal is a parameter of the learning algorithm. As is true for other algorithm
+parameters, the search for a good reward signal can be automated by deﬁning a space of
+feasible candidates and applying an optimization algorithm. The optimization algorithm
+evaluates each candidate reward signal by running the reinforcement learning system with
+that signal for some number of steps, and then scoring the overall result by a “high-level”
+objective function intended to encode the designer’s true goal, ignoring the limitations
+of the agent. Reward signals can even be improved via online gradient ascent, where
+the gradient is that of the high-level objective function (Sorg, Lewis, and Singh, 2010).
+Relating this approach to the natural world, the algorithm for optimizing the high-level
+objective function is analogous to evolution, where the high-level objective function is an
+animal’s evolutionary ﬁtness determined by the number of its o↵spring that survive to
+reproductive age.
+Computational experiments with this bilevel optimization approach—one level analo-
+gous to evolution, and the other due to reinforcement learning by individual agents—have
+conﬁrmed that intuition alone is not always adequate to devise a good reward signal
+(Singh, Lewis, and Barto, 2009). The performance of a reinforcement learning agent as
+evaluated by the high-level objective function can be very sensitive to details of the agent’s
+reward signal in subtle ways determined by the agent’s limitations and the environment
+in which it acts and learns. These experiments have also demonstrated that an agent’s
+goal should not always be the same as the goal of the agent’s designer.
+At ﬁrst this seems counterintuitive, but it may be impossible for the agent to achieve the
+designer’s goal no matter what its reward signal is. The agent has to learn under various
+kinds of constraints, such as limited computational power, limited access to information
+about its environment, or limited time to learn. When there are constraints like these,
+learning to achieve a goal that is di↵erent from the designer’s goal can sometimes end up
+getting closer to the designer’s goal than if that goal were pursued directly (Sorg, Singh,
+and Lewis, 2010; Sorg, 2011). Examples of this in the natural world are easy to ﬁnd.
+Because we cannot directly assess the nutritional value of most foods, evolution—the
+designer of our reward signal—gave us a reward signal that makes us seek certain tastes.
+Though certainly not infallible (indeed, possibly detrimental in environments that di↵er in
+certain ways from ancestral environments), this compensates for many of our limitations:
+our limited sensory abilities, the limited time over which we can learn, and the risks
+involved in ﬁnding a healthy diet through personal experimentation. Similarly, because
+an animal cannot always observe its own evolutionary ﬁtness, that objective function
+does not work as a reward signal for learning. Evolution instead provides reward signals
+that are sensitive to observable predictors of evolutionary ﬁtness.
+Finally, remember that a reinforcement learning agent is not necessarily like a complete
+
+--- Page 494 ---
+472
+Chapter 17: Frontiers
+organism or robot; it can be a component of a larger behaving system. This means
+that reward signals may be inﬂuenced by things inside the larger behaving agent, such
+as motivational states, memories, ideas, or even hallucinations. Reward signals may
+also depend on properties of the learning process itself, such as measures of how much
+progress learning is making. Making reward signals sensitive to information about internal
+factors such as these makes it possible for an agent to learn how to control the “cognitive
+architecture” of which it is a part, as well as to acquire knowledge and skills that would be
+diﬃcult to learn from a reward signal that depended only on external events. Possibilities
+like these led to the idea of “intrinsically-motivated reinforcement learning” that we
+brieﬂy discuss further at the end of the following section.
+17.5
+Remaining Issues
+In this book we have presented the foundations of a reinforcement learning approach to
+artiﬁcial intelligence. Roughly speaking, that approach is based on model-free and model-
+based methods working together, as in the Dyna architecture of Chapter 8, combined
+with function approximation as developed in Part II. The focus has been on online and
+incremental algorithms, which we see as fundamental even to model-based methods, and
+on how these can be applied in o↵-policy training situations. The full rationale for the
+latter has been presented only in this last chapter. That is, we have all along presented o↵-
+policy learning as an appealing way to deal with the explore/exploit dilemma, but only in
+this chapter have we discussed learning about many diverse auxiliary tasks simultaneously
+with GVFs and learning about the world hierarchically in terms of temporally-abstract
+option models, both of which involve o↵-policy learning. Much remains to be worked
+out, as we have indicated throughout the book and as evidenced by the directions for
+additional research discussed in this chapter. But suppose we are generous and grant the
+broad outlines of everything that we have done in the book and everything that has been
+outlined so far in this chapter. What would remain after that? Of course we can’t know
+for sure what will be required, but we can make some guesses. In this section we highlight
+six further issues which it seems to us will still need to be addressed by future research.
+First, we still need powerful parametric function approximation methods that work well
+in fully incremental and online settings. Methods based on deep learning and ANNs are
+a major step in this direction but, still, only work well with batch training on large data
+sets, with training from extensive o↵-line self play, or with learning from the interleaved
+experience of multiple agents on the same task. These and other settings are ways of
+working around a basic limitation of today’s deep learning methods, which struggle to
+learn rapidly in the incremental, online settings that are most natural for the reinforcement
+learning algorithms emphasized in this book. The problem is sometimes described as
+one of “catastrophic interference” or “correlated data.” When something new is learned
+it tends to replace what has previously been learned rather than adding to it, with the
+result that the beneﬁt of the older learning is lost. Techniques such as “replay bu↵ers”
+are often used to retain and replay old data so that its beneﬁts are not permanently lost.
+An honest assessment has to be that current deep learning methods are not well suited to
+online learning. We see no reason that this limitation is insurmountable, but algorithms
+
+--- Page 495 ---
+17.5. Remaining Issues
+473
+that address it, while at the same time retaining the advantages of deep learning, have
+not yet been devised. Most current deep learning research is directed toward working
+around this limitation rather than removing it.
+Second (and perhaps closely related), we still need methods for learning features such
+that subsequent learning generalizes well. This issue is an instance of a general problem
+variously called “representation learning,” “constructive induction,” and “meta-learning”—
+how can we use experience not just to learn a given desired function, but to learn inductive
+biases such that future learning generalizes better and is thus faster? This is an old
+problem, dating back to the origins of artiﬁcial intelligence and pattern recognition in
+the 1950s and 1960s.1 Such age should give one pause. Perhaps there is no solution. But
+it is equally likely that the time for ﬁnding a solution and demonstrating its e↵ectiveness
+has not yet arrived. Today machine learning is conducted at a far larger scale than it has
+been in the past, and the potential beneﬁts of a good representation learning method have
+become much more apparent. We note that a new annual conference—the International
+Conference on Learning Representations—has been exploring this and related topics
+every year since 2013. It is also less common to explore representation learning within
+a reinforcement learning context. Reinforcement learning brings some new possibilities
+to this old issue, such as the auxiliary tasks discussed in Section 17.1. In reinforcement
+learning, the problem of representation learning can be identiﬁed with the problem of
+learning the state-update function discussed in Section 17.3.
+Third, we still need scalable methods for planning with learned environment models.
+Planning methods have proven extremely e↵ective in applications such as AlphaGo
+Zero and computer chess in which the model of the environment is known from the
+rules of the game or can otherwise be supplied by human designers. But cases of full
+model-based reinforcement learning, in which the environment model is learned from
+data and then used for planning, are rare. The Dyna system described in Chapter 8 is
+one example, but as described there and in most subsequent work it uses a tabular model
+without function approximation, which greatly limits its applicability. Only a few studies
+have included learned linear models, and even fewer have also explored the inclusion of
+temporally-abstract models using options as discussed in Section 17.2.
+More work is needed before planning with learned models can be e↵ective. For example,
+the learning of the model needs to be selective because the scope of a model strongly
+a↵ects planning eﬃciency. If a model focuses on the key consequences of the most
+important options, then planning can be eﬃcient and rapid, but if a model includes
+details of unimportant consequences of options that are unlikely to be selected, then
+planning may be almost useless. Environment models should be constructed judiciously
+with regard to both their states and dynamics with the goal of optimizing the planning
+process. The various parts of the model should be continually monitored as to the degree
+to which they contribute to, or detract from, planning eﬃciency. The ﬁeld has not
+yet addressed this complex of issues or designed model-learning methods that take into
+account their implications.
+1Some would claim that deep learning solves this problem, for example, that DQN as described in
+Section 16.5 illustrates a solution, but we are unconvinced. There is as yet little evidence that deep
+learning alone solves the representation learning problem in a general and eﬃcient way.
+
+--- Page 496 ---
+474
+Chapter 17: Frontiers
+A fourth issue that needs to be addressed in future research is that of automating the
+choice of tasks on which an agent works and uses to structure its developing competence.
+It is usual in machine learning for human designers to set the tasks that the learning
+agent is expected to master. Because these tasks are known in advance and remain ﬁxed,
+they can be built into the learning algorithm code. However, looking ahead, we will want
+the agent to make its own choices about what tasks it should try to master. These might
+be subtasks of a speciﬁc overall task that is already known, or they might be intended to
+create building blocks that permit more eﬃcient learning of many di↵erent tasks that the
+agent is likely to face in the future but which are currently unknown.
+These tasks may be like the auxiliary tasks or the GVFs discussed in Section 17.1, or
+tasks solved by options as discussed in Section 17.2. In forming a GVF, for example, what
+should the cumulant, the policy, and the termination function be? The current state of
+the art is to select these manually, but far greater power and generality would come from
+making these task choices automatically, particularly when they derive from what the
+agent has previously constructed as a result of representation learning or experience with
+previous subproblems. If GVF design is automated, then the design choices themselves
+will have to be explicitly represented. Rather than the task choices being in the mind
+of the designer and built into the code, they will have to be in the machine itself in
+such a way that they can be set and changed, monitored, ﬁltered, and searched among
+automatically. Tasks could then be built hierarchically upon others much like features are
+in an ANN. The tasks are the questions, and the contents of the ANN are the answers to
+those questions. We expect there will need to be a full hierarchy of questions to match
+the hierarchy of answers provided by modern deep learning methods.
+The ﬁfth issue that we would like to highlight for future research is that of the
+interaction between behavior and learning via some computational analog of curiosity.
+In this chapter we have been imagining a setting in which many tasks are being learned
+simultaneously, using o↵-policy methods, from the same stream of experience. The actions
+taken will of course inﬂuence this stream of experience, which in turn will determine how
+much learning occurs and which tasks are learned. When reward is not available, or not
+strongly inﬂuenced by behavior, the agent is free to choose actions that maximize in
+some sense the learning on the tasks, that is, to use some measure of learning progress
+as an internal or “intrinsic” reward, implementing a computational form of curiosity. In
+addition to measuring learning progress, intrinsic reward can, among other possibilities,
+signal the receipt of unexpected, novel, or otherwise interesting input, or can assess the
+agent’s ability to cause changes in its environment. Intrinsic reward signals generated in
+these ways can be used by an agent to pose tasks for itself by deﬁning auxiliary tasks,
+GVFs, or options, as discussed above, so that skills learned in this way can contribute
+to the agent’s ability to master future tasks. The result is a computational analog of
+something like play. Many preliminary studies of such uses of intrinsic reward signals
+have been conducted, and exciting topics for future research remain in this general area.
+A ﬁnal issue that demands attention in future research is that of developing methods to
+make it acceptably safe to embed reinforcement learning agents into physical environments.
+This is one of the most pressing areas for future research, and we discuss it further in the
+following section.
+
+--- Page 497 ---
+17.6. Reinforcement Learning and the Future of Artiﬁcial Intelligence
+475
+17.6
+Reinforcement Learning and the Future of
+Artiﬁcial Intelligence
+When we were writing the ﬁrst edition of this book in the mid-1990s, artiﬁcial intelligence
+was making signiﬁcant progress and was having an impact on society, though it was
+mostly still the promise of artiﬁcial intelligence that was inspiring developments. Machine
+learning was part of that outlook, but it had not yet become indispensable to artiﬁcial
+intelligence. By today that promise has transitioned to applications that are changing the
+lives of millions of people, and machine learning has come into its own as a key technology.
+As we write this second edition, some of the most remarkable developments in artiﬁcial
+intelligence have involved reinforcement learning, most notably “deep reinforcement
+learning”—reinforcement learning with function approximation by deep artiﬁcial neural
+networks. We are at the beginning of a wave of real-world applications of artiﬁcial
+intelligence, many of which will include reinforcement learning, deep and otherwise, that
+will impact our lives in ways that are hard to predict.
+But an abundance of successful real-world applications does not mean that true
+artiﬁcial intelligence has arrived. Despite great progress in many areas, the gulf between
+artiﬁcial intelligence and the intelligence of humans, and other animals, remains great.
+Superhuman performance can be achieved in some domains, even formidable domains
+like Go, but it remains a signiﬁcant challenge to develop systems that are like us in
+being complete, interactive agents having general adaptability and problem-solving skills,
+emotional sophistication, creativity, and the ability to learn quickly from experience.
+With its focus on learning by interacting with dynamic environments, reinforcement
+learning, as it develops over the future, will be a critical component of agents with these
+abilities.
+Reinforcement learning’s connections to psychology and neuroscience (Chapters 14
+and 15) underscore its relevance to another longstanding goal of artiﬁcial intelligence:
+shedding light on fundamental questions about the mind and how it emerges from the
+brain. Reinforcement learning theory is already contributing to our understanding of
+the brain’s reward, motivation, and decision-making processes, and there is good reason
+to believe that through its links to computational psychiatry, reinforcement learning
+theory will contribute to methods for treating mental disorders, including drug abuse
+and addiction.
+Another contribution that reinforcement learning can make over the future is as an
+aid to human decision making. Policies derived by reinforcement learning in simulated
+environments can advise human decision makers in such areas as education, healthcare,
+transportation, energy, and public-sector resource allocation. Particularly relevant is the
+key feature of reinforcement learning that it takes long-term consequences of decisions
+into account. This is very clear in games like backgammon and Go, where some of
+the most impressive results of reinforcement learning have been demonstrated, but it
+is also a property of many high-stakes decisions that a↵ect our lives and our planet.
+Reinforcement learning follows related methods for advising human decision making that
+have been developed in the past by decision analysts in many disciplines. With advanced
+function approximation methods and massive computational power, reinforcement learning
+
+--- Page 498 ---
+476
+Chapter 17: Frontiers
+methods have the potential to overcome some of the diﬃculties of scaling up traditional
+decision-support methods to larger and more complex problems.
+The rapid pace of advances in artiﬁcial intelligence has led to warnings that artiﬁcial
+intelligence poses serious threats to our societies, even to humanity itself. The renowned
+scientist and artiﬁcial intelligence pioneer Herbert Simon anticipated the warnings we are
+hearing today in a presentation at the Earthware Symposium at CMU in 2000 (Simon,
+2000).
+He spoke of the eternal conﬂict between the promise and perils of any new
+knowledge, reminding us of the Greek myths of Prometheus, the idealized hero of modern
+science, who stole ﬁre from the gods for the beneﬁt of mankind, and of Pandora, whose
+mythical box could be opened by a small and innocent action to release untold perils on
+the world. While accepting that this conﬂict is inevitable, Simon urged us to recognize
+that as designers of our future and not mere spectators, the decisions we make can tilt
+the scale in Prometheus’ favor. This is certainly true for reinforcement learning, which
+can beneﬁt society but can also produce undesirable outcomes if it is carelessly deployed.
+Thus, the safety of artiﬁcial intelligence applications involving reinforcement learning is a
+topic that deserves careful attention.
+A reinforcement learning agent can learn by interacting with either the real world or
+with a simulation of some piece of the real world, or by a mixture of these two sources of
+experience. Simulators provide safe environments in which an agent can explore and learn
+without risking real damage to itself or to its environment. In most current applications,
+policies are learned from simulated experience instead of direct interaction with the
+real world. In addition to avoiding undesirable real-world consequences, learning from
+simulated experience can make virtually unlimited data available for learning, generally
+at less cost than needed to obtain real experience, and because simulations typically run
+much faster than real time, learning can often occur more quickly than if it relied on real
+experience.
+Nevertheless, the full potential of reinforcement learning requires reinforcement learning
+agents to be embedded into the ﬂow of real-world experience, where they act, explore,
+and learn in our world, and not just in their worlds. After all, reinforcement learning
+algorithms—at least those upon which we focus in this book—are designed to learn online,
+and they emulate many aspects of how animals are able to survive in nonstationary and
+hostile environments. Embedding reinforcement learning agents in the real world can be
+transformative in realizing the promises of artiﬁcial intelligence to amplify and extend
+human abilities.
+A major reason for wanting a reinforcement learning agent to act and learn in the real
+world is that it is often diﬃcult, sometimes impossible, to simulate real-world experience
+with enough ﬁdelity to make the resulting policies, whether derived by reinforcement
+learning or by other methods, work well—and safely—when directing real actions. This
+is especially true for environments whose dynamics depend on the behavior of humans,
+such as in education, healthcare, transportation, and public policy—domains that can
+surely beneﬁt from improved decision making. However, it is for real-world embedded
+agents that warnings about potential dangers of artiﬁcial intelligence need to be heeded.
+Some of these warnings are particularly relevant to reinforcement learning. Because
+reinforcement learning is based on optimization, it inherits the plusses and minuses of all
+optimization methods. On the minus side is the problem of devising objective functions,
+
+--- Page 499 ---
+17.6. Reinforcement Learning and the Future of Artiﬁcial Intelligence
+477
+or reward signals in the case of reinforcement learning, so that optimization produces
+the desired results while avoiding undesirable results. We said in Section 17.4 that
+reinforcement learning agents can discover unexpected ways to make their environments
+deliver reward, some of which might be undesirable, or even dangerous. When we specify
+what we want a system to learn only indirectly, as we do in designing a reinforcement
+learning system’s reward signal, we will not know how closely the agent will fulﬁll our desire
+until its learning is complete. This is hardly a new problem with reinforcement learning;
+recognition of it has a long history in both literature and engineering. For example, in
+Goethe’s poem “The Sorcerer’s Apprentice” (Goethe, 1878), the apprentice uses magic to
+enchant a broom to do his job of fetching water, but the result is an unintended ﬂood due
+to the apprentice’s inadequate knowledge of magic. In the engineering context, Norbert
+Wiener, the founder of cybernetics, warned of this problem more than half a century ago
+by relating the supernatural story of “The Monkey’s Paw” (Wiener, 1964): “... it grants
+what you ask for, not what you should have asked for or what you intend” (p. 59). The
+problem has also been discussed at length in a modern context by Nick Bostrom (2014).
+Anyone having experience with reinforcement learning has likely seen their systems
+discover unexpected ways to obtain a lot of reward. Sometimes the unexpected behavior
+is good: it solves a problem in a nice new way. In other instances, what the agent
+learns violates considerations that the system designer may never have thought about.
+Careful design of reward signals is essential if an agent is to act in the real world with no
+opportunity for human vetting of its actions or means to easily interrupt its behavior.
+Despite the possibility of unintended negative consequences, optimization has been used
+for hundreds of years by engineers, architects, and others whose designs have positively
+impacted the world. We owe much that is good in our environment to the application
+of optimization methods. Many approaches have been developed to mitigate the risk
+of optimization, such as adding hard and soft constraints, restricting optimization to
+robust and risk-sensitive policies, and optimizing with multiple objective functions. Some
+of these approaches have been adapted to reinforcement learning, and more research is
+needed to address these concerns. The problem of ensuring that a reinforcement learning
+agent’s goal is attuned to our own remains a challenge.
+Another challenge if reinforcement learning agents are to act and learn in the real world
+is not just about what they might learn eventually, but about how they will behave while
+they are learning. How do you make sure that an agent gets enough experience to learn a
+high-performing policy, all the while not harming its environment, other agents, or itself
+(or more realistically, while keeping the probability of harm acceptably low)? This problem
+is also not novel or unique to reinforcement learning. Risk management and mitigation
+for embedded reinforcement learning is similar to what control engineers have had to
+confront from the beginning of using automatic control in situations where a controller’s
+behavior can have unacceptable, possibly catastrophic, consequences, as in the control of
+an aircraft or a delicate chemical process. Control applications rely on careful system
+modeling, model validation, and extensive testing, and there is a highly-developed body
+of theory aimed at ensuring convergence and stability of adaptive controllers designed for
+use when the dynamics of the system to be controlled are not fully known. Theoretical
+guarantees are never iron-clad because they depend on the validity of the assumptions
+underlying the mathematics, but without this theory, combined with risk-management
+
+--- Page 500 ---
+478
+Chapter 17: Frontiers
+and mitigation practices, automatic control—adaptive and otherwise—would not be as
+beneﬁcial as it is today in improving the quality, eﬃciency, and cost-e↵ectiveness of
+processes on which we have come to rely. One of the most pressing areas for future
+reinforcement learning research is to adapt and extend methods developed in control
+engineering with the goal of making it acceptably safe to fully embed reinforcement
+learning agents into physical environments.
+In closing, we return to Simon’s call for us to recognize that we are designers of our
+future and not simply spectators. By decisions we make as individuals, and by the
+inﬂuence we can exert on how our societies are governed, we can work toward ensuring
+that the beneﬁts made possible by a new technology outweigh the harm it can cause.
+There is ample opportunity to do this in the case of reinforcement learning, which can
+help improve the quality, fairness, and sustainability of life on our planet, but which
+can also release new perils. A threat already here is the displacement of jobs caused
+by applications of artiﬁcial intelligence. Still there are good reasons to believe that the
+beneﬁts of artiﬁcial intelligence can outweigh the disruption it causes. As to safety,
+hazards possible with reinforcement learning are not completely di↵erent from those
+that have been managed successfully for related applications of optimization and control
+methods. As reinforcement learning moves out into the real world in future applications,
+developers have an obligation to follow best practices that have evolved for similar
+technologies, while at the same time extending them to make sure that Prometheus keeps
+the upper hand.
+Bibliographical and Historical Remarks
+17.1
+General value functions were ﬁrst explicitly identiﬁed by Sutton and colleagues
+(Sutton, 1995a; Sutton et al., 2011; Modayil, White, and Sutton, 2013). Ring (in
+preparation) developed an extensive thought experiment with GVFs (“forecasts”)
+that has been inﬂuential despite not yet having been published.
+The ﬁrst demonstrations of multi-headed learning in reinforcement learning
+were by Jaderberg et al. (2017). Bellemare, Dabney, and Munos (2017) showed
+that predicting more things about the distribution of reward could signiﬁcantly
+accelerate learning to optimize its expectation, an instance of auxiliary tasks.
+Many others have since taken up this line of research.
+The general theory of classical conditioning as learned predictions together with
+built-in, reﬂexive reactions to the predictions has not to our knowledge been
+clearly articulated in the psychological literature. Modayil and Sutton (2014)
+describe it as an approach to the engineering of robots and other agents, calling
+it “Pavlovian control” to allude to its roots in classical conditioning.
+17.2
+The formalization of temporally abstract courses of action as options was intro-
+duced by Sutton, Precup, and Singh (1999), building on prior work by Parr (1998)
+and Sutton (1995a), and on classical work on Semi-MDPs (e.g., see Puterman,
+1994). Precup’s (2000) PhD thesis developed option ideas fully. An important
+limitation of these early works is that they did not treat the o↵-policy case
+

@@ -1,0 +1,2293 @@
+--- Page 1 ---
+ii
+
+--- Page 2 ---
+Adaptive Computation and Machine Learning
+Francis Bach, series editor
+A complete list of books published in the Adaptive Computation and Machine Learning
+series appears at the back of this book.
+
+--- Page 3 ---
+Reinforcement Learning:
+An Introduction
+second edition
+Richard S. Sutton and Andrew G. Barto
+The MIT Press
+Cambridge, Massachusetts
+London, England
+
+--- Page 4 ---
+© 2018, 2020 Richard S. Sutton and Andrew G. Barto
+All rights reserved. No part of this book may be reproduced in any form by any electronic
+or mechanical means (including photocopying, recording, or information storage and retrieval)
+without permission in writing from the copyright holder.
+This work is licensed under the
+Creative Commons Attribution-NonCommercial-NoDerivs 2.0 Generic License. To view a copy
+of this license, visit http://creativecommons.org/licenses/by-nc-nd/2.0/ or send a letter
+to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
+This book was set in 10/12, CMR by Westchester Publishing Services. Printed and bound in
+the United States of America.
+Library of Congress Cataloging-in-Publication Data
+Names: Sutton, Richard S., author. | Barto, Andrew G., author.
+Title: Reinforcement learning : an introduction / Richard S. Sutton and Andrew G. Barto.
+Description: Second edition. | Cambridge, MA : The MIT Press, [2018] | Series: Adaptive
+computation and machine learning series | Includes bibliographical references and index.
+Identiﬁers: LCCN 2018023826 | ISBN 9780262039246 (hardcover : alk. paper)
+Subjects: LCSH: Reinforcement learning.
+Classiﬁcation: LCC Q325.6 .R45 2018 | DDC 006.3/1--dc23 LC record available
+at https://lccn.loc.gov/2018023826
+10
+9
+8
+7
+6
+5
+4
+3
+2
+1
+
+--- Page 5 ---
+In memory of A. Harry Klopf
+
+--- Page 6 ---
+
+
+--- Page 7 ---
+Contents
+Preface to the Second Edition
+xiii
+Preface to the First Edition
+xvii
+Summary of Notation
+xix
+1
+Introduction
+1
+1.1
+Reinforcement Learning . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+1
+1.2
+Examples . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+4
+1.3
+Elements of Reinforcement Learning . . . . . . . . . . . . . . . . . . . . .
+6
+1.4
+Limitations and Scope . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+7
+1.5
+An Extended Example: Tic-Tac-Toe . . . . . . . . . . . . . . . . . . . . .
+8
+1.6
+Summary
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+13
+1.7
+Early History of Reinforcement Learning . . . . . . . . . . . . . . . . . . .
+13
+I
+Tabular Solution Methods
+23
+2
+Multi-armed Bandits
+25
+2.1
+A k-armed Bandit Problem . . . . . . . . . . . . . . . . . . . . . . . . . .
+25
+2.2
+Action-value Methods
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+27
+2.3
+The 10-armed Testbed . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+28
+2.4
+Incremental Implementation . . . . . . . . . . . . . . . . . . . . . . . . . .
+30
+2.5
+Tracking a Nonstationary Problem . . . . . . . . . . . . . . . . . . . . . .
+32
+2.6
+Optimistic Initial Values . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+34
+2.7
+Upper-Conﬁdence-Bound Action Selection . . . . . . . . . . . . . . . . . .
+35
+2.8
+Gradient Bandit Algorithms . . . . . . . . . . . . . . . . . . . . . . . . . .
+37
+2.9
+Associative Search (Contextual Bandits) . . . . . . . . . . . . . . . . . . .
+41
+2.10 Summary
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+42
+
+--- Page 8 ---
+viii
+Contents
+3
+Finite Markov Decision Processes
+47
+3.1
+The Agent–Environment Interface
+. . . . . . . . . . . . . . . . . . . . . .
+47
+3.2
+Goals and Rewards . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+53
+3.3
+Returns and Episodes
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+54
+3.4
+Uniﬁed Notation for Episodic and Continuing Tasks
+. . . . . . . . . . . .
+57
+3.5
+Policies and Value Functions
+. . . . . . . . . . . . . . . . . . . . . . . . .
+58
+3.6
+Optimal Policies and Optimal Value Functions
+. . . . . . . . . . . . . . .
+62
+3.7
+Optimality and Approximation . . . . . . . . . . . . . . . . . . . . . . . .
+67
+3.8
+Summary
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+68
+4
+Dynamic Programming
+73
+4.1
+Policy Evaluation (Prediction)
+. . . . . . . . . . . . . . . . . . . . . . . .
+74
+4.2
+Policy Improvement
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+76
+4.3
+Policy Iteration . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+80
+4.4
+Value Iteration . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+82
+4.5
+Asynchronous Dynamic Programming
+. . . . . . . . . . . . . . . . . . . .
+85
+4.6
+Generalized Policy Iteration . . . . . . . . . . . . . . . . . . . . . . . . . .
+86
+4.7
+Eﬃciency of Dynamic Programming . . . . . . . . . . . . . . . . . . . . .
+87
+4.8
+Summary
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+88
+5
+Monte Carlo Methods
+91
+5.1
+Monte Carlo Prediction
+. . . . . . . . . . . . . . . . . . . . . . . . . . . .
+92
+5.2
+Monte Carlo Estimation of Action Values
+. . . . . . . . . . . . . . . . . .
+96
+5.3
+Monte Carlo Control . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+97
+5.4
+Monte Carlo Control without Exploring Starts
+. . . . . . . . . . . . . . . 100
+5.5
+O↵-policy Prediction via Importance Sampling
+. . . . . . . . . . . . . . . 103
+5.6
+Incremental Implementation . . . . . . . . . . . . . . . . . . . . . . . . . . 109
+5.7
+O↵-policy Monte Carlo Control . . . . . . . . . . . . . . . . . . . . . . . . 110
+5.8
+*Discounting-aware Importance Sampling . . . . . . . . . . . . . . . . . . 112
+5.9
+*Per-decision Importance Sampling . . . . . . . . . . . . . . . . . . . . . . 114
+5.10 Summary
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 115
+6
+Temporal-Di↵erence Learning
+119
+6.1
+TD Prediction
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 119
+6.2
+Advantages of TD Prediction Methods . . . . . . . . . . . . . . . . . . . . 124
+6.3
+Optimality of TD(0) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 126
+6.4
+Sarsa: On-policy TD Control . . . . . . . . . . . . . . . . . . . . . . . . . 129
+6.5
+Q-learning: O↵-policy TD Control . . . . . . . . . . . . . . . . . . . . . . 131
+6.6
+Expected Sarsa . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 133
+6.7
+Maximization Bias and Double Learning . . . . . . . . . . . . . . . . . . . 134
+6.8
+Games, Afterstates, and Other Special Cases
+. . . . . . . . . . . . . . . . 136
+6.9
+Summary
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 138
+
+--- Page 9 ---
+Contents
+ix
+7
+n-step Bootstrapping
+141
+7.1
+n-step TD Prediction
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . 142
+7.2
+n-step Sarsa . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 145
+7.3
+n-step O↵-policy Learning . . . . . . . . . . . . . . . . . . . . . . . . . . . 148
+7.4
+*Per-decision Methods with Control Variates
+. . . . . . . . . . . . . . . . 150
+7.5
+O↵-policy Learning Without Importance Sampling:
+The n-step Tree Backup Algorithm . . . . . . . . . . . . . . . . . . . . . . 152
+7.6
+*A Unifying Algorithm: n-step Q(σ) . . . . . . . . . . . . . . . . . . . . . 154
+7.7
+Summary
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 157
+8
+Planning and Learning with Tabular Methods
+159
+8.1
+Models and Planning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 159
+8.2
+Dyna: Integrated Planning, Acting, and Learning . . . . . . . . . . . . . . 161
+8.3
+When the Model Is Wrong . . . . . . . . . . . . . . . . . . . . . . . . . . . 166
+8.4
+Prioritized Sweeping . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 168
+8.5
+Expected vs. Sample Updates . . . . . . . . . . . . . . . . . . . . . . . . . 172
+8.6
+Trajectory Sampling . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 174
+8.7
+Real-time Dynamic Programming . . . . . . . . . . . . . . . . . . . . . . . 177
+8.8
+Planning at Decision Time . . . . . . . . . . . . . . . . . . . . . . . . . . . 180
+8.9
+Heuristic Search
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 181
+8.10 Rollout Algorithms . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 183
+8.11 Monte Carlo Tree Search . . . . . . . . . . . . . . . . . . . . . . . . . . . . 185
+8.12 Summary of the Chapter . . . . . . . . . . . . . . . . . . . . . . . . . . . . 188
+8.13 Summary of Part I: Dimensions . . . . . . . . . . . . . . . . . . . . . . . . 189
+II
+Approximate Solution Methods
+195
+9
+On-policy Prediction with Approximation
+197
+9.1
+Value-function Approximation . . . . . . . . . . . . . . . . . . . . . . . . . 198
+9.2
+The Prediction Objective (VE) . . . . . . . . . . . . . . . . . . . . . . . . 199
+9.3
+Stochastic-gradient and Semi-gradient Methods . . . . . . . . . . . . . . . 200
+9.4
+Linear Methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 204
+9.5
+Feature Construction for Linear Methods
+. . . . . . . . . . . . . . . . . . 210
+9.5.1
+Polynomials . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 210
+9.5.2
+Fourier Basis . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 211
+9.5.3
+Coarse Coding
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . 215
+9.5.4
+Tile Coding . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 217
+9.5.5
+Radial Basis Functions . . . . . . . . . . . . . . . . . . . . . . . . . 221
+9.6
+Selecting Step-Size Parameters Manually . . . . . . . . . . . . . . . . . . . 222
+9.7
+Nonlinear Function Approximation: Artiﬁcial Neural Networks . . . . . . 223
+9.8
+Least-Squares TD
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 228
+
+--- Page 10 ---
+x
+Contents
+9.9
+Memory-based Function Approximation . . . . . . . . . . . . . . . . . . . 230
+9.10 Kernel-based Function Approximation . . . . . . . . . . . . . . . . . . . . 232
+9.11 Looking Deeper at On-policy Learning: Interest and Emphasis
+. . . . . . 234
+9.12 Summary
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 236
+10 On-policy Control with Approximation
+243
+10.1 Episodic Semi-gradient Control . . . . . . . . . . . . . . . . . . . . . . . . 243
+10.2 Semi-gradient n-step Sarsa
+. . . . . . . . . . . . . . . . . . . . . . . . . . 247
+10.3 Average Reward: A New Problem Setting for Continuing Tasks . . . . . . 249
+10.4 Deprecating the Discounted Setting . . . . . . . . . . . . . . . . . . . . . . 253
+10.5 Di↵erential Semi-gradient n-step Sarsa . . . . . . . . . . . . . . . . . . . . 255
+10.6 Summary
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 256
+11 *O↵-policy Methods with Approximation
+257
+11.1 Semi-gradient Methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 258
+11.2 Examples of O↵-policy Divergence
+. . . . . . . . . . . . . . . . . . . . . . 260
+11.3 The Deadly Triad . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 264
+11.4 Linear Value-function Geometry
+. . . . . . . . . . . . . . . . . . . . . . . 266
+11.5 Gradient Descent in the Bellman Error . . . . . . . . . . . . . . . . . . . . 269
+11.6 The Bellman Error is Not Learnable . . . . . . . . . . . . . . . . . . . . . 274
+11.7 Gradient-TD Methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 278
+11.8 Emphatic-TD Methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 281
+11.9 Reducing Variance . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 283
+11.10 Summary . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 284
+12 Eligibility Traces
+287
+12.1 The λ-return
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 288
+12.2 TD(λ) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 292
+12.3 n-step Truncated λ-return Methods
+. . . . . . . . . . . . . . . . . . . . . 295
+12.4 Redoing Updates: Online λ-return Algorithm . . . . . . . . . . . . . . . . 297
+12.5 True Online TD(λ) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 299
+12.6 *Dutch Traces in Monte Carlo Learning . . . . . . . . . . . . . . . . . . . 301
+12.7 Sarsa(λ) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 303
+12.8 Variable λ and γ . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 307
+12.9 O↵-policy Traces with Control Variates
+. . . . . . . . . . . . . . . . . . . 309
+12.10 Watkins’s Q(λ) to Tree-Backup(λ) . . . . . . . . . . . . . . . . . . . . . . 312
+12.11 Stable O↵-policy Methods with Traces
+. . . . . . . . . . . . . . . . . . . 314
+12.12 Implementation Issues . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 316
+12.13 Conclusions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 317
+
+--- Page 11 ---
+Contents
+xi
+13 Policy Gradient Methods
+321
+13.1 Policy Approximation and its Advantages . . . . . . . . . . . . . . . . . . 322
+13.2 The Policy Gradient Theorem . . . . . . . . . . . . . . . . . . . . . . . . . 324
+13.3 REINFORCE: Monte Carlo Policy Gradient . . . . . . . . . . . . . . . . . 326
+13.4 REINFORCE with Baseline . . . . . . . . . . . . . . . . . . . . . . . . . . 329
+13.5 Actor–Critic Methods
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . 331
+13.6 Policy Gradient for Continuing Problems
+. . . . . . . . . . . . . . . . . . 333
+13.7 Policy Parameterization for Continuous Actions . . . . . . . . . . . . . . . 335
+13.8 Summary
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 337
+III
+Looking Deeper
+339
+14 Psychology
+341
+14.1 Prediction and Control . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 342
+14.2 Classical Conditioning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 343
+14.2.1 Blocking and Higher-order Conditioning . . . . . . . . . . . . . . . 345
+14.2.2 The Rescorla–Wagner Model
+. . . . . . . . . . . . . . . . . . . . . 346
+14.2.3 The TD Model . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 349
+14.2.4 TD Model Simulations . . . . . . . . . . . . . . . . . . . . . . . . . 350
+14.3 Instrumental Conditioning . . . . . . . . . . . . . . . . . . . . . . . . . . . 357
+14.4 Delayed Reinforcement . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 361
+14.5 Cognitive Maps . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 363
+14.6 Habitual and Goal-directed Behavior . . . . . . . . . . . . . . . . . . . . . 364
+14.7 Summary
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 368
+15 Neuroscience
+377
+15.1 Neuroscience Basics
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 378
+15.2 Reward Signals, Reinforcement Signals, Values, and Prediction Errors
+. . 380
+15.3 The Reward Prediction Error Hypothesis
+. . . . . . . . . . . . . . . . . . 381
+15.4 Dopamine . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 383
+15.5 Experimental Support for the Reward Prediction Error Hypothesis . . . . 387
+15.6 TD Error/Dopamine Correspondence . . . . . . . . . . . . . . . . . . . . . 390
+15.7 Neural Actor–Critic
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 395
+15.8 Actor and Critic Learning Rules
+. . . . . . . . . . . . . . . . . . . . . . . 398
+15.9 Hedonistic Neurons . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 402
+15.10 Collective Reinforcement Learning . . . . . . . . . . . . . . . . . . . . . . 404
+15.11 Model-based Methods in the Brain . . . . . . . . . . . . . . . . . . . . . . 407
+15.12 Addiction . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 409
+15.13 Summary . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 410
+
+--- Page 12 ---
+xii
+Contents
+16 Applications and Case Studies
+421
+16.1 TD-Gammon . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 421
+16.2 Samuel’s Checkers Player
+. . . . . . . . . . . . . . . . . . . . . . . . . . . 426
+16.3 Watson’s Daily-Double Wagering . . . . . . . . . . . . . . . . . . . . . . . 429
+16.4 Optimizing Memory Control . . . . . . . . . . . . . . . . . . . . . . . . . . 432
+16.5 Human-level Video Game Play
+. . . . . . . . . . . . . . . . . . . . . . . . 436
+16.6 Mastering the Game of Go . . . . . . . . . . . . . . . . . . . . . . . . . . . 441
+16.6.1 AlphaGo
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 444
+16.6.2 AlphaGo Zero . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 447
+16.7 Personalized Web Services . . . . . . . . . . . . . . . . . . . . . . . . . . . 450
+16.8 Thermal Soaring . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 453
+17 Frontiers
+459
+17.1 General Value Functions and Auxiliary Tasks . . . . . . . . . . . . . . . . 459
+17.2 Temporal Abstraction via Options
+. . . . . . . . . . . . . . . . . . . . . . 461
+17.3 Observations and State
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . 464
+17.4 Designing Reward Signals . . . . . . . . . . . . . . . . . . . . . . . . . . . 469
+17.5 Remaining Issues . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 472
+17.6 Reinforcement Learning and the Future of Artiﬁcial Intelligence . . . . . . 475
+References
+481
+Index
+519
+
+--- Page 13 ---
+Preface to the Second Edition
+The twenty years since the publication of the ﬁrst edition of this book have seen tremendous
+progress in artiﬁcial intelligence, propelled in large part by advances in machine learning,
+including advances in reinforcement learning. Although the impressive computational
+power that became available is responsible for some of these advances, new developments
+in theory and algorithms have been driving forces as well. In the face of this progress, a
+second edition of our 1998 book was long overdue, and we ﬁnally began the project in
+2012. Our goal for the second edition was the same as our goal for the ﬁrst: to provide a
+clear and simple account of the key ideas and algorithms of reinforcement learning that
+is accessible to readers in all the related disciplines. The edition remains an introduction,
+and we retain a focus on core, online learning algorithms. This edition includes some new
+topics that rose to importance over the intervening years, and we expanded coverage of
+topics that we now understand better. But we made no attempt to provide comprehensive
+coverage of the ﬁeld, which has exploded in many di↵erent directions. We apologize for
+having to leave out all but a handful of these contributions.
+As in the ﬁrst edition, we chose not to produce a rigorous formal treatment of
+reinforcement learning, or to formulate it in the most general terms. However, our deeper
+understanding of some topics since the ﬁrst edition required a bit more mathematics
+to explain; we have set o↵the more mathematical parts in shaded boxes that the non-
+mathematically-inclined may choose to skip. We also use a slightly di↵erent notation
+than was used in the ﬁrst edition. In teaching, we have found that the new notation
+helps to address some common points of confusion. It emphasizes the di↵erence between
+random variables, denoted with capital letters, and their instantiations, denoted in lower
+case. For example, the state, action, and reward at time step t are denoted St, At,
+and Rt, while their possible values might be denoted s, a, and r. Along with this, it is
+natural to use lower case for value functions (e.g., v⇡) and restrict capitals to their tabular
+estimates (e.g., Qt(s, a)). Approximate value functions are deterministic functions of
+random parameters and are thus also in lower case (e.g., ˆv(s,wt) ⇡v⇡(s)). Vectors, such
+as the weight vector wt (formerly ✓t) and the feature vector xt (formerly φt), are bold
+and written in lowercase even if they are random variables. Uppercase bold is reserved for
+matrices. In the ﬁrst edition we used special notations, Pa
+ss0 and Ra
+ss0, for the transition
+probabilities and expected rewards. One weakness of that notation is that it still did not
+fully characterize the dynamics of the rewards, giving only their expectations, which is
+suﬃcient for dynamic programming but not for reinforcement learning. Another weakness
+
+--- Page 14 ---
+xiv
+Preface to the Second Edition
+is the excess of subscripts and superscripts. In this edition we use the explicit notation of
+p(s0, r|s, a) for the joint probability for the next state and reward given the current state
+and action. All the changes in notation are summarized in a table on page xix.
+The second edition is signiﬁcantly expanded, and its top-level organization has been
+changed. After the introductory ﬁrst chapter, the second edition is divided into three new
+parts. The ﬁrst part (Chapters 2–8) treats as much of reinforcement learning as possible
+without going beyond the tabular case for which exact solutions can be found. We cover
+both learning and planning methods for the tabular case, as well as their uniﬁcation
+in n-step methods and in Dyna. Many algorithms presented in this part are new to
+the second edition, including UCB, Expected Sarsa, Double learning, tree-backup, Q(σ),
+RTDP, and MCTS. Doing the tabular case ﬁrst, and thoroughly, enables core ideas to be
+developed in the simplest possible setting. The second part of the book (Chapters 9–13)
+is then devoted to extending the ideas to function approximation. It has new sections on
+artiﬁcial neural networks, the fourier basis, LSTD, kernel-based methods, Gradient-TD
+and Emphatic-TD methods, average-reward methods, true online TD(λ), and policy-
+gradient methods. The second edition signiﬁcantly expands the treatment of o↵-policy
+learning, ﬁrst for the tabular case in Chapters 5–7, then with function approximation in
+Chapters 11 and 12. Another change is that the second edition separates the forward-view
+idea of n-step bootstrapping (now treated more fully in Chapter 7) from the backward-
+view idea of eligibility traces (now treated independently in Chapter 12). The third part
+of the book has large new chapters on reinforcement learning’s relationships to psychology
+(Chapter 14) and neuroscience (Chapter 15), as well as an updated case-studies chapter
+including Atari game playing, Watson’s wagering strategy, and the Go playing programs
+AlphaGo and AlphaGo Zero (Chapter 16). Still, out of necessity we have included only a
+small subset of all that has been done in the ﬁeld. Our choices reﬂect our long-standing
+interests in inexpensive model-free methods that should scale well to large applications.
+The ﬁnal chapter now includes a discussion of the future societal impacts of reinforcement
+learning. For better or worse, the second edition is about twice as large as the ﬁrst.
+This book is designed to be used as the primary text for a one- or two-semester
+course on reinforcement learning. For a one-semester course, the ﬁrst ten chapters should
+be covered in order and form a good core, to which can be added material from the
+other chapters, from other books such as Bertsekas and Tsitsiklis (1996), Wiering and
+van Otterlo (2012), and Szepesv´ari (2010), or from the literature, according to taste.
+Depending of the students’ background, some additional material on online supervised
+learning may be helpful. The ideas of options and option models are a natural addition
+(Sutton, Precup and Singh, 1999). A two-semester course can cover all the chapters as
+well as supplementary material. The book can also be used as part of broader courses
+on machine learning, artiﬁcial intelligence, or neural networks. In this case, it may be
+desirable to cover only a subset of the material. We recommend covering Chapter 1 for a
+brief overview, Chapter 2 through Section 2.4, Chapter 3, and then selecting sections
+from the remaining chapters according to time and interests. Chapter 6 is the most
+important for the subject and for the rest of the book. A course focusing on machine
+learning or neural networks should cover Chapters 9 and 10, and a course focusing on
+artiﬁcial intelligence or planning should cover Chapter 8. Throughout the book, sections
+and chapters that are more diﬃcult and not essential to the rest of the book are marked
+
+--- Page 15 ---
+Preface to the Second Edition
+xv
+with a ⇤. These can be omitted on ﬁrst reading without creating problems later on. Some
+exercises are also marked with a ⇤to indicate that they are more advanced and not
+essential to understanding the basic material of the chapter.
+Most chapters end with a section entitled “Bibliographical and Historical Remarks,”
+wherein we credit the sources of the ideas presented in that chapter, provide pointers to
+further reading and ongoing research, and describe relevant historical background. Despite
+our attempts to make these sections authoritative and complete, we have undoubtedly left
+out some important prior work. For that we again apologize, and we welcome corrections
+and extensions for incorporation into the electronic version of the book.
+Like the ﬁrst edition, this edition of the book is dedicated to the memory of A. Harry
+Klopf. It was Harry who introduced us to each other, and it was his ideas about the brain
+and artiﬁcial intelligence that launched our long excursion into reinforcement learning.
+Trained in neurophysiology and long interested in machine intelligence, Harry was a
+senior scientist aﬃliated with the Avionics Directorate of the Air Force Oﬃce of Scientiﬁc
+Research (AFOSR) at Wright-Patterson Air Force Base, Ohio. He was dissatisﬁed with
+the great importance attributed to equilibrium-seeking processes, including homeostasis
+and error-correcting pattern classiﬁcation methods, in explaining natural intelligence
+and in providing a basis for machine intelligence. He noted that systems that try to
+maximize something (whatever that might be) are qualitatively di↵erent from equilibrium-
+seeking systems, and he argued that maximizing systems hold the key to understanding
+important aspects of natural intelligence and for building artiﬁcial intelligences. Harry was
+instrumental in obtaining funding from AFOSR for a project to assess the scientiﬁc merit
+of these and related ideas. This project was conducted in the late 1970s at the University
+of Massachusetts Amherst (UMass Amherst), initially under the direction of Michael
+Arbib, William Kilmer, and Nico Spinelli, professors in the Department of Computer
+and Information Science at UMass Amherst, and founding members of the Cybernetics
+Center for Systems Neuroscience at the University, a farsighted group focusing on the
+intersection of neuroscience and artiﬁcial intelligence. Barto, a recent PhD from the
+University of Michigan, was hired as post doctoral researcher on the project. Meanwhile,
+Sutton, an undergraduate studying computer science and psychology at Stanford, had
+been corresponding with Harry regarding their mutual interest in the role of stimulus
+timing in classical conditioning. Harry suggested to the UMass group that Sutton would
+be a great addition to the project. Thus, Sutton became a UMass graduate student,
+whose PhD was directed by Barto, who had become an Associate Professor. The study
+of reinforcement learning as presented in this book is rightfully an outcome of that
+project instigated by Harry and inspired by his ideas. Further, Harry was responsible
+for bringing us, the authors, together in what has been a long and enjoyable interaction.
+By dedicating this book to Harry we honor his essential contributions, not only to the
+ﬁeld of reinforcement learning, but also to our collaboration. We also thank Professors
+Arbib, Kilmer, and Spinelli for the opportunity they provided to us to begin exploring
+these ideas. Finally, we thank AFOSR for generous support over the early years of our
+research, and the NSF for its generous support over many of the following years.
+We have very many people to thank for their inspiration and help with this second
+edition. Everyone we acknowledged for their inspiration and help with the ﬁrst edition
+
+--- Page 16 ---
+xvi
+Preface to the Second Edition
+deserve our deepest gratitude for this edition as well, which would not exist were it not
+for their contributions to edition number one. To that long list we must add many others
+who contributed speciﬁcally to the second edition. Our students over the many years that
+we have taught this material contributed in countless ways: exposing errors, o↵ering ﬁxes,
+and—not the least—being confused in places where we could have explained things better.
+We especially thank Martha Steenstrup for reading and providing detailed comments
+throughout. The chapters on psychology and neuroscience could not have been written
+without the help of many experts in those ﬁelds. We thank John Moore for his patient
+tutoring over many many years on animal learning experiments, theory, and neuroscience,
+and for his careful reading of multiple drafts of Chapters 14 and 15. We also thank Matt
+Botvinick, Nathaniel Daw, Peter Dayan, and Yael Niv for their penetrating comments on
+drafts of these chapters, their essential guidance through the massive literature, and their
+interception of many of our errors in early drafts. Of course, the remaining errors in these
+chapters—and there must still be some—are totally our own. We thank Phil Thomas for
+helping us make these chapters accessible to non-psychologists and non-neuroscientists,
+and we thank Peter Sterling for helping us improve the exposition. We are grateful to Jim
+Houk for introducing us to the subject of information processing in the basal ganglia and
+for alerting us to other relevant aspects of neuroscience. Jos´e Mart´ınez, Terry Sejnowski,
+David Silver, Gerry Tesauro, Georgios Theocharous, and Phil Thomas generously helped
+us understand details of their reinforcement learning applications for inclusion in the
+case-studies chapter, and they provided helpful comments on drafts of these sections.
+Special thanks are owed to David Silver for helping us better understand Monte Carlo
+Tree Search and the DeepMind Go-playing programs. We thank George Konidaris for his
+help with the section on the Fourier basis. Emilio Cartoni, Thomas Cederborg, Stefan
+Dernbach, Clemens Rosenbaum, Patrick Taylor, Thomas Colin, and Pierre-Luc Bacon
+helped us in a number important ways for which we are most grateful.
+Sutton would also like to thank the members of the Reinforcement Learning and
+Artiﬁcial Intelligence laboratory at the University of Alberta for contributions to the
+second edition. He owes a particular debt to Rupam Mahmood for essential contributions
+to the treatment of o↵-policy Monte Carlo methods in Chapter 5, to Hamid Maei for
+helping develop the perspective on o↵-policy learning presented in Chapter 11, to Eric
+Graves for conducting the experiments in Chapter 13, to Shangtong Zhang for replicating
+and thus verifying almost all the experimental results, to Kris De Asis for improving
+the new technical content of Chapters 7 and 12, and to Harm van Seijen for insights
+that led to the separation of n-step methods from eligibility traces and (along with Hado
+van Hasselt) for the ideas involving exact equivalence of forward and backward views of
+eligibility traces presented in Chapter 12. Sutton also gratefully acknowledges the support
+and freedom he was granted by the Government of Alberta and the National Science and
+Engineering Research Council of Canada throughout the period during which the second
+edition was conceived and written. In particular, he would like to thank Randy Goebel
+for creating a supportive and far-sighted environment for research in Alberta. He would
+also like to thank DeepMind their support in the last six months of writing the book.
+Finally, we owe thanks to the many careful readers of drafts of the second edition that
+we posted on the internet. They found many errors that we had missed and alerted us to
+potential points of confusion.
+
+--- Page 17 ---
+Preface to the First Edition
+We ﬁrst came to focus on what is now known as reinforcement learning in late 1979. We
+were both at the University of Massachusetts, working on one of the earliest projects to
+revive the idea that networks of neuronlike adaptive elements might prove to be a promising
+approach to artiﬁcial adaptive intelligence. The project explored the “heterostatic theory
+of adaptive systems” developed by A. Harry Klopf. Harry’s work was a rich source of
+ideas, and we were permitted to explore them critically and compare them with the long
+history of prior work in adaptive systems. Our task became one of teasing the ideas apart
+and understanding their relationships and relative importance. This continues today,
+but in 1979 we came to realize that perhaps the simplest of the ideas, which had long
+been taken for granted, had received surprisingly little attention from a computational
+perspective. This was simply the idea of a learning system that wants something, that
+adapts its behavior in order to maximize a special signal from its environment. This
+was the idea of a “hedonistic” learning system, or, as we would say now, the idea of
+reinforcement learning.
+Like others, we had a sense that reinforcement learning had been thoroughly explored
+in the early days of cybernetics and artiﬁcial intelligence. On closer inspection, though,
+we found that it had been explored only slightly. While reinforcement learning had clearly
+motivated some of the earliest computational studies of learning, most of these researchers
+had gone on to other things, such as pattern classiﬁcation, supervised learning, and
+adaptive control, or they had abandoned the study of learning altogether. As a result, the
+special issues involved in learning how to get something from the environment received
+relatively little attention. In retrospect, focusing on this idea was the critical step that
+set this branch of research in motion. Little progress could be made in the computational
+study of reinforcement learning until it was recognized that such a fundamental idea had
+not yet been thoroughly explored.
+The ﬁeld has come a long way since then, evolving and maturing in several directions.
+Reinforcement learning has gradually become one of the most active research areas in ma-
+chine learning, artiﬁcial intelligence, and neural network research. The ﬁeld has developed
+strong mathematical foundations and impressive applications. The computational study
+of reinforcement learning is now a large ﬁeld, with hundreds of active researchers around
+the world in diverse disciplines such as psychology, control theory, artiﬁcial intelligence,
+and neuroscience. Particularly important have been the contributions establishing and
+developing the relationships to the theory of optimal control and dynamic programming.
+
+--- Page 18 ---
+xviii
+Preface to the First Edition
+The overall problem of learning from interaction to achieve goals is still far from being
+solved, but our understanding of it has improved signiﬁcantly. We can now place compo-
+nent ideas, such as temporal-di↵erence learning, dynamic programming, and function
+approximation, within a coherent perspective with respect to the overall problem.
+Our goal in writing this book was to provide a clear and simple account of the key
+ideas and algorithms of reinforcement learning. We wanted our treatment to be accessible
+to readers in all of the related disciplines, but we could not cover all of these perspectives
+in detail. For the most part, our treatment takes the point of view of artiﬁcial intelligence
+and engineering. Coverage of connections to other ﬁelds we leave to others or to another
+time. We also chose not to produce a rigorous formal treatment of reinforcement learning.
+We did not reach for the highest possible level of mathematical abstraction and did not
+rely on a theorem–proof format. We tried to choose a level of mathematical detail that
+points the mathematically inclined in the right directions without distracting from the
+simplicity and potential generality of the underlying ideas.
+In some sense we have been working toward this book for thirty years, and we have lots
+of people to thank. First, we thank those who have personally helped us develop the overall
+view presented in this book: Harry Klopf, for helping us recognize that reinforcement
+learning needed to be revived; Chris Watkins, Dimitri Bertsekas, John Tsitsiklis, and
+Paul Werbos, for helping us see the value of the relationships to dynamic programming;
+John Moore and Jim Kehoe, for insights and inspirations from animal learning theory;
+Oliver Selfridge, for emphasizing the breadth and importance of adaptation; and, more
+generally, our colleagues and students who have contributed in countless ways: Ron
+Williams, Charles Anderson, Satinder Singh, Sridhar Mahadevan, Steve Bradtke, Bob
+Crites, Peter Dayan, and Leemon Baird. Our view of reinforcement learning has been
+signiﬁcantly enriched by discussions with Paul Cohen, Paul Utgo↵, Martha Steenstrup,
+Gerry Tesauro, Mike Jordan, Leslie Kaelbling, Andrew Moore, Chris Atkeson, Tom
+Mitchell, Nils Nilsson, Stuart Russell, Tom Dietterich, Tom Dean, and Bob Narendra.
+We thank Michael Littman, Gerry Tesauro, Bob Crites, Satinder Singh, and Wei Zhang
+for providing speciﬁcs of Sections 4.7, 15.1, 15.4, 15.5, and 15.6 respectively. We thank
+the Air Force Oﬃce of Scientiﬁc Research, the National Science Foundation, and GTE
+Laboratories for their long and farsighted support.
+We also wish to thank the many people who have read drafts of this book and
+provided valuable comments, including Tom Kalt, John Tsitsiklis, Pawel Cichosz, Olle
+G¨allmo, Chuck Anderson, Stuart Russell, Ben Van Roy, Paul Steenstrup, Paul Cohen,
+Sridhar Mahadevan, Jette Randlov, Brian Sheppard, Thomas O’Connell, Richard Coggins,
+Cristina Versino, John H. Hiett, Andreas Badelt, Jay Ponte, Joe Beck, Justus Piater,
+Martha Steenstrup, Satinder Singh, Tommi Jaakkola, Dimitri Bertsekas, Torbj¨orn Ekman,
+Christina Bj¨orkman, Jakob Carlstr¨om, and Olle Palmgren. Finally, we thank Gwyn
+Mitchell for helping in many ways, and Harry Stanton and Bob Prior for being our
+champions at MIT Press.
+
+--- Page 19 ---
+Summary of Notation
+Capital letters are used for random variables, whereas lower case letters are used for
+the values of random variables and for scalar functions. Quantities that are required to
+be real-valued vectors are written in bold and in lower case (even if random variables).
+Matrices are bold capitals.
+.=
+equality relationship that is true by deﬁnition
+⇡
+approximately equal
+/
+proportional to
+Pr{X =x}
+probability that a random variable X takes on the value x
+X ⇠p
+random variable X selected from distribution p(x) .= Pr{X =x}
+E[X]
+expectation of a random variable X, i.e., E[X] .= P
+x p(x)x
+argmaxa f(a) a value of a at which f(a) takes its maximal value
+ln x
+natural logarithm of x
+ex, exp(x)
+the base of the natural logarithm, e ⇡2.71828, carried to power x; eln x = x
+R
+set of real numbers
+f : X ! Y
+function f from elements of set X to elements of set Y
+ 
+assignment
+(a, b]
+the real interval between a and b including b but not including a
+"
+probability of taking a random action in an "-greedy policy
+↵, β
+step-size parameters
+γ
+discount-rate parameter
+λ
+decay-rate parameter for eligibility traces
+predicate
+indicator function (
+predicate .= 1 if the predicate is true, else 0)
+In a multi-arm bandit problem:
+k
+number of actions (arms)
+t
+discrete time step or play number
+q⇤(a)
+true value (expected reward) of action a
+Qt(a)
+estimate at time t of q⇤(a)
+Nt(a)
+number of times action a has been selected up prior to time t
+Ht(a)
+learned preference for selecting action a at time t
+⇡t(a)
+probability of selecting action a at time t
+¯Rt
+estimate at time t of the expected reward given ⇡t
+
+--- Page 20 ---
+xx
+Summary of Notation
+In a Markov Decision Process:
+s, s0
+states
+a
+an action
+r
+a reward
+S
+set of all nonterminal states
+S+
+set of all states, including the terminal state
+A(s)
+set of all actions available in state s
+R
+set of all possible rewards, a ﬁnite subset of R
+⇢
+subset of (e.g., R ⇢R)
+2
+is an element of; e.g. (s 2 S, r 2 R)
+|S|
+number of elements in set S
+t
+discrete time step
+T, T(t)
+ﬁnal time step of an episode, or of the episode including time step t
+At
+action at time t
+St
+state at time t, typically due, stochastically, to St−1 and At−1
+Rt
+reward at time t, typically due, stochastically, to St−1 and At−1
+⇡
+policy (decision-making rule)
+⇡(s)
+action taken in state s under deterministic policy ⇡
+⇡(a|s)
+probability of taking action a in state s under stochastic policy ⇡
+Gt
+return following time t
+h
+horizon, the time step one looks up to in a forward view
+Gt:t+n, Gt:h
+n-step return from t + 1 to t + n, or to h (discounted and corrected)
+¯Gt:h
+ﬂat return (undiscounted and uncorrected) from t + 1 to h (Section 5.8)
+Gλ
+t
+λ-return (Section 12.1)
+Gλ
+t:h
+truncated, corrected λ-return (Section 12.3)
+Gλs
+t , Gλa
+t
+λ-return, corrected by estimated state, or action, values (Section 12.8)
+p(s0, r|s, a)
+probability of transition to state s0 with reward r, from state s and action a
+p(s0|s, a)
+probability of transition to state s0, from state s taking action a
+r(s, a)
+expected immediate reward from state s after action a
+r(s, a, s0)
+expected immediate reward on transition from s to s0 under action a
+v⇡(s)
+value of state s under policy ⇡(expected return)
+v⇤(s)
+value of state s under the optimal policy
+q⇡(s, a)
+value of taking action a in state s under policy ⇡
+q⇤(s, a)
+value of taking action a in state s under the optimal policy
+V, Vt
+array estimates of state-value function v⇡or v⇤
+Q, Qt
+array estimates of action-value function q⇡or q⇤
+¯Vt(s)
+expected approximate action value; for example, ¯Vt(s) .= P
+a ⇡(a|s)Qt(s, a)
+Ut
+target for estimate at time t
+
+--- Page 21 ---
+Summary of Notation
+xxi
+δt
+temporal-di↵erence (TD) error at t (a random variable) (Section 6.1)
+δs
+t , δa
+t
+state- and action-speciﬁc forms of the TD error (Section 12.9)
+n
+in n-step methods, n is the number of steps of bootstrapping
+d
+dimensionality—the number of components of w
+d0
+alternate dimensionality—the number of components of ✓
+w, wt
+d-vector of weights underlying an approximate value function
+wi, wt,i
+ith component of learnable weight vector
+ˆv(s,w)
+approximate value of state s given weight vector w
+vw(s)
+alternate notation for ˆv(s,w)
+ˆq(s, a, w)
+approximate value of state–action pair s, a given weight vector w
+rˆv(s,w)
+column vector of partial derivatives of ˆv(s,w) with respect to w
+rˆq(s, a, w)
+column vector of partial derivatives of ˆq(s, a, w) with respect to w
+x(s)
+vector of features visible when in state s
+x(s, a)
+vector of features visible when in state s taking action a
+xi(s), xi(s, a) ith component of vector x(s) or x(s, a)
+xt
+shorthand for x(St) or x(St, At)
+w>x
+inner product of vectors, w>x .= P
+i wixi; for example, ˆv(s,w) .= w>x(s)
+v, vt
+secondary d-vector of weights, used to learn w (Chapter 11)
+zt
+d-vector of eligibility traces at time t (Chapter 12)
+✓, ✓t
+parameter vector of target policy (Chapter 13)
+⇡(a|s, ✓)
+probability of taking action a in state s given parameter vector ✓
+⇡✓
+policy corresponding to parameter ✓
+r⇡(a|s, ✓)
+column vector of partial derivatives of ⇡(a|s, ✓) with respect to ✓
+J(✓)
+performance measure for the policy ⇡✓
+rJ(✓)
+column vector of partial derivatives of J(✓) with respect to ✓
+h(s, a, ✓)
+preference for selecting action a in state s based on ✓
+b(a|s)
+behavior policy used to select actions while learning about target policy ⇡
+b(s)
+a baseline function b : S 7! R for policy-gradient methods
+b
+branching factor for an MDP or search tree
+⇢t:h
+importance sampling ratio for time t through time h (Section 5.5)
+⇢t
+importance sampling ratio for time t alone, ⇢t .= ⇢t:t
+r(⇡)
+average reward (reward rate) for policy ⇡(Section 10.3)
+¯Rt
+estimate of r(⇡) at time t
+µ(s)
+on-policy distribution over states (Section 9.2)
+µ
+|S|-vector of the µ(s) for all s 2 S
+kvk2
+µ
+µ-weighted squared norm of value function v, i.e., kvk2
+µ
+.= P
+s2S µ(s)v(s)2
+⌘(s)
+expected number of visits to state s per episode (page 199)
+⇧
+projection operator for value functions (page 268)
+B⇡
+Bellman operator for value functions (Section 11.4)
+
+--- Page 22 ---
+xxii
+Summary of Notation
+A
+d ⇥d matrix A .= E
+h
+xt
+#
+xt −γxt+1
+$>i
+b
+d-dimensional vector b .= E[Rt+1xt]
+wTD
+TD ﬁxed point wTD .= A−1b (a d-vector, Section 9.4)
+I
+identity matrix
+P
+|S| ⇥|S| matrix of state-transition probabilities under ⇡
+D
+|S| ⇥|S| diagonal matrix with µ on its diagonal
+X
+|S| ⇥d matrix with the x(s) as its rows
+¯δw(s)
+Bellman error (expected TD error) for vw at state s (Section 11.4)
+¯δw, BE
+Bellman error vector, with components ¯δw(s)
+VE(w)
+mean square value error VE(w) .= kvw −v⇡k2
+µ (Section 9.2)
+BE(w)
+mean square Bellman error BE(w) .=
+&&¯δw
+&&2
+µ
+PBE(w)
+mean square projected Bellman error PBE(w) .=
+&&⇧¯δw
+&&2
+µ
+TDE(w)
+mean square temporal-di↵erence error TDE(w) .= Eb
+⇥
+⇢tδ2
+t
+⇤
+(Section 11.5)
+RE(w)
+mean square return error (Section 11.6)
+
+--- Page 23 ---
+Chapter 1
+Introduction
+The idea that we learn by interacting with our environment is probably the ﬁrst to occur
+to us when we think about the nature of learning. When an infant plays, waves its arms,
+or looks about, it has no explicit teacher, but it does have a direct sensorimotor connection
+to its environment. Exercising this connection produces a wealth of information about
+cause and e↵ect, about the consequences of actions, and about what to do in order to
+achieve goals. Throughout our lives, such interactions are undoubtedly a major source
+of knowledge about our environment and ourselves. Whether we are learning to drive
+a car or to hold a conversation, we are acutely aware of how our environment responds
+to what we do, and we seek to inﬂuence what happens through our behavior. Learning
+from interaction is a foundational idea underlying nearly all theories of learning and
+intelligence.
+In this book we explore a computational approach to learning from interaction. Rather
+than directly theorizing about how people or animals learn, we primarily explore idealized
+learning situations and evaluate the e↵ectiveness of various learning methods. That
+is, we adopt the perspective of an artiﬁcial intelligence researcher or engineer.
+We
+explore designs for machines that are e↵ective in solving learning problems of scientiﬁc or
+economic interest, evaluating the designs through mathematical analysis or computational
+experiments. The approach we explore, called reinforcement learning, is much more
+focused on goal-directed learning from interaction than are other approaches to machine
+learning.
+1.1
+Reinforcement Learning
+Reinforcement learning is learning what to do—how to map situations to actions—so
+as to maximize a numerical reward signal. The learner is not told which actions to
+take, but instead must discover which actions yield the most reward by trying them. In
+the most interesting and challenging cases, actions may a↵ect not only the immediate
+reward but also the next situation and, through that, all subsequent rewards. These two
+characteristics—trial-and-error search and delayed reward—are the two most important
+distinguishing features of reinforcement learning.
+
+--- Page 24 ---
+2
+Chapter 1: Introduction
+Reinforcement learning, like many topics whose names end with “ing,” such as machine
+learning and mountaineering, is simultaneously a problem, a class of solution methods
+that work well on the problem, and the ﬁeld that studies this problem and its solution
+methods. It is convenient to use a single name for all three things, but at the same time
+essential to keep the three conceptually separate. In particular, the distinction between
+problems and solution methods is very important in reinforcement learning; failing to
+make this distinction is the source of many confusions.
+We formalize the problem of reinforcement learning using ideas from dynamical sys-
+tems theory, speciﬁcally, as the optimal control of incompletely-known Markov decision
+processes. The details of this formalization must wait until Chapter 3, but the basic idea
+is simply to capture the most important aspects of the real problem facing a learning
+agent interacting over time with its environment to achieve a goal. A learning agent
+must be able to sense the state of its environment to some extent and must be able to
+take actions that a↵ect the state. The agent also must have a goal or goals relating to
+the state of the environment. Markov decision processes are intended to include just
+these three aspects—sensation, action, and goal—in their simplest possible forms without
+trivializing any of them. Any method that is well suited to solving such problems we
+consider to be a reinforcement learning method.
+Reinforcement learning is di↵erent from supervised learning, the kind of learning studied
+in most current research in the ﬁeld of machine learning. Supervised learning is learning
+from a training set of labeled examples provided by a knowledgable external supervisor.
+Each example is a description of a situation together with a speciﬁcation—the label—of
+the correct action the system should take in that situation, which is often to identify a
+category to which the situation belongs. The object of this kind of learning is for the
+system to extrapolate, or generalize, its responses so that it acts correctly in situations
+not present in the training set. This is an important kind of learning, but alone it is not
+adequate for learning from interaction. In interactive problems it is often impractical to
+obtain examples of desired behavior that are both correct and representative of all the
+situations in which the agent has to act. In uncharted territory—where one would expect
+learning to be most beneﬁcial—an agent must be able to learn from its own experience.
+Reinforcement learning is also di↵erent from what machine learning researchers call
+unsupervised learning, which is typically about ﬁnding structure hidden in collections of
+unlabeled data. The terms supervised learning and unsupervised learning would seem
+to exhaustively classify machine learning paradigms, but they do not. Although one
+might be tempted to think of reinforcement learning as a kind of unsupervised learning
+because it does not rely on examples of correct behavior, reinforcement learning is trying
+to maximize a reward signal instead of trying to ﬁnd hidden structure. Uncovering
+structure in an agent’s experience can certainly be useful in reinforcement learning, but by
+itself does not address the reinforcement learning problem of maximizing a reward signal.
+We therefore consider reinforcement learning to be a third machine learning paradigm,
+alongside supervised learning and unsupervised learning and perhaps other paradigms.
+
+--- Page 25 ---
+1.1. Reinforcement Learning
+3
+One of the challenges that arise in reinforcement learning, and not in other kinds
+of learning, is the trade-o↵between exploration and exploitation. To obtain a lot of
+reward, a reinforcement learning agent must prefer actions that it has tried in the past
+and found to be e↵ective in producing reward. But to discover such actions, it has to
+try actions that it has not selected before. The agent has to exploit what it has already
+experienced in order to obtain reward, but it also has to explore in order to make better
+action selections in the future. The dilemma is that neither exploration nor exploitation
+can be pursued exclusively without failing at the task. The agent must try a variety of
+actions and progressively favor those that appear to be best. On a stochastic task, each
+action must be tried many times to gain a reliable estimate of its expected reward. The
+exploration–exploitation dilemma has been intensively studied by mathematicians for
+many decades, yet remains unresolved. For now, we simply note that the entire issue of
+balancing exploration and exploitation does not even arise in supervised and unsupervised
+learning, at least in the purest forms of these paradigms.
+Another key feature of reinforcement learning is that it explicitly considers the whole
+problem of a goal-directed agent interacting with an uncertain environment. This is in
+contrast to many approaches that consider subproblems without addressing how they
+might ﬁt into a larger picture. For example, we have mentioned that many machine
+learning researchers have studied supervised learning without specifying how such an
+ability would ultimately be useful. Other researchers have developed theories of planning
+with general goals, but without considering planning’s role in real-time decision making,
+or the question of where the predictive models necessary for planning would come from.
+Although these approaches have yielded many useful results, their focus on isolated
+subproblems is a signiﬁcant limitation.
+Reinforcement learning takes the opposite tack, starting with a complete, interactive,
+goal-seeking agent. All reinforcement learning agents have explicit goals, can sense
+aspects of their environments, and can choose actions to inﬂuence their environments.
+Moreover, it is usually assumed from the beginning that the agent has to operate despite
+signiﬁcant uncertainty about the environment it faces. When reinforcement learning
+involves planning, it has to address the interplay between planning and real-time action
+selection, as well as the question of how environment models are acquired and improved.
+When reinforcement learning involves supervised learning, it does so for speciﬁc reasons
+that determine which capabilities are critical and which are not. For learning research to
+make progress, important subproblems have to be isolated and studied, but they should
+be subproblems that play clear roles in complete, interactive, goal-seeking agents, even if
+all the details of the complete agent cannot yet be ﬁlled in.
+By a complete, interactive, goal-seeking agent we do not always mean something like
+a complete organism or robot. These are clearly examples, but a complete, interactive,
+goal-seeking agent can also be a component of a larger behaving system. In this case, the
+agent directly interacts with the rest of the larger system and indirectly interacts with
+the larger system’s environment. A simple example is an agent that monitors the charge
+level of robot’s battery and sends commands to the robot’s control architecture. This
+agent’s environment is the rest of the robot together with the robot’s environment. It is
+
+--- Page 26 ---
+4
+Chapter 1: Introduction
+important to look beyond the most obvious examples of agents and their environments
+to appreciate the generality of the reinforcement learning framework.
+One of the most exciting aspects of modern reinforcement learning is its substantive
+and fruitful interactions with other engineering and scientiﬁc disciplines. Reinforcement
+learning is part of a decades-long trend within artiﬁcial intelligence and machine learning
+toward greater integration with statistics, optimization, and other mathematical subjects.
+For example, the ability of some reinforcement learning methods to learn with parameter-
+ized approximators addresses the classical “curse of dimensionality” in operations research
+and control theory. More distinctively, reinforcement learning has also interacted strongly
+with psychology and neuroscience, with substantial beneﬁts going both ways. Of all the
+forms of machine learning, reinforcement learning is the closest to the kind of learning
+that humans and other animals do, and many of the core algorithms of reinforcement
+learning were originally inspired by biological learning systems. Reinforcement learning
+has also given back, both through a psychological model of animal learning that better
+matches some of the empirical data, and through an inﬂuential model of parts of the
+brain’s reward system. The body of this book develops the ideas of reinforcement learning
+that pertain to engineering and artiﬁcial intelligence, with connections to psychology and
+neuroscience summarized in Chapters 14 and 15.
+Finally, reinforcement learning is also part of a larger trend in artiﬁcial intelligence
+back toward simple general principles. Since the late 1960s, many artiﬁcial intelligence re-
+searchers presumed that there are no general principles to be discovered, that intelligence is
+instead due to the possession of a vast number of special purpose tricks, procedures, and
+heuristics. It was sometimes said that if we could just get enough relevant facts into a
+machine, say one million, or one billion, then it would become intelligent. Methods based
+on general principles, such as search or learning, were characterized as “weak methods,”
+whereas those based on speciﬁc knowledge were called “strong methods.” This view is
+uncommon today. From our point of view, it was premature: too little e↵ort had been
+put into the search for general principles to conclude that there were none. Modern
+artiﬁcial intelligence now includes much research looking for general principles of learning,
+search, and decision making. It is not clear how far back the pendulum will swing, but
+reinforcement learning research is certainly part of the swing back toward simpler and
+fewer general principles of artiﬁcial intelligence.
+1.2
+Examples
+A good way to understand reinforcement learning is to consider some of the examples
+and possible applications that have guided its development.
+• A master chess player makes a move. The choice is informed both by planning—
+anticipating possible replies and counterreplies—and by immediate, intuitive judg-
+ments of the desirability of particular positions and moves.
+• An adaptive controller adjusts parameters of a petroleum reﬁnery’s operation in
+real time. The controller optimizes the yield/cost/quality trade-o↵on the basis
+
+--- Page 27 ---
+1.2. Examples
+5
+of speciﬁed marginal costs without sticking strictly to the set points originally
+suggested by engineers.
+• A gazelle calf struggles to its feet minutes after being born. Half an hour later it is
+running at 20 miles per hour.
+• A mobile robot decides whether it should enter a new room in search of more trash
+to collect or start trying to ﬁnd its way back to its battery recharging station. It
+makes its decision based on the current charge level of its battery and how quickly
+and easily it has been able to ﬁnd the recharger in the past.
+• Phil prepares his breakfast. Closely examined, even this apparently mundane
+activity reveals a complex web of conditional behavior and interlocking goal–subgoal
+relationships: walking to the cupboard, opening it, selecting a cereal box, then
+reaching for, grasping, and retrieving the box. Other complex, tuned, interactive
+sequences of behavior are required to obtain a bowl, spoon, and milk carton. Each
+step involves a series of eye movements to obtain information and to guide reaching
+and locomotion. Rapid judgments are continually made about how to carry the
+objects or whether it is better to ferry some of them to the dining table before
+obtaining others. Each step is guided by goals, such as grasping a spoon or getting
+to the refrigerator, and is in service of other goals, such as having the spoon to eat
+with once the cereal is prepared and ultimately obtaining nourishment. Whether
+he is aware of it or not, Phil is accessing information about the state of his body
+that determines his nutritional needs, level of hunger, and food preferences.
+These examples share features that are so basic that they are easy to overlook. All
+involve interaction between an active decision-making agent and its environment, within
+which the agent seeks to achieve a goal despite uncertainty about its environment. The
+agent’s actions are permitted to a↵ect the future state of the environment (e.g., the
+next chess position, the level of reservoirs of the reﬁnery, the robot’s next location and
+the future charge level of its battery), thereby a↵ecting the actions and opportunities
+available to the agent at later times. Correct choice requires taking into account indirect,
+delayed consequences of actions, and thus may require foresight or planning.
+At the same time, in all of these examples the e↵ects of actions cannot be fully predicted;
+thus the agent must monitor its environment frequently and react appropriately. For
+example, Phil must watch the milk he pours into his cereal bowl to keep it from overﬂowing.
+All these examples involve goals that are explicit in the sense that the agent can judge
+progress toward its goal based on what it can sense directly. The chess player knows
+whether or not he wins, the reﬁnery controller knows how much petroleum is being
+produced, the gazelle calf knows when it falls, the mobile robot knows when its batteries
+run down, and Phil knows whether or not he is enjoying his breakfast.
+In all of these examples the agent can use its experience to improve its performance
+over time. The chess player reﬁnes the intuition he uses to evaluate positions, thereby
+improving his play; the gazelle calf improves the eﬃciency with which it can run; Phil
+learns to streamline making his breakfast. The knowledge the agent brings to the task at
+the start—either from previous experience with related tasks or built into it by design or
+
+--- Page 28 ---
+6
+Chapter 1: Introduction
+evolution—inﬂuences what is useful or easy to learn, but interaction with the environment
+is essential for adjusting behavior to exploit speciﬁc features of the task.
+1.3
+Elements of Reinforcement Learning
+Beyond the agent and the environment, one can identify four main subelements of a
+reinforcement learning system: a policy, a reward signal, a value function, and, optionally,
+a model of the environment.
+A policy deﬁnes the learning agent’s way of behaving at a given time. Roughly speaking,
+a policy is a mapping from perceived states of the environment to actions to be taken
+when in those states. It corresponds to what in psychology would be called a set of
+stimulus–response rules or associations. In some cases the policy may be a simple function
+or lookup table, whereas in others it may involve extensive computation such as a search
+process. The policy is the core of a reinforcement learning agent in the sense that it alone
+is suﬃcient to determine behavior. In general, policies may be stochastic, specifying
+probabilities for each action.
+A reward signal deﬁnes the goal of a reinforcement learning problem. On each time
+step, the environment sends to the reinforcement learning agent a single number called
+the reward. The agent’s sole objective is to maximize the total reward it receives over
+the long run. The reward signal thus deﬁnes what are the good and bad events for the
+agent. In a biological system, we might think of rewards as analogous to the experiences
+of pleasure or pain. They are the immediate and deﬁning features of the problem faced
+by the agent. The reward signal is the primary basis for altering the policy; if an action
+selected by the policy is followed by low reward, then the policy may be changed to
+select some other action in that situation in the future. In general, reward signals may
+be stochastic functions of the state of the environment and the actions taken.
+Whereas the reward signal indicates what is good in an immediate sense, a value
+function speciﬁes what is good in the long run. Roughly speaking, the value of a state is
+the total amount of reward an agent can expect to accumulate over the future, starting
+from that state. Whereas rewards determine the immediate, intrinsic desirability of
+environmental states, values indicate the long-term desirability of states after taking into
+account the states that are likely to follow and the rewards available in those states. For
+example, a state might always yield a low immediate reward but still have a high value
+because it is regularly followed by other states that yield high rewards. Or the reverse
+could be true. To make a human analogy, rewards are somewhat like pleasure (if high)
+and pain (if low), whereas values correspond to a more reﬁned and farsighted judgment
+of how pleased or displeased we are that our environment is in a particular state.
+Rewards are in a sense primary, whereas values, as predictions of rewards, are secondary.
+Without rewards there could be no values, and the only purpose of estimating values is to
+achieve more reward. Nevertheless, it is values with which we are most concerned when
+making and evaluating decisions. Action choices are made based on value judgments. We
+seek actions that bring about states of highest value, not highest reward, because these
+actions obtain the greatest amount of reward for us over the long run. Unfortunately, it
+is much harder to determine values than it is to determine rewards. Rewards are basically
+given directly by the environment, but values must be estimated and re-estimated from
+
+--- Page 29 ---
+1.4. Limitations and Scope
+7
+the sequences of observations an agent makes over its entire lifetime. In fact, the most
+important component of almost all reinforcement learning algorithms we consider is a
+method for eﬃciently estimating values. The central role of value estimation is arguably
+the most important thing that has been learned about reinforcement learning over the
+last six decades.
+The fourth and ﬁnal element of some reinforcement learning systems is a model of
+the environment. This is something that mimics the behavior of the environment, or
+more generally, that allows inferences to be made about how the environment will behave.
+For example, given a state and action, the model might predict the resultant next state
+and next reward. Models are used for planning, by which we mean any way of deciding
+on a course of action by considering possible future situations before they are actually
+experienced. Methods for solving reinforcement learning problems that use models and
+planning are called model-based methods, as opposed to simpler model-free methods that
+are explicitly trial-and-error learners—viewed as almost the opposite of planning. In
+Chapter 8 we explore reinforcement learning systems that simultaneously learn by trial
+and error, learn a model of the environment, and use the model for planning. Modern
+reinforcement learning spans the spectrum from low-level, trial-and-error learning to
+high-level, deliberative planning.
+1.4
+Limitations and Scope
+Reinforcement learning relies heavily on the concept of state—as input to the policy and
+value function, and as both input to and output from the model. Informally, we can
+think of the state as a signal conveying to the agent some sense of “how the environment
+is” at a particular time. The formal deﬁnition of state as we use it here is given by
+the framework of Markov decision processes presented in Chapter 3. More generally,
+however, we encourage the reader to follow the informal meaning and think of the state
+as whatever information is available to the agent about its environment. In e↵ect, we
+assume that the state signal is produced by some preprocessing system that is nominally
+part of the agent’s environment. We do not address the issues of constructing, changing,
+or learning the state signal in this book (other than brieﬂy in Section 17.3). We take this
+approach not because we consider state representation to be unimportant, but in order
+to focus fully on the decision-making issues. In other words, our concern in this book is
+not with designing the state signal, but with deciding what action to take as a function
+of whatever state signal is available.
+Most of the reinforcement learning methods we consider in this book are structured
+around estimating value functions, but it is not strictly necessary to do this to solve
+reinforcement learning problems. For example, solution methods such as genetic algo-
+rithms, genetic programming, simulated annealing, and other optimization methods never
+estimate value functions. These methods apply multiple static policies each interacting
+over an extended period of time with a separate instance of the environment. The policies
+that obtain the most reward, and random variations of them, are carried over to the
+next generation of policies, and the process repeats. We call these evolutionary methods
+because their operation is analogous to the way biological evolution produces organisms
+
+--- Page 30 ---
+8
+Chapter 1: Introduction
+with skilled behavior even if they do not learn during their individual lifetimes. If the
+space of policies is suﬃciently small, or can be structured so that good policies are
+common or easy to ﬁnd—or if a lot of time is available for the search—then evolutionary
+methods can be e↵ective. In addition, evolutionary methods have advantages on problems
+in which the learning agent cannot sense the complete state of its environment.
+Our focus is on reinforcement learning methods that learn while interacting with the
+environment, which evolutionary methods do not do. Methods able to take advantage
+of the details of individual behavioral interactions can be much more eﬃcient than
+evolutionary methods in many cases. Evolutionary methods ignore much of the useful
+structure of the reinforcement learning problem: they do not use the fact that the policy
+they are searching for is a function from states to actions; they do not notice which states
+an individual passes through during its lifetime, or which actions it selects. In some cases
+such information can be misleading (e.g., when states are misperceived), but more often it
+should enable more eﬃcient search. Although evolution and learning share many features
+and naturally work together, we do not consider evolutionary methods by themselves to
+be especially well suited to reinforcement learning problems and, accordingly, we do not
+cover them in this book.
+1.5
+An Extended Example: Tic-Tac-Toe
+To illustrate the general idea of reinforcement learning and contrast it with other ap-
+proaches, we next consider a single example in more detail.
+X
+X
+X
+O
+O
+X
+O
+Consider the familiar child’s game of tic-tac-toe. Two players
+take turns playing on a three-by-three board. One player plays
+Xs and the other Os until one player wins by placing three marks
+in a row, horizontally, vertically, or diagonally, as the X player
+has in the game shown to the right. If the board ﬁlls up with
+neither player getting three in a row, then the game is a draw.
+Because a skilled player can play so as never to lose, let us assume
+that we are playing against an imperfect player, one whose play
+is sometimes incorrect and allows us to win. For the moment, in
+fact, let us consider draws and losses to be equally bad for us. How might we construct a
+player that will ﬁnd the imperfections in its opponent’s play and learn to maximize its
+chances of winning?
+Although this is a simple problem, it cannot readily be solved in a satisfactory way
+through classical techniques. For example, the classical “minimax” solution from game
+theory is not correct here because it assumes a particular way of playing by the opponent.
+For example, a minimax player would never reach a game state from which it could
+lose, even if in fact it always won from that state because of incorrect play by the
+opponent. Classical optimization methods for sequential decision problems, such as
+dynamic programming, can compute an optimal solution for any opponent, but require
+as input a complete speciﬁcation of that opponent, including the probabilities with which
+the opponent makes each move in each board state. Let us assume that this information
+is not available a priori for this problem, as it is not for the vast majority of problems of
+
+--- Page 31 ---
+1.5. An Extended Example: Tic-Tac-Toe
+9
+practical interest. On the other hand, such information can be estimated from experience,
+in this case by playing many games against the opponent. About the best one can do
+on this problem is ﬁrst to learn a model of the opponent’s behavior, up to some level of
+conﬁdence, and then apply dynamic programming to compute an optimal solution given
+the approximate opponent model. In the end, this is not that di↵erent from some of the
+reinforcement learning methods we examine later in this book.
+An evolutionary method applied to this problem would directly search the space
+of possible policies for one with a high probability of winning against the opponent.
+Here, a policy is a rule that tells the player what move to make for every state of the
+game—every possible conﬁguration of Xs and Os on the three-by-three board. For each
+policy considered, an estimate of its winning probability would be obtained by playing
+some number of games against the opponent. This evaluation would then direct which
+policy or policies were considered next. A typical evolutionary method would hill-climb
+in policy space, successively generating and evaluating policies in an attempt to obtain
+incremental improvements. Or, perhaps, a genetic-style algorithm could be used that
+would maintain and evaluate a population of policies. Literally hundreds of di↵erent
+optimization methods could be applied.
+Here is how the tic-tac-toe problem would be approached with a method making use
+of a value function. First we would set up a table of numbers, one for each possible state
+of the game. Each number will be the latest estimate of the probability of our winning
+from that state. We treat this estimate as the state’s value, and the whole table is the
+learned value function. State A has higher value than state B, or is considered “better”
+than state B, if the current estimate of the probability of our winning from A is higher
+than it is from B. Assuming we always play Xs, then for all states with three Xs in a row
+the probability of winning is 1, because we have already won. Similarly, for all states
+with three Os in a row, or that are ﬁlled up, the correct probability is 0, as we cannot
+win from them. We set the initial values of all the other states to 0.5, representing a
+guess that we have a 50% chance of winning.
+We then play many games against the opponent. To select our moves we examine the
+states that would result from each of our possible moves (one for each blank space on the
+board) and look up their current values in the table. Most of the time we move greedily,
+selecting the move that leads to the state with greatest value, that is, with the highest
+estimated probability of winning. Occasionally, however, we select randomly from among
+the other moves instead. These are called exploratory moves because they cause us to
+experience states that we might otherwise never see. A sequence of moves made and
+considered during a game can be diagrammed as in Figure 1.1.
+While we are playing, we change the values of the states in which we ﬁnd ourselves
+during the game. We attempt to make them more accurate estimates of the probabilities
+of winning. To do this, we “back up” the value of the state after each greedy move to
+the state before the move, as suggested by the arrows in Figure 1.1. More precisely, the
+current value of the earlier state is updated to be closer to the value of the later state.
+This can be done by moving the earlier state’s value a fraction of the way toward the
+value of the later state. If we let St denote the state before the greedy move, and St+1
+the state after that move, then the update to the estimated value of St, denoted V (St),
+
+--- Page 32 ---
+10
+Chapter 1: Introduction
+..
+•
+our move{
+opponent's move{
+our move{
+starting position
+•
+•
+•
+a
+b
+c*
+d
+e
+e*
+opponent's move{
+c
+•f
+•g*
+g
+opponent's move{
+our move{
+.
+•
+a
+g*
+c
+starting position
+b
+c*
+d
+e*
+e
+f
+g
+…
+Figure 1.1: A sequence of tic-tac-toe moves. The solid black lines represent the moves taken
+during a game; the dashed lines represent moves that we (our reinforcement learning player)
+considered but did not make. The * indicates the move currently estimated to be the best. Our
+second move was an exploratory move, meaning that it was taken even though another sibling
+move, the one leading to e⇤, was ranked higher. Exploratory moves do not result in any learning,
+but each of our other moves does, causing updates as suggested by the red arrows in which
+estimated values are moved up the tree from later nodes to earlier nodes as detailed in the text.
+can be written as
+V (St)  V (St) + ↵
+h
+V (St+1) −V (St)
+i
+,
+where ↵is a small positive fraction called the step-size parameter, which inﬂuences
+the rate of learning. This update rule is an example of a temporal-di↵erence learning
+method, so called because its changes are based on a di↵erence, V (St+1)−V (St), between
+estimates at two successive times.
+The method described above performs quite well on this task. For example, if the
+step-size parameter is reduced properly over time, then this method converges, for any
+ﬁxed opponent, to the true probabilities of winning from each state given optimal play
+by our player. Furthermore, the moves then taken (except on exploratory moves) are in
+fact the optimal moves against this (imperfect) opponent. In other words, the method
+converges to an optimal policy for playing the game against this opponent. If the step-size
+parameter is not reduced all the way to zero over time, then this player also plays well
+against opponents that slowly change their way of playing.
+
+--- Page 33 ---
+1.5. An Extended Example: Tic-Tac-Toe
+11
+This example illustrates the di↵erences between evolutionary methods and methods
+that learn value functions. To evaluate a policy, an evolutionary method holds the policy
+ﬁxed and plays many games against the opponent or simulates many games using a model
+of the opponent. The frequency of wins gives an unbiased estimate of the probability
+of winning with that policy, and can be used to direct the next policy selection. But
+each policy change is made only after many games, and only the ﬁnal outcome of each
+game is used: what happens during the games is ignored. For example, if the player wins,
+then all of its behavior in the game is given credit, independently of how speciﬁc moves
+might have been critical to the win. Credit is even given to moves that never occurred!
+Value function methods, in contrast, allow individual states to be evaluated. In the end,
+evolutionary and value function methods both search the space of policies, but learning a
+value function takes advantage of information available during the course of play.
+This simple example illustrates some of the key features of reinforcement learning
+methods. First, there is the emphasis on learning while interacting with an environment,
+in this case with an opponent player. Second, there is a clear goal, and correct behavior
+requires planning or foresight that takes into account delayed e↵ects of one’s choices. For
+example, the simple reinforcement learning player would learn to set up multi-move traps
+for a shortsighted opponent. It is a striking feature of the reinforcement learning solution
+that it can achieve the e↵ects of planning and lookahead without using a model of the
+opponent and without conducting an explicit search over possible sequences of future
+states and actions.
+While this example illustrates some of the key features of reinforcement learning, it is
+so simple that it might give the impression that reinforcement learning is more limited
+than it really is. Although tic-tac-toe is a two-person game, reinforcement learning
+also applies in the case in which there is no external adversary, that is, in the case of
+a “game against nature.” Reinforcement learning also is not restricted to problems in
+which behavior breaks down into separate episodes, like the separate games of tic-tac-toe,
+with reward only at the end of each episode. It is just as applicable when behavior
+continues indeﬁnitely and when rewards of various magnitudes can be received at any
+time. Reinforcement learning is also applicable to problems that do not even break down
+into discrete time steps like the plays of tic-tac-toe. The general principles apply to
+continuous-time problems as well, although the theory gets more complicated and we
+omit it from this introductory treatment.
+Tic-tac-toe has a relatively small, ﬁnite state set, whereas reinforcement learning can
+be used when the state set is very large, or even inﬁnite. For example, Gerry Tesauro
+(1992, 1995) combined the algorithm described above with an artiﬁcial neural network to
+learn to play backgammon, which has approximately 1020 states. With this many states
+it is impossible ever to experience more than a small fraction of them. Tesauro’s program
+learned to play far better than any previous program and eventually better than the
+world’s best human players (see Section 16.1). The artiﬁcial neural network provides the
+program with the ability to generalize from its experience, so that in new states it selects
+moves based on information saved from similar states faced in the past, as determined
+by the network. How well a reinforcement learning system can work in problems with
+such large state sets is intimately tied to how appropriately it can generalize from past
+
+--- Page 34 ---
+12
+Chapter 1: Introduction
+experience. It is in this role that we have the greatest need for supervised learning
+methods within reinforcement learning. Artiﬁcial neural networks and deep learning
+(Section 9.7) are not the only, or necessarily the best, way to do this.
+In this tic-tac-toe example, learning started with no prior knowledge beyond the
+rules of the game, but reinforcement learning by no means entails a tabula rasa view of
+learning and intelligence. On the contrary, prior information can be incorporated into
+reinforcement learning in a variety of ways that can be critical for eﬃcient learning (e.g.,
+see Sections 9.5, 17.4, and 13.1). We also have access to the true state in the tic-tac-toe
+example, whereas reinforcement learning can also be applied when part of the state is
+hidden, or when di↵erent states appear to the learner to be the same.
+Finally, the tic-tac-toe player was able to look ahead and know the states that would
+result from each of its possible moves. To do this, it had to have a model of the game
+that allowed it to foresee how its environment would change in response to moves that it
+might never make. Many problems are like this, but in others even a short-term model
+of the e↵ects of actions is lacking. Reinforcement learning can be applied in either case.
+A model is not required, but models can easily be used if they are available or can be
+learned (Chapter 8).
+On the other hand, there are reinforcement learning methods that do not need any
+kind of environment model at all. Model-free systems cannot even think about how
+their environments will change in response to a single action. The tic-tac-toe player is
+model-free in this sense with respect to its opponent: it has no model of its opponent
+of any kind. Because models have to be reasonably accurate to be useful, model-free
+methods can have advantages over more complex methods when the real bottleneck in
+solving a problem is the diﬃculty of constructing a suﬃciently accurate environment
+model. Model-free methods are also important building blocks for model-based methods.
+In this book we devote several chapters to model-free methods before we discuss how
+they can be used as components of more complex model-based methods.
+Reinforcement learning can be used at both high and low levels in a system. Although
+the tic-tac-toe player learned only about the basic moves of the game, nothing prevents
+reinforcement learning from working at higher levels where each of the “actions” may
+itself be the application of a possibly elaborate problem-solving method. In hierarchical
+learning systems, reinforcement learning can work simultaneously on several levels.
+Exercise 1.1: Self-Play
+Suppose, instead of playing against a random opponent, the
+reinforcement learning algorithm described above played against itself, with both sides
+learning. What do you think would happen in this case? Would it learn a di↵erent policy
+for selecting moves?
+⇤
+Exercise 1.2: Symmetries
+Many tic-tac-toe positions appear di↵erent but are really
+the same because of symmetries. How might we amend the learning process described
+above to take advantage of this? In what ways would this change improve the learning
+process? Now think again. Suppose the opponent did not take advantage of symmetries.
+In that case, should we? Is it true, then, that symmetrically equivalent positions should
+necessarily have the same value?
+⇤
+Exercise 1.3: Greedy Play
+Suppose the reinforcement learning player was greedy, that is,
+it always played the move that brought it to the position that it rated the best. Might it
+
+--- Page 35 ---
+1.7. Early History of Reinforcement Learning
+13
+learn to play better, or worse, than a nongreedy player? What problems might occur? ⇤
+Exercise 1.4: Learning from Exploration
+Suppose learning updates occurred after all
+moves, including exploratory moves. If the step-size parameter is appropriately reduced
+over time (but not the tendency to explore), then the state values would converge to
+a di↵erent set of probabilities. What (conceptually) are the two sets of probabilities
+computed when we do, and when we do not, learn from exploratory moves? Assuming
+that we do continue to make exploratory moves, which set of probabilities might be better
+to learn? Which would result in more wins?
+⇤
+Exercise 1.5: Other Improvements
+Can you think of other ways to improve the reinforce-
+ment learning player? Can you think of any better way to solve the tic-tac-toe problem
+as posed?
+⇤
+1.6
+Summary
+Reinforcement learning is a computational approach to understanding and automating
+goal-directed learning and decision making. It is distinguished from other computational
+approaches by its emphasis on learning by an agent from direct interaction with its
+environment, without requiring exemplary supervision or complete models of the envi-
+ronment. In our opinion, reinforcement learning is the ﬁrst ﬁeld to seriously address the
+computational issues that arise when learning from interaction with an environment in
+order to achieve long-term goals.
+Reinforcement learning uses the formal framework of Markov decision processes to
+deﬁne the interaction between a learning agent and its environment in terms of states,
+actions, and rewards. This framework is intended to be a simple way of representing
+essential features of the artiﬁcial intelligence problem. These features include a sense of
+cause and e↵ect, a sense of uncertainty and nondeterminism, and the existence of explicit
+goals.
+The concepts of value and value function are key to most of the reinforcement learning
+methods that we consider in this book.
+We take the position that value functions
+are important for eﬃcient search in the space of policies. The use of value functions
+distinguishes reinforcement learning methods from evolutionary methods that search
+directly in policy space guided by evaluations of entire policies.
+1.7
+Early History of Reinforcement Learning
+The early history of reinforcement learning has two main threads, both long and rich, that
+were pursued independently before intertwining in modern reinforcement learning. One
+thread concerns learning by trial and error, and originated in the psychology of animal
+learning. This thread runs through some of the earliest work in artiﬁcial intelligence
+and led to the revival of reinforcement learning in the early 1980s. The second thread
+concerns the problem of optimal control and its solution using value functions and
+dynamic programming. For the most part, this thread did not involve learning. The
+two threads were mostly independent, but became interrelated to some extent around a
+
+--- Page 36 ---
+14
+Chapter 1: Introduction
+third, less distinct thread concerning temporal-di↵erence methods such as that used in
+the tic-tac-toe example in this chapter. All three threads came together in the late 1980s
+to produce the modern ﬁeld of reinforcement learning as we present it in this book.
+The thread focusing on trial-and-error learning is the one with which we are most
+familiar and about which we have the most to say in this brief history. Before doing that,
+however, we brieﬂy discuss the optimal control thread.
+The term “optimal control” came into use in the late 1950s to describe the problem of
+designing a controller to minimize or maximize a measure of a dynamical system’s behavior
+over time. One of the approaches to this problem was developed in the mid-1950s by
+Richard Bellman and others through extending a nineteenth century theory of Hamilton
+and Jacobi. This approach uses the concepts of a dynamical system’s state and of a
+value function, or “optimal return function,” to deﬁne a functional equation, now often
+called the Bellman equation. The class of methods for solving optimal control problems
+by solving this equation came to be known as dynamic programming (Bellman, 1957a).
+Bellman (1957b) also introduced the discrete stochastic version of the optimal control
+problem known as Markov decision processes (MDPs). Ronald Howard (1960) devised
+the policy iteration method for MDPs. All of these are essential elements underlying the
+theory and algorithms of modern reinforcement learning.
+Dynamic programming is widely considered the only feasible way of solving general
+stochastic optimal control problems. It su↵ers from what Bellman called “the curse of
+dimensionality,” meaning that its computational requirements grow exponentially with
+the number of state variables, but it is still far more eﬃcient and more widely applicable
+than any other general method. Dynamic programming has been extensively developed
+since the late 1950s, including extensions to partially observable MDPs (surveyed by
+Lovejoy, 1991), many applications (surveyed by White, 1985, 1988, 1993), approximation
+methods (surveyed by Rust, 1996), and asynchronous methods (Bertsekas, 1982, 1983).
+Many excellent modern treatments of dynamic programming are available (e.g., Bertsekas,
+2005, 2012; Puterman, 1994; Ross, 1983; Whittle, 1982, 1983). Bryson (1996) provides
+an authoritative history of optimal control.
+Connections between optimal control and dynamic programming, on the one hand,
+and learning, on the other, were slow to be recognized. We cannot be sure about what
+accounted for this separation, but its main cause was likely the separation between
+the disciplines involved and their di↵erent goals. Also contributing may have been the
+prevalent view of dynamic programming as an o↵-line computation depending essentially
+on accurate system models and analytic solutions to the Bellman equation. Further,
+the simplest form of dynamic programming is a computation that proceeds backwards
+in time, making it diﬃcult to see how it could be involved in a learning process that
+must proceed in a forward direction. Some of the earliest work in dynamic programming,
+such as that by Bellman and Dreyfus (1959), might now be classiﬁed as following
+a learning approach. Witten’s (1977) work (discussed below) certainly qualiﬁes as a
+combination of learning and dynamic-programming ideas. Werbos (1987) argued explicitly
+for greater interrelation of dynamic programming and learning methods and for dynamic
+programming’s relevance to understanding neural and cognitive mechanisms. For us the
+full integration of dynamic programming methods with online learning did not occur
+
+--- Page 37 ---
+1.7. Early History of Reinforcement Learning
+15
+until the work of Chris Watkins in 1989, whose treatment of reinforcement learning using
+the MDP formalism has been widely adopted. Since then these relationships have been
+extensively developed by many researchers, most particularly by Dimitri Bertsekas and
+John Tsitsiklis (1996), who coined the term “neurodynamic programming” to refer to
+the combination of dynamic programming and artiﬁcial neural networks. Another term
+currently in use is “approximate dynamic programming.” These various approaches
+emphasize di↵erent aspects of the subject, but they all share with reinforcement learning
+an interest in circumventing the classical shortcomings of dynamic programming.
+We consider all of the work in optimal control also to be, in a sense, work in reinforce-
+ment learning. We deﬁne a reinforcement learning method as any e↵ective way of solving
+reinforcement learning problems, and it is now clear that these problems are closely
+related to optimal control problems, particularly stochastic optimal control problems
+such as those formulated as MDPs. Accordingly, we must consider the solution methods
+of optimal control, such as dynamic programming, also to be reinforcement learning
+methods. Because almost all of the conventional methods require complete knowledge
+of the system to be controlled, it feels a little unnatural to say that they are part of
+reinforcement learning. On the other hand, many dynamic programming algorithms are
+incremental and iterative. Like learning methods, they gradually reach the correct answer
+through successive approximations. As we show in the rest of this book, these similarities
+are far more than superﬁcial. The theories and solution methods for the cases of complete
+and incomplete knowledge are so closely related that we feel they must be considered
+together as part of the same subject matter.
+Let us return now to the other major thread leading to the modern ﬁeld of reinforcement
+learning, the thread centered on the idea of trial-and-error learning. We only touch on
+the major points of contact here, taking up this topic in more detail in Section 14.3.
+According to American psychologist R. S. Woodworth (1938) the idea of trial-and-error
+learning goes as far back as the 1850s to Alexander Bain’s discussion of learning by
+“groping and experiment” and more explicitly to the British ethologist and psychologist
+Conway Lloyd Morgan’s 1894 use of the term to describe his observations of animal
+behavior. Perhaps the ﬁrst to succinctly express the essence of trial-and-error learning as
+a principle of learning was Edward Thorndike:
+Of several responses made to the same situation, those which are accompanied
+or closely followed by satisfaction to the animal will, other things being
+equal, be more ﬁrmly connected with the situation, so that, when it recurs,
+they will be more likely to recur; those which are accompanied or closely
+followed by discomfort to the animal will, other things being equal, have their
+connections with that situation weakened, so that, when it recurs, they will
+be less likely to occur. The greater the satisfaction or discomfort, the greater
+the strengthening or weakening of the bond. (Thorndike, 1911, p. 244)
+Thorndike called this the “Law of E↵ect” because it describes the e↵ect of reinforcing
+events on the tendency to select actions. Thorndike later modiﬁed the law to better
+account for subsequent data on animal learning (such as di↵erences between the e↵ects
+of reward and punishment), and the law in its various forms has generated considerable
+controversy among learning theorists (e.g., see Gallistel, 2005; Herrnstein, 1970; Kimble,
+
+--- Page 38 ---
+16
+Chapter 1: Introduction
+1961, 1967; Mazur, 1994). Despite this, the Law of E↵ect—in one form or another—is
+widely regarded as a basic principle underlying much behavior (e.g., Hilgard and Bower,
+1975; Dennett, 1978; Campbell, 1960; Cziko, 1995). It is the basis of the inﬂuential
+learning theories of Clark Hull (1943, 1952) and the inﬂuential experimental methods of
+B. F. Skinner (1938).
+The term “reinforcement” in the context of animal learning came into use well after
+Thorndike’s expression of the Law of E↵ect, ﬁrst appearing in this context (to the best of
+our knowledge) in the 1927 English translation of Pavlov’s monograph on conditioned
+reﬂexes. Pavlov described reinforcement as the strengthening of a pattern of behavior due
+to an animal receiving a stimulus—a reinforcer—in an appropriate temporal relationship
+with another stimulus or with a response. Some psychologists extended the idea of
+reinforcement to include weakening as well as strengthening of behavior, and extended
+the idea of a reinforcer to include possibly the omission or termination of stimulus. To be
+considered a reinforcer, the strengthening or weakening must persist after the reinforcer
+is withdrawn; a stimulus that merely attracts an animal’s attention or that energizes its
+behavior without producing lasting changes would not be considered a reinforcer.
+The idea of implementing trial-and-error learning in a computer appeared among the
+earliest thoughts about the possibility of artiﬁcial intelligence. In a 1948 report, Alan
+Turing described a design for a “pleasure-pain system” that worked along the lines of the
+Law of E↵ect:
+When a conﬁguration is reached for which the action is undetermined, a
+random choice for the missing data is made and the appropriate entry is made
+in the description, tentatively, and is applied. When a pain stimulus occurs
+all tentative entries are cancelled, and when a pleasure stimulus occurs they
+are all made permanent. (Turing, 1948)
+Many ingenious electro-mechanical machines were constructed that demonstrated trial-
+and-error learning. The earliest may have been a machine built by Thomas Ross (1933)
+that was able to ﬁnd its way through a simple maze and remember the path through
+the settings of switches. In 1951 W. Grey Walter built a version of his “mechanical
+tortoise” (Walter, 1950) capable of a simple form of learning. In 1952 Claude Shannon
+demonstrated a maze-running mouse named Theseus that used trial and error to ﬁnd
+its way through a maze, with the maze itself remembering the successful directions
+via magnets and relays under its ﬂoor (see also Shannon, 1951). J. A. Deutsch (1954)
+described a maze-solving machine based on his behavior theory (Deutsch, 1953) that
+has some properties in common with model-based reinforcement learning (Chapter 8).
+In his PhD dissertation, Marvin Minsky (1954) discussed computational models of
+reinforcement learning and described his construction of an analog machine composed of
+components he called SNARCs (Stochastic Neural-Analog Reinforcement Calculators)
+meant to resemble modiﬁable synaptic connections in the brain (Chapter 15). The
+web site cyberneticzoo.com contains a wealth of information on these and many other
+electro-mechanical learning machines.
+Building electro-mechanical learning machines gave way to programming digital com-
+puters to perform various types of learning, some of which implemented trial-and-error
+learning. Farley and Clark (1954) described a digital simulation of a neural-network
+
+--- Page 39 ---
+1.7. Early History of Reinforcement Learning
+17
+learning machine that learned by trial and error. But their interests soon shifted from
+trial-and-error learning to generalization and pattern recognition, that is, from reinforce-
+ment learning to supervised learning (Clark and Farley, 1955). This began a pattern
+of confusion about the relationship between these types of learning. Many researchers
+seemed to believe that they were studying reinforcement learning when they were actually
+studying supervised learning. For example, artiﬁcial neural network pioneers such as
+Rosenblatt (1962) and Widrow and Ho↵(1960) were clearly motivated by reinforcement
+learning—they used the language of rewards and punishments—but the systems they
+studied were supervised learning systems suitable for pattern recognition and perceptual
+learning. Even today, some researchers and textbooks minimize or blur the distinction
+between these types of learning. For example, some textbooks have used the term “trial-
+and-error” to describe artiﬁcial neural networks that learn from training examples. This
+is an understandable confusion because these networks use error information to update
+connection weights, but this misses the essential character of trial-and-error learning as
+selecting actions on the basis of evaluative feedback that does not rely on knowledge of
+what the correct action should be.
+Partly as a result of these confusions, research into genuine trial-and-error learning
+became rare in the 1960s and 1970s, although there were notable exceptions. In the 1960s
+the terms “reinforcement” and “reinforcement learning” were used in the engineering
+literature for the ﬁrst time to describe engineering uses of trial-and-error learning (e.g.,
+Waltz and Fu, 1965; Mendel, 1966; Fu, 1970; Mendel and McClaren, 1970). Particularly
+inﬂuential was Minsky’s paper “Steps Toward Artiﬁcial Intelligence” (Minsky, 1961),
+which discussed several issues relevant to trial-and-error learning, including prediction,
+expectation, and what he called the basic credit-assignment problem for complex rein-
+forcement learning systems: How do you distribute credit for success among the many
+decisions that may have been involved in producing it? All of the methods we discuss in
+this book are, in a sense, directed toward solving this problem. Minsky’s paper is well
+worth reading today.
+In the next few paragraphs we discuss some of the other exceptions and partial
+exceptions to the relative neglect of computational and theoretical study of genuine
+trial-and-error learning in the 1960s and 1970s.
+One exception was the work of the New Zealand researcher John Andreae, who
+developed a system called STeLLA that learned by trial and error in interaction with
+its environment. This system included an internal model of the world and, later, an
+“internal monologue” to deal with problems of hidden state (Andreae, 1963, 1969; Andreae
+and Cashin, 1969).
+Andreae’s later work (1977) placed more emphasis on learning
+from a teacher, but still included learning by trial and error, with the generation of
+novel events being one of the system’s goals. A feature of this work was a “leakback
+process,” elaborated more fully in Andreae (1998), that implemented a credit-assignment
+mechanism similar to the backing-up update operations that we describe. Unfortunately,
+his pioneering research was not well known and did not greatly impact subsequent
+reinforcement learning research. Recent summaries are available (Andreae, 2017a,b).
+More inﬂuential was the work of Donald Michie. In 1961 and 1963 he described a
+simple trial-and-error learning system for learning how to play tic-tac-toe (or naughts
+
+--- Page 40 ---
+18
+Chapter 1: Introduction
+and crosses) called MENACE (for Matchbox Educable Naughts and Crosses Engine). It
+consisted of a matchbox for each possible game position, each matchbox containing a
+number of colored beads, a di↵erent color for each possible move from that position. By
+drawing a bead at random from the matchbox corresponding to the current game position,
+one could determine MENACE’s move. When a game was over, beads were added to
+or removed from the boxes used during play to reward or punish MENACE’s decisions.
+Michie and Chambers (1968) described another tic-tac-toe reinforcement learner called
+GLEE (Game Learning Expectimaxing Engine) and a reinforcement learning controller
+called BOXES. They applied BOXES to the task of learning to balance a pole hinged to
+a movable cart on the basis of a failure signal occurring only when the pole fell or the
+cart reached the end of a track. This task was adapted from the earlier work of Widrow
+and Smith (1964), who used supervised learning methods, assuming instruction from a
+teacher already able to balance the pole. Michie and Chambers’s version of pole-balancing
+is one of the best early examples of a reinforcement learning task under conditions of
+incomplete knowledge. It inﬂuenced much later work in reinforcement learning, beginning
+with some of our own studies (Barto, Sutton, and Anderson, 1983; Sutton, 1984). Michie
+(1974) consistently emphasized trial and error and learning as essential aspects of artiﬁcial
+intelligence.
+Widrow, Gupta, and Maitra (1973) modiﬁed the Least-Mean-Square (LMS) algorithm
+of Widrow and Ho↵(1960) to produce a reinforcement learning rule that could learn
+from success and failure signals instead of from training examples. They called this form
+of learning “selective bootstrap adaptation” and described it as “learning with a critic”
+instead of “learning with a teacher.” They analyzed this rule and showed how it could
+learn to play blackjack. This was an isolated foray into reinforcement learning by Widrow,
+whose contributions to supervised learning were much more inﬂuential. Our use of the
+term “critic” is derived from Widrow, Gupta, and Maitra’s paper. Buchanan, Mitchell,
+Smith, and Johnson (1978) independently used the term critic in the context of machine
+learning (see also Dietterich and Buchanan, 1984), but for them a critic was an expert
+system able to do more than evaluate performance.
+Research on learning automata had a more direct inﬂuence on the trial-and-error
+thread leading to modern reinforcement learning research. These are methods for solving
+a nonassociative, purely selectional learning problem known as the k-armed bandit by
+analogy to a slot machine, or “one-armed bandit,” except with k levers (see Chapter 2).
+Learning automata are simple, low-memory machines for improving the probability
+of reward in these problems. Learning automata originated with work in the 1960s
+of the Russian mathematician and physicist M. L. Tsetlin and colleagues (published
+posthumously in Tsetlin, 1973) and has been extensively developed since then within
+engineering (see Narendra and Thathachar, 1974, 1989). These developments included the
+study of stochastic learning automata, which are methods for updating action probabilities
+on the basis of reward signals. Although not developed in the tradition of stochastic
+learning automata, Harth and Tzanakou’s (1974) Alopex algorithm (for Algorithm of
+pattern extraction) is a stochastic method for detecting correlations between actions and
+reinforcement that inﬂuenced some of our early research (Barto, Sutton, and Brouwer,
+1981). Stochastic learning automata were foreshadowed by earlier work in psychology,
+beginning with William Estes’ (1950) e↵ort toward a statistical theory of learning and
+further developed by others (e.g., Bush and Mosteller, 1955; Sternberg, 1963).
+
+--- Page 41 ---
+1.7. Early History of Reinforcement Learning
+19
+The statistical learning theories developed in psychology were adopted by researchers in
+economics, leading to a thread of research in that ﬁeld devoted to reinforcement learning.
+This work began in 1973 with the application of Bush and Mosteller’s learning theory to
+a collection of classical economic models (Cross, 1973). One goal of this research was to
+study artiﬁcial agents that act more like real people than do traditional idealized economic
+agents (Arthur, 1991). This approach expanded to the study of reinforcement learning
+in the context of game theory. Reinforcement learning in economics developed largely
+independently of the early work in reinforcement learning in artiﬁcial intelligence, though
+game theory remains a topic of interest in both ﬁelds (beyond the scope of this book).
+Camerer (2011) discusses the reinforcement learning tradition in economics, and Now´e,
+Vrancx, and De Hauwere (2012) provide an overview of the subject from the point of view
+of multi-agent extensions to the approach that we introduce in this book. Reinforcement
+learning in the context of game theory is a much di↵erent subject than reinforcement
+learning used in programs to play tic-tac-toe, checkers, and other recreational games. See,
+for example, Szita (2012) for an overview of this aspect of reinforcement learning and
+games.
+John Holland (1975) outlined a general theory of adaptive systems based on selectional
+principles.
+His early work concerned trial and error primarily in its nonassociative
+form, as in evolutionary methods and the k-armed bandit. In 1976 and more fully in
+1986, he introduced classiﬁer systems, true reinforcement learning systems including
+association and value functions. A key component of Holland’s classiﬁer systems was
+the “bucket-brigade algorithm” for credit assignment, which is closely related to the
+temporal di↵erence algorithm used in our tic-tac-toe example and discussed in Chapter 6.
+Another key component was a genetic algorithm, an evolutionary method whose role was
+to evolve useful representations. Classiﬁer systems have been extensively developed by
+many researchers to form a major branch of reinforcement learning research (reviewed by
+Urbanowicz and Moore, 2009), but genetic algorithms—which we do not consider to be
+reinforcement learning systems by themselves—have received much more attention, as
+have other approaches to evolutionary computation (e.g., Fogel, Owens and Walsh, 1966;
+Koza, 1992).
+The individual most responsible for reviving the trial-and-error thread of reinforcement
+learning within artiﬁcial intelligence was Harry Klopf (1972, 1975, 1982). Klopf recognized
+that essential aspects of adaptive behavior were being lost as learning researchers came
+to focus almost exclusively on supervised learning. What was missing, according to
+Klopf, were the hedonic aspects of behavior: the drive to achieve some result from the
+environment, to control the environment toward desired ends and away from undesired
+ends (see Section 15.9). This is the essential idea of trial-and-error learning. Klopf’s
+ideas were especially inﬂuential on the authors because our assessment of them (Barto
+and Sutton, 1981a) led to our appreciation of the distinction between supervised and
+reinforcement learning, and to our eventual focus on reinforcement learning. Much of
+the early work that we and colleagues accomplished was directed toward showing that
+reinforcement learning and supervised learning were indeed di↵erent (Barto, Sutton, and
+Brouwer, 1981; Barto and Sutton, 1981b; Barto and Anandan, 1985). Other studies
+showed how reinforcement learning could address important problems in artiﬁcial neural
+
+--- Page 42 ---
+20
+Chapter 1: Introduction
+network learning, in particular, how it could produce learning algorithms for multilayer
+networks (Barto, Anderson, and Sutton, 1982; Barto and Anderson, 1985; Barto, 1985,
+1986; Barto and Jordan, 1987; see Section 15.10).
+We turn now to the third thread to the history of reinforcement learning, that concerning
+temporal-di↵erence learning. Temporal-di↵erence learning methods are distinctive in
+being driven by the di↵erence between temporally successive estimates of the same
+quantity—for example, of the probability of winning in the tic-tac-toe example. This
+thread is smaller and less distinct than the other two, but it has played a particularly
+important role in the ﬁeld, in part because temporal-di↵erence methods seem to be new
+and unique to reinforcement learning.
+The origins of temporal-di↵erence learning are in part in animal learning psychology,
+in particular, in the notion of secondary reinforcers. A secondary reinforcer is a stimulus
+that has been paired with a primary reinforcer such as food or pain and, as a result, has
+come to take on similar reinforcing properties. Minsky (1954) may have been the ﬁrst to
+realize that this psychological principle could be important for artiﬁcial learning systems.
+Arthur Samuel (1959) was the ﬁrst to propose and implement a learning method that
+included temporal-di↵erence ideas, as part of his celebrated checkers-playing program
+(Section 16.2).
+Samuel made no reference to Minsky’s work or to possible connections to animal
+learning. His inspiration apparently came from Claude Shannon’s (1950) suggestion that
+a computer could be programmed to use an evaluation function to play chess, and that it
+might be able to improve its play by modifying this function online. (It is possible that
+these ideas of Shannon’s also inﬂuenced Bellman, but we know of no evidence for this.)
+Minsky (1961) extensively discussed Samuel’s work in his “Steps” paper, suggesting the
+connection to secondary reinforcement theories, both natural and artiﬁcial.
+As we have discussed, in the decade following the work of Minsky and Samuel, little
+computational work was done on trial-and-error learning, and apparently no computational
+work at all was done on temporal-di↵erence learning. In 1972, Klopf brought trial-and-
+error learning together with an important component of temporal-di↵erence learning.
+Klopf was interested in principles that would scale to learning in large systems, and thus
+was intrigued by notions of local reinforcement, whereby subcomponents of an overall
+learning system could reinforce one another. He developed the idea of “generalized
+reinforcement,” whereby every component (nominally, every neuron) views all of its
+inputs in reinforcement terms: excitatory inputs as rewards and inhibitory inputs as
+punishments. This is not the same idea as what we now know as temporal-di↵erence
+learning, and in retrospect it is farther from it than was Samuel’s work. On the other
+hand, Klopf linked the idea with trial-and-error learning and related it to the massive
+empirical database of animal learning psychology.
+Sutton (1978a,b,c) developed Klopf’s ideas further, particularly the links to animal
+learning theories, describing learning rules driven by changes in temporally successive
+predictions. He and Barto reﬁned these ideas and developed a psychological model of
+classical conditioning based on temporal-di↵erence learning (Sutton and Barto, 1981a;
+Barto and Sutton, 1982). There followed several other inﬂuential psychological models of
+classical conditioning based on temporal-di↵erence learning (e.g., Klopf, 1988; Moore et al.,
+
+--- Page 43 ---
+1.7. Early History of Reinforcement Learning
+21
+1986; Sutton and Barto, 1987, 1990). Some neuroscience models developed at this time
+are well interpreted in terms of temporal-di↵erence learning (Hawkins and Kandel, 1984;
+Byrne, Gingrich, and Baxter, 1990; Gelperin, Hopﬁeld, and Tank, 1985; Tesauro, 1986;
+Friston et al., 1994), although in most cases there was no historical connection.
+Our early work on temporal-di↵erence learning was strongly inﬂuenced by animal
+learning theories and by Klopf’s work. Relationships to Minsky’s “Steps” paper and to
+Samuel’s checkers players were recognized only afterward. By 1981, however, we were
+fully aware of all the prior work mentioned above as part of the temporal-di↵erence and
+trial-and-error threads. At this time we developed a method for using temporal-di↵erence
+learning combined with trial-and-error learning, known as the actor–critic architecture,
+and applied this method to Michie and Chambers’s pole-balancing problem (Barto,
+Sutton, and Anderson, 1983). This method was extensively studied in Sutton’s (1984)
+PhD dissertation and extended to use backpropagation neural networks in Anderson’s
+(1986) PhD dissertation.
+Around this time, Holland (1986) incorporated temporal-
+di↵erence ideas explicitly into his classiﬁer systems in the form of his bucket-brigade
+algorithm. A key step was taken by Sutton (1988) by separating temporal-di↵erence
+learning from control, treating it as a general prediction method.
+That paper also
+introduced the TD(λ) algorithm and proved some of its convergence properties.
+As we were ﬁnalizing our work on the actor–critic architecture in 1981, we discovered
+a paper by Ian Witten (1977, 1976a) which appears to be the earliest publication of a
+temporal-di↵erence learning rule. He proposed the method that we now call tabular TD(0)
+for use as part of an adaptive controller for solving MDPs. This work was ﬁrst submitted
+for journal publication in 1974 and also appeared in Witten’s 1976 PhD dissertation.
+Witten’s work was a descendant of Andreae’s early experiments with STeLLA and other
+trial-and-error learning systems. Thus, Witten’s 1977 paper spanned both major threads
+of reinforcement learning research—trial-and-error learning and optimal control—while
+making a distinct early contribution to temporal-di↵erence learning.
+The temporal-di↵erence and optimal control threads were fully brought together
+in 1989 with Chris Watkins’s development of Q-learning.
+This work extended and
+integrated prior work in all three threads of reinforcement learning research. Paul Werbos
+(1987) contributed to this integration by arguing for the convergence of trial-and-error
+learning and dynamic programming since 1977. By the time of Watkins’s work there had
+been tremendous growth in reinforcement learning research, primarily in the machine
+learning subﬁeld of artiﬁcial intelligence, but also in artiﬁcial neural networks and artiﬁcial
+intelligence more broadly. In 1992, the remarkable success of Gerry Tesauro’s backgammon
+playing program, TD-Gammon, brought additional attention to the ﬁeld.
+In the time since publication of the ﬁrst edition of this book, a ﬂourishing subﬁeld of
+neuroscience developed that focuses on the relationship between reinforcement learning
+algorithms and reinforcement learning in the nervous system. Most responsible for this is
+an uncanny similarity between the behavior of temporal-di↵erence algorithms and the
+activity of dopamine producing neurons in the brain, as pointed out by a number of
+researchers (Friston et al., 1994; Barto, 1995a; Houk, Adams, and Barto, 1995; Montague,
+Dayan, and Sejnowski, 1996; and Schultz, Dayan, and Montague, 1997). Chapter 15
+provides an introduction to this exciting aspect of reinforcement learning. Other important
+
+--- Page 44 ---
+22
+Chapter 1: Introduction
+contributions made in the recent history of reinforcement learning are too numerous to
+mention in this brief account; we cite many of these at the end of the individual chapters
+in which they arise.
+Bibliographical Remarks
+For additional general coverage of reinforcement learning, we refer the reader to the
+books by Szepesv´ari (2010), Bertsekas and Tsitsiklis (1996), Kaelbling (1993a), and
+Sugiyama, Hachiya, and Morimura (2013). Books that take a control or operations research
+perspective include those of Si, Barto, Powell, and Wunsch (2004), Powell (2011), Lewis
+and Liu (2012), and Bertsekas (2012). Cao’s (2009) review places reinforcement learning
+in the context of other approaches to learning and optimization of stochastic dynamic
+systems. Three special issues of the journal Machine Learning focus on reinforcement
+learning: Sutton (1992a), Kaelbling (1996), and Singh (2002). Useful surveys are provided
+by Barto (1995b); Kaelbling, Littman, and Moore (1996); and Keerthi and Ravindran
+(1997). The volume edited by Weiring and van Otterlo (2012) provides an excellent
+overview of recent developments.
+1.2
+The example of Phil’s breakfast in this chapter was inspired by Agre (1988).
+1.5
+The temporal-di↵erence method used in the tic-tac-toe example is developed in
+Chapter 6.
+
+--- Page 45 ---
+Part I: Tabular Solution Methods
+In this part of the book we describe almost all the core ideas of reinforcement learning
+algorithms in their simplest forms: that in which the state and action spaces are small
+enough for the approximate value functions to be represented as arrays, or tables. In
+this case, the methods can often ﬁnd exact solutions, that is, they can often ﬁnd exactly
+the optimal value function and the optimal policy. This contrasts with the approximate
+methods described in the next part of the book, which only ﬁnd approximate solutions,
+but which in return can be applied e↵ectively to much larger problems.
+The ﬁrst chapter of this part of the book describes solution methods for the special
+case of the reinforcement learning problem in which there is only a single state, called
+bandit problems. The second chapter describes the general problem formulation that we
+treat throughout the rest of the book—ﬁnite Markov decision processes—and its main
+ideas including Bellman equations and value functions.
+The next three chapters describe three fundamental classes of methods for solving ﬁnite
+Markov decision problems: dynamic programming, Monte Carlo methods, and temporal-
+di↵erence learning. Each class of methods has its strengths and weaknesses. Dynamic
+programming methods are well developed mathematically, but require a complete and
+accurate model of the environment. Monte Carlo methods don’t require a model and are
+conceptually simple, but are not well suited for step-by-step incremental computation.
+Finally, temporal-di↵erence methods require no model and are fully incremental, but are
+more complex to analyze. The methods also di↵er in several ways with respect to their
+eﬃciency and speed of convergence.
+The remaining two chapters describe how these three classes of methods can be
+combined to obtain the best features of each of them. In one chapter we describe how
+the strengths of Monte Carlo methods can be combined with the strengths of temporal-
+di↵erence methods via multi-step bootstrapping methods. In the ﬁnal chapter of this part
+of the book we show how temporal-di↵erence learning methods can be combined with
+model learning and planning methods (such as dynamic programming) for a complete
+and uniﬁed solution to the tabular reinforcement learning problem.
+
+--- Page 46 ---
+
+
+--- Page 47 ---
+Chapter 2
+Multi-armed Bandits
+The most important feature distinguishing reinforcement learning from other types of
+learning is that it uses training information that evaluates the actions taken rather
+than instructs by giving correct actions.
+This is what creates the need for active
+exploration, for an explicit search for good behavior. Purely evaluative feedback indicates
+how good the action taken was, but not whether it was the best or the worst action
+possible. Purely instructive feedback, on the other hand, indicates the correct action to
+take, independently of the action actually taken. This kind of feedback is the basis of
+supervised learning, which includes large parts of pattern classiﬁcation, artiﬁcial neural
+networks, and system identiﬁcation. In their pure forms, these two kinds of feedback
+are quite distinct: evaluative feedback depends entirely on the action taken, whereas
+instructive feedback is independent of the action taken.
+In this chapter we study the evaluative aspect of reinforcement learning in a simpliﬁed
+setting, one that does not involve learning to act in more than one situation. This
+nonassociative setting is the one in which most prior work involving evaluative feedback
+has been done, and it avoids much of the complexity of the full reinforcement learning
+problem. Studying this case enables us to see most clearly how evaluative feedback di↵ers
+from, and yet can be combined with, instructive feedback.
+The particular nonassociative, evaluative feedback problem that we explore is a simple
+version of the k-armed bandit problem. We use this problem to introduce a number
+of basic learning methods which we extend in later chapters to apply to the full rein-
+forcement learning problem. At the end of this chapter, we take a step closer to the full
+reinforcement learning problem by discussing what happens when the bandit problem
+becomes associative, that is, when the best action depends on the situation.
+2.1
+A k-armed Bandit Problem
+Consider the following learning problem. You are faced repeatedly with a choice among
+k di↵erent options, or actions. After each choice you receive a numerical reward chosen
+from a stationary probability distribution that depends on the action you selected. Your
+
+--- Page 48 ---
+26
+Chapter 2: Multi-armed Bandits
+objective is to maximize the expected total reward over some time period, for example,
+over 1000 action selections, or time steps.
+This is the original form of the k-armed bandit problem, so named by analogy to a slot
+machine, or “one-armed bandit,” except that it has k levers instead of one. Each action
+selection is like a play of one of the slot machine’s levers, and the rewards are the payo↵s
+for hitting the jackpot. Through repeated action selections you are to maximize your
+winnings by concentrating your actions on the best levers. Another analogy is that of
+a doctor choosing between experimental treatments for a series of seriously ill patients.
+Each action is the selection of a treatment, and each reward is the survival or well-being
+of the patient. Today the term “bandit problem” is sometimes used for a generalization
+of the problem described above, but in this book we use it to refer just to this simple
+case.
+In our k-armed bandit problem, each of the k actions has an expected or mean reward
+given that that action is selected; let us call this the value of that action. We denote the
+action selected on time step t as At, and the corresponding reward as Rt. The value then
+of an arbitrary action a, denoted q⇤(a), is the expected reward given that a is selected:
+q⇤(a) .= E[Rt | At =a] .
+If you knew the value of each action, then it would be trivial to solve the k-armed bandit
+problem: you would always select the action with highest value. We assume that you do
+not know the action values with certainty, although you may have estimates. We denote
+the estimated value of action a at time step t as Qt(a). We would like Qt(a) to be close
+to q⇤(a).
+If you maintain estimates of the action values, then at any time step there is at least
+one action whose estimated value is greatest. We call these the greedy actions. When you
+select one of these actions, we say that you are exploiting your current knowledge of the
+values of the actions. If instead you select one of the nongreedy actions, then we say you
+are exploring, because this enables you to improve your estimate of the nongreedy action’s
+value. Exploitation is the right thing to do to maximize the expected reward on the one
+step, but exploration may produce the greater total reward in the long run. For example,
+suppose a greedy action’s value is known with certainty, while several other actions are
+estimated to be nearly as good but with substantial uncertainty. The uncertainty is
+such that at least one of these other actions probably is actually better than the greedy
+action, but you don’t know which one. If you have many time steps ahead on which
+to make action selections, then it may be better to explore the nongreedy actions and
+discover which of them are better than the greedy action. Reward is lower in the short
+run, during exploration, but higher in the long run because after you have discovered
+the better actions, you can exploit them many times. Because it is not possible both to
+explore and to exploit with any single action selection, one often refers to the “conﬂict”
+between exploration and exploitation.
+In any speciﬁc case, whether it is better to explore or exploit depends in a complex
+way on the precise values of the estimates, uncertainties, and the number of remaining
+steps. There are many sophisticated methods for balancing exploration and exploitation
+for particular mathematical formulations of the k-armed bandit and related problems.
+
+--- Page 49 ---
+2.2. Action-value Methods
+27
+However, most of these methods make strong assumptions about stationarity and prior
+knowledge that are either violated or impossible to verify in most applications and in
+the full reinforcement learning problem that we consider in subsequent chapters. The
+guarantees of optimality or bounded loss for these methods are of little comfort when the
+assumptions of their theory do not apply.
+In this book we do not worry about balancing exploration and exploitation in a
+sophisticated way; we worry only about balancing them at all. In this chapter we present
+several simple balancing methods for the k-armed bandit problem and show that they
+work much better than methods that always exploit.
+The need to balance exploration
+and exploitation is a distinctive challenge that arises in reinforcement learning; the
+simplicity of our version of the k-armed bandit problem enables us to show this in a
+particularly clear form.
+2.2
+Action-value Methods
+We begin by looking more closely at methods for estimating the values of actions and
+for using the estimates to make action selection decisions, which we collectively call
+action-value methods. Recall that the true value of an action is the mean reward when
+that action is selected. One natural way to estimate this is by averaging the rewards
+actually received:
+Qt(a) .= sum of rewards when a taken prior to t
+number of times a taken prior to t
+=
+Pt−1
+i=1 Ri ·
+Ai=a
+Pt−1
+i=1
+Ai=a
+,
+(2.1)
+where
+predicate denotes the random variable that is 1 if predicate is true and 0 if it is not.
+If the denominator is zero, then we instead deﬁne Qt(a) as some default value, such as
+0. As the denominator goes to inﬁnity, by the law of large numbers, Qt(a) converges to
+q⇤(a). We call this the sample-average method for estimating action values because each
+estimate is an average of the sample of relevant rewards. Of course this is just one way
+to estimate action values, and not necessarily the best one. Nevertheless, for now let us
+stay with this simple estimation method and turn to the question of how the estimates
+might be used to select actions.
+The simplest action selection rule is to select one of the actions with the highest
+estimated value, that is, one of the greedy actions as deﬁned in the previous section.
+If there is more than one greedy action, then a selection is made among them in some
+arbitrary way, perhaps randomly. We write this greedy action selection method as
+At .= argmax
+a
+Qt(a),
+(2.2)
+where argmaxa denotes the action a for which the expression that follows is maximized
+(with ties broken arbitrarily). Greedy action selection always exploits current knowledge to
+maximize immediate reward; it spends no time at all sampling apparently inferior actions
+to see if they might really be better. A simple alternative is to behave greedily most of
+the time, but every once in a while, say with small probability ", instead select randomly
+
+--- Page 50 ---
+28
+Chapter 2: Multi-armed Bandits
+from among all the actions with equal probability, independently of the action-value
+estimates. We call methods using this near-greedy action selection rule "-greedy methods.
+An advantage of these methods is that, in the limit as the number of steps increases,
+every action will be sampled an inﬁnite number of times, thus ensuring that all the Qt(a)
+converge to their respective q⇤(a). This of course implies that the probability of selecting
+the optimal action converges to greater than 1 −", that is, to near certainty. These are
+just asymptotic guarantees, however, and say little about the practical e↵ectiveness of
+the methods.
+Exercise 2.1 In "-greedy action selection, for the case of two actions and " = 0.5, what is
+the probability that the greedy action is selected?
+⇤
+2.3
+The 10-armed Testbed
+To roughly assess the relative e↵ectiveness of the greedy and "-greedy action-value
+methods, we compared them numerically on a suite of test problems. This was a set
+of 2000 randomly generated k-armed bandit problems with k = 10. For each bandit
+problem, such as the one shown in Figure 2.1, the action values, q⇤(a), a = 1, . . . , 10,
+0
+1
+2
+3
+-3
+-2
+-1
+q⇤(1)
+q⇤(2)
+q⇤(3)
+q⇤(4)
+q⇤(5)
+q⇤(6)
+q⇤(7)
+q⇤(8)
+q⇤(9)
+q⇤(10)
+Reward
+distribution
+1
+2
+6
+3
+5
+4
+7
+8
+9
+10
+Action
+Figure 2.1: An example bandit problem from the 10-armed testbed. The true value q⇤(a) of
+each of the ten actions was selected according to a normal distribution with mean zero and unit
+variance, and then the actual rewards were selected according to a mean q⇤(a), unit-variance
+normal distribution, as suggested by these gray distributions.
+

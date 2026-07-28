@@ -1,0 +1,686 @@
+--- Page 325 ---
+The auxiliary vectors, \(\mathbf{a}_{t}\) and \(\mathbf{z}_{t}\), are updated on each time step \(t<T\) and then, at time \(T\) when \(G\) is observed, they are used in (12.14) to compute \(\mathbf{w}_{T}\). In this way we achieve exactly the same final result as the MC/LMS algorithm that has poor computational properties (12.13), but now with an incremental algorithm whose time and memory complexity per step is \(O(d)\). This is surprising and intriguing because the notion of an eligibility trace (and the dutch trace in particular) has arisen in a setting without temporal-difference (TD) learning (in contrast to van Seijen and Sutton, 2014). It seems eligibility traces are not specific to TD learning at all; they are more fundamental than that. The need for eligibility traces seems to arise whenever one tries to learn long-term predictions in an efficient manner.
+
+### 12.7 Sarsa(\(\lambda\))
+
+Very few changes in the ideas already presented in this chapter are required in order to extend eligibility-traces to action-value methods. To learn approximate action values, \(\hat{q}(s,a,\mathbf{w})\), rather than approximate state 
+
+--- Page 326 ---
+
+Complete pseudocode for \(\mathrm{Sarsa}(\lambda)\) with linear function approximation, binary features, and either accumulating or replacing traces is given in the box on the next page. This pseudocode highlights a few optimizations possible in the special case of binary features (features are either active (=1) or inactive (=0)).
+
+**Example 12.1: Traces in Gridworld** The use of eligibility traces can substantially increase the efficiency of control algorithms over one-step methods and even over _n_-step methods. The reason for this is illustrated by the gridworld example below.
+
+The first panel shows the path taken by an agent in a single episode. The initial estimated values were zero, and all rewards were zero except for a positive reward at the goal location marked by G. The arrows in the other panels show, for various algorithms, which action-values would be increased, and by how much, upon reaching the goal. A one-step method would increment only the last action value, whereas an _n_-step method would equally increment the last \(n\) actions' values (assuming \(\gamma=1\)), and an eligibility trace method would update all the action values up to the beginning of the episode, to different degrees, fading with recency. The fading strategy is often the best.
+
+Figure 12.9: \(\mathrm{Sarsa}(\lambda)\)’s backup diagram. Compare with Figure 12.1.
+
+
+
+--- Page 327 ---
+
+#### Exercise 12.6
+
+Modify the pseudocode for Sarsa(\(\lambda\)) to use dutch traces (12.11) without the other distinctive features of a true online algorithm. Assume linear function approximation and binary features. 
+
+**Example 12.2: Sarsa(\(\lambda\)) on Mountain Car** Figure 12.10 (left) on the next page shows results with Sarsa(\(\lambda\)) on the Mountain Car task introduced in Example 10.1. The function approximation, action selection, and environmental details were exactly as in Chapter 10, and thus it is appropriate to numerically compare these results with the Chapter 10 results for _n_-step Sarsa (right side of the figure). The earlier results varied the update length \(n\) whereas here for Sarsa(\(\lambda\)) we vary the trace parameter \(\lambda\), which plays a similar role. The fading-trace bootstrapping strategy of Sarsa(\(\lambda\)) appears to result in more efficient learning on this problem. 
+
+There is also an action-value version of our ideal TD method, the online \(\lambda\)-return algorithm (Section 12.4) and its efficient implementation as true online TD(\(\lambda\)) (Section 12.5). Everything in Section 12.4 goes through without change other than to use the action-value form of the _n_-step return given at the beginning of the current section. The analyses in Sections 12.5 and 12.6 also carry through for action values, the only change being the use 
+
+--- Page 328 ---
+of state-action feature vectors \(\mathbf{x}_{t}=\mathbf{x}(S_{t},A_{t})\) instead of state feature vectors \(\mathbf{x}_{t}=\mathbf{x}(S_{t})\). Pseudocode for the resulting efficient algorithm, called _true online Sarsa(\(\lambda\))_ is given in the box on the next page. The figure below compares the performance of various versions of Sarsa(\(\lambda\)) on the Mountain Car example.
+
+Figure 12.11: Summary comparison of Sarsa(\(\lambda\)) algorithms on the Mountain Car task. True online Sarsa(\(\lambda\)) performed better than regular Sarsa(\(\lambda\)) with both accumulating and replacing traces. Also included is a version of Sarsa(\(\lambda\)) with replacing traces in which, on each time step, the traces for the state and the actions not selected were set to zero.
+
+Figure 12.10: Early performance on the Mountain Car task of Sarsa(\(\lambda\)) with replacing traces and _n_-step Sarsa (copied from Figure 10.4) as a function of the step size, \(\alpha\).
+
+
+
+--- Page 329 ---
+Finally, there is also a truncated version of \(\text{Sarsa}(\lambda)\), called _forward Sarsa(\(\lambda\))_(van Seijen, 2016), which appears to be a particularly effective model-free control method for use in conjunction with multi-layer artificial neural networks.
+
+### 12.8 Variable \(\lambda\) and \(\gamma\)
+
+We are starting now to reach the end of our development of fundamental TD learning algorithms. To present the final algorithms in their most general forms, it is useful to generalize the degree of bootstrapping and discounting beyond constant parameters to functions potentially dependent on the state and action. That is, each time step will have a different 
+
+--- Page 330 ---
+estimate. Now the return is defined more generally as
+
+\[G_{t} \doteq R_{t+1}+\gamma_{t+1}G_{t+1}\] \[= R_{t+1}+\gamma_{t+1}R_{t+2}+\gamma_{t+1}\gamma_{t+2}R_{t+3}+ \gamma_{t+1}\gamma_{t+2}\gamma_{t+3}R_{t+4}+\cdots\] \[= \sum_{k=t}^{\infty}\left(\prod_{i=t+1}^{k}\gamma_{i}\right)R_{k+1}, \tag{12.17}\]
+
+where, to assure the sums are finite, we require that \(\prod_{k=t}^{\infty}\gamma_{k}=0\) with probability one for all \(t\). One convenient aspect of this definition is that it enables the episodic setting and its algorithms to be presented in terms of a single stream of experience, without special terminal states, start distributions, or termination times. An erstwhile terminal state becomes a state at which \(\gamma(s)=0\) and which transitions to the start distribution. In that way (and by choosing \(\gamma(\cdot)\) as a constant in all other states) we can recover the classical episodic setting as a special case. State dependent termination includes other prediction cases such as _pseudo termination_, in which we seek to predict a quantity without altering the flow of the Markov process. Discounted returns can be thought of as such a quantity, in which case state-dependent termination unifies the episodic and discounted-continuing cases. (The undiscounted-continuing case still needs some special treatment.)
+
+The generalization to variable bootstrapping is not a change in the problem, like discounting, but a change in the solution strategy. The generalization affects the \(\lambda\)-returns for states and actions. The new state-based \(\lambda\)-return can be written recursively as
+
+\[G_{t}^{\lambda s}\doteq R_{t+1}+\gamma_{t+1}\left((1-\lambda_{t+1})\hat{v}(S_{ t+1},\mathbf{w}_{t})+\lambda_{t+1}G_{t+1}^{\lambda s}\right), \tag{12.18}\]
+
+where now we have added the "\(s\)" to the superscript \(\lambda\) to remind us that this is a return that bootstraps from state values, distinguishing it from returns that bootstrap from action values, which we present below with "\(a\)" in the superscript. This equation says that the \(\lambda\)-return is the first reward, undiscounted and unaffected by bootstrapping, plus possibly a second term to the extent that we are not discounting at the next state (that is, according to \(\gamma_{t+1}\); recall that this is zero if the next state is terminal). To the extent that we aren't terminating at the next state, we have a second term which is itself divided into two cases depending on the degree of bootstrapping in the state. To the extent we are bootstrapping, this term is the estimated value at the state, whereas, to the extent that we are not bootstrapping, the term is the \(\lambda\)-return for the next time step. The action-based \(\lambda\)-return is either the Sarsa form
+
+\[G_{t}^{\lambda a} \doteq R_{t+1}+\gamma_{t+1}\Big{(}(1-\lambda_{t+1})\hat{q}(S_{t+1 },A_{t+1},\mathbf{w}_{t})+\lambda_{t+1}G_{t+1}^{\lambda a}\Big{)}, \tag{12.19}\]
+
+or the Expected Sarsa form,
+
+\[G_{t}^{\lambda a} \doteq R_{t+1}+\gamma_{t+1}\Big{(}(1-\lambda_{t+1})\bar{V}_{t}(S_ {t+1})+\lambda_{t+1}G_{t+1}^{\lambda a}\Big{)}, \tag{12.20}\]
+
+where (7.8) is generalized to function approximation as
+
+\[\bar{V}_{t}(s) \doteq\sum_{a}\pi(a|s)\hat{q}(s,a,\mathbf{w}_{t}). \tag{12.21}\]
+
+--- Page 331 ---
+_Exercise 12.7_: Generalize the three recursive equations above to their truncated versions, defining \(G^{\lambda s}_{t:h}\) and \(G^{\lambda a}_{t:h}\). \(\square\)
+
+### 12.9 Off-policy Traces with Control Variates
+
+The final step is to incorporate importance sampling. For methods using non-truncated \(\lambda\)-returns, there is not a practical option in which the importance-sampling weighting is applied to the target return (as there is for \(n\)-step methods as explained in Section 7.3). Instead, we move directly to the bootstrapping generalization of per-decision importance sampling with control variates (Section 7.4).
+
+In the state case, our final definition of the \(\lambda\)-return generalizes (12.18), after the model of (7.13), to
+
+\[G^{\lambda s}_{t}\doteq\rho_{t}\Big{(}R_{t+1}+\gamma_{t+1}\big{(}(1-\lambda_{t+ 1})\hat{v}(S_{t+1},\mathbf{w}_{t})+\lambda_{t+1}G^{\lambda s}_{t+1
+
+--- Page 332 ---
+[Empty page]
+
+--- Page 333 ---
+off-policy case after the model of (7.14) to produce
+
+\[G_{t}^{\lambda a} \doteq R_{t+1}+\gamma_{t+1}\Bigl{(}(1-\lambda_{t+1})\bar{V}_{t}(S_{t+1})+ \lambda_{t+1}\bigl{[}\rho_{t+1}G_{t+1}^{\lambda a}+\bar{V}_{t}(S_{t+1})-\rho_{t+ 1}\hat{q}(S_{t+1},A_{t+1},\mathbf{w}_{t})\bigr{]}\Bigr{)}\] \[=R_{t+1}+\gamma_{t+1}\Bigl{(}\bar{V}_{t}(S_{t+1})+\lambda_{t+1} \rho_{t+1}\left[G_{t+1}^{\lambda a}-\hat{q}(S_{t+1},A_{t+1},\mathbf{w}_{t}) \right]\Bigr{)} \tag{12.26}\]
+
+where \(\bar{V}_{t}(S_{t+1})\) is as given by (12.21). Again the \(\lambda\)-return can be written approximately as the sum of TD errors,
+
+\[G_{t}^{\lambda a}\approx\hat{q}(S_{t},A_{t},\mathbf{w}_{t})+\sum_{k=t}^{\infty }\delta_{k}^{a}\prod_{i=t+1}^{k}\gamma_{i}\lambda_{i}\rho_{i}, \tag{12.27}\]
+
+using the expectation form of the action-based TD error:
+
+\[\delta_{t}^{a}=R_{t+1}+\gamma_{t+1}\bar{V}_{t}(S_{t+1})-\hat{q}(S_{t},A_{t}, \mathbf{w}_{t}). \tag{12.28}\]
+
+As before, the approximation becomes exact if the approximate value function does not change.
+
+_Exercise 12.10_: Prove that (12.27) becomes exact if the value function does not change. To save writing, consider the case of \(t=0\), and use the notation \(Q_{k}=\hat{q}(S_{k},A_{k},\mathbf{w})\). Hint: Start by writing out \(\delta_{0}^{a}\) and \(G_{0}^{\lambda a}\), then \(G_{0}^{\lambda a}-Q_{0}\). \(\square\)
+
+_Exercise 12.11_: The truncated version of the general off-policy return is denoted \(G_{t:h}^{\lambda a}\). Guess the correct equation for it, based on (12.27). \(\square\)
+
+Using steps entirely analogous to those for the state case, one can write a forward-view update based on (12.27), transform the sum of the updates using the summation rule, and finally derive the following form for the eligibility trace for action values:
+
+\[\mathbf{z}_{t}\doteq\gamma_{t}\lambda_{t}\rho_{t}\mathbf{z}_{t-1}+\nabla\hat{q }(S_{t},A_{t},\mathbf{w}_{t}). \tag{12.29}\]
+
+This eligibility trace, together with the expectation-based TD error (12.28) and the usual semi-gradient parameter-update rule (12.7), forms an elegant, efficient Expected Sarsa(\(\lambda\)) algorithm that can be applied to either on-policy or off-policy data. It is probably the best algorithm of this type at the current time (though of course it is not guaranteed to be stable until combined in some way with one of the methods presented in the following sections). In the on-policy case with constant \(\lambda\) and \(\gamma\), and the usual state-action TD error (12.16), the algorithm would be identical to the Sarsa(\(\lambda\)) algorithm presented in Section 12.7.
+
+_Exercise 12.12_: Show in detail the steps outlined above for deriving (12.29) from (12.27). Start with the update (12.15), substitute \(G_{t}^{\lambda a}\) from (12.26) for \(G_{t}^{\lambda}\), then follow similar steps as led to (12.25). \(\square\)
+
+At \(\lambda=1\), these algorithms become closely related to corresponding Monte Carlo algorithms. One might expect that an exact equivalence would hold for episodic problems and off-line updating, but in fact the relationship is subtler and slightly weaker than that. Under these most favorable conditions still there is not an episode by episode equivalence of updates, only of their expectations. This should not be surprising as these methods
+
+--- Page 334 ---
+make irrevocable updates as a trajectory unfolds, whereas true Monte Carlo methods would make no update for a trajectory if any action within it has zero probability under the target policy. In particular, all of these methods, even at \(\lambda=1\), still bootstrap in the sense that their targets depend on the current value estimates--it's just that the dependence cancels out in expected value. Whether this is a good or bad property in practice is another question. Recently, methods have been proposed that do achieve an exact equivalence (Sutton, Mahmood, Precup and van Hasselt, 2014). These methods require an additional vector of "provisional weights" that keep track of updates which have been made but may need to be retracted (or emphasized) depending on the actions taken later. The state and state-action versions of these methods are called PTD(\(\lambda\)) and PQ(\(\lambda\)) respectively, where the 'P' stands for Provisional.
+
+The practical consequences of all these new off-policy methods have not yet been established. Undoubtedly, issues of high variance will arise as they do in all off-policy methods using importance sampling (Section 11.9).
+
+If \(\lambda<1\), then all these off-policy algorithms involve bootstrapping and the deadly triad applies (Section 11.3), meaning that they can be guaranteed stable only for the tabular case, for state aggregation, and for other limited forms of function approximation. For linear and more-general forms of function approximation the parameter vector may diverge to infinity as in the examples in Chapter 11. As we discussed there, the challenge of off-policy learning has two parts. Off-policy eligibility traces deal effectively with the first part of the challenge, correcting for the expected value of the targets, but not at all with the second part of the challenge, having to do with the distribution of updates. Algorithmic strategies for meeting the second part of the challenge of off-policy learning with eligibility traces are summarized in Section 12.11.
+
+##### Exercise 12.13
+
+What are the dutch-trace and replacing-trace versions of off-policy eligibility traces for state-value and action-value methods? 
+
+### 12.10 Watkins's Q(\(\lambda\)) to Tree-Backup(\(\lambda\))
+
+Several methods have been proposed over the years to extend Q-learning to eligibility traces. The original is _Watkins's Q(\(\lambda\))_, which decays its eligibility traces in the usual way as long as a greedy action was taken, then cuts the traces to zero after the first non-greedy action. The backup diagram for Watkins's Q(\(\lambda\)) is shown in Figure 12.12. In Chapter 6, we unified Q-learning and Expected Sarsa in the off-policy version of the latter, which includes Q-learning as a special case, and generalizes it to arbitrary target policies, and in the previous section of this chapter we completed our treatment of Expected Sarsa by generalizing it to off-policy eligibility traces. In Chapter 7, however, we distinguished _n_-step Expected Sarsa from _n_-step Tree Backup, where the latter retained the property of not using importance sampling. It remains then to present the eligibility trace version of Tree Backup, which we will call _Tree-Backup(\(\lambda\))_, or _TB(\(\lambda\))_ for short. This is arguably the true successor to Q-learning because it retains its appealing absence of importance sampling even though it can be applied to off-policy data.
+
+
+
+--- Page 335 ---
+The concept of TB(\(\lambda\)) is straightforward. As shown in its backup diagram in Figure 12.13, the tree-backup updates of each length (from Section 7.5) are weighted in the usual way dependent on the bootstrapping parameter \(\lambda\). To get the detailed equations, with the right indices on the general bootstrapping and discounting parameters, it is best to start with a recursive form (12.20) for the \(\lambda\)-return using action values, and then expand the bootstrapping case of the target after the model of (7.16):
+
+\[G_{t}^{\lambda a} \doteq R_{t+1}\!+\!\gamma_{t+1}\!\bigg{(}\!(1\!-\!\lambda_{t+1}) \bar{V}_{t}(S_{t+1})\!+\!\lambda_{t+1}\!\bigg{[}\!\!\sum_{a\neq A_{t+1}}\!\! \pi(a|S_{t+1})\hat{q}(S_{t+1},a,\mathbf{w}_{t})\!+\!\pi(A_{t+1}|S_{t+1})G_{t+1} ^{\lambda a}\bigg{]}\!\bigg{)}\] \[=R_{t+1}+\gamma_{t+1}\bigg{(}\bar{V}_{t}(S_{t+1})+\lambda_{t+1}\pi (A_{t+1}|S_{t+1})\Big{(}G_{t+1}^{\lambda a}-\hat{q}(S_{t+1},A_{t+1},\mathbf{w} _{t})\Big{)}\bigg{)}\]
+
+As per the usual pattern, it can also be written approximately (ignoring changes in the approximate value function) as a sum of TD errors,
+
+\[G_{t}^{\lambda a}\approx\hat{q}(S_{t},A_{t},\mathbf{w}_{t})+\sum_{k=t}^{\infty }\delta_{k}^{a}\prod_{i=t+1}^{k}\gamma_{i}\lambda_{i}\pi(A_{i}|S_{i}),\]
+
+using the expectation form of the action-based TD error (12.28).
+
+Following the same steps as in the previous section, we arrive at a special eligibility trace update involving the target-policy probabilities of the selected actions,
+
+\[\mathbf{z}_{t}\doteq\gamma_{t}\lambda_{t}\pi(A_{t}|S_{t})\mathbf{z}_{t-1}+ \nabla\hat{q}(S_{t},A_{t},\mathbf{w}_{t}).\]
+
+Figure 12.12: The backup diagram for Watkins’s Q(\(\lambda\)). The series of component updates ends either with the end of the episode or with the first nongreedy action, whichever comes first.
+
+
+
+--- Page 336 ---
+This, together with the usual parameter-update rule (12.7), defines the TB(\(\lambda\)) algorithm. Like all semi-gradient algorithms, TB(\(\lambda\)) is not guaranteed to be stable when used with off-policy data and with a powerful function approximator. To obtain those assurances, TB(\(\lambda\)) would have to be combined with one of the methods presented in the next section.
+
+\({}^{\star}\)_Exercise 12.14_ How might Double Expected Sarsa be extended to eligibility traces? \(\Box\)
+
+### 12.11 Stable Off-policy Methods with Traces
+
+Several methods using eligibility traces have been proposed that achieve guarantees of stability under off-policy training, and here we present four of the most important using this book's standard notation, including general bootstrapping and discounting functions. All are based on either the Gradient-TD or the Emphatic-TD ideas presented in Sections 11.7 and 11.8. All the algorithms assume linear function approximation, though extensions to nonlinear function approximation can also be found in the literature.
+
+_GTD_(\(\lambda\)) is the eligibility-trace algorithm analogous to TDC, the better of the two state-value Gradient-TD prediction algorithms discussed in Section 11.7. Its goal is to learn a parameter \(\mathbf{w}_{t}\) such that \(\hat{v}(s,\)w\()\doteq\mathbf{w}_{t}^{\top}\mathbf{x}(s)\approx v_{\pi}(s)\), even from data that is due to following another policy \(b\). Its update is
+
+\[\mathbf{w}_{t+1}\doteq\mathbf{w}_{t}+\alpha\delta_{t}^{s}\mathbf{z}_{t}-\alpha \gamma_{t+1}(1-\lambda_{t+1})\left(\mathbf{z}_{t}^{\top}\mathbf{v}_{t}\right) \mathbf{x}_{t+1},\]
+
+Figure 12.13: The backup diagram for the \(\lambda\) version of the Tree Backup algorithm.
+
+
+
+--- Page 337 ---
+with \(\delta_{t}^{s}\), \(\mathbf{z}_{t}\), and \(\rho_{t}\) defined in the usual ways for state values (12.23) (12.25) (11.1), and
+
+\[\mathbf{v}_{t+1}\doteq\mathbf{v}_{t}+\beta\delta_{t}^{s}\mathbf{z}_{t}-\beta \left(\mathbf{v}_{t}^{\top}\mathbf{x}_{t}\right)\mathbf{x}_{t}, \tag{12.30}\]
+
+where, as in Section 11.7, \(\mathbf{v}\in\mathbb{R}^{d}\) is a vector of the same dimension as \(\mathbf{w}\), initialized to \(\mathbf{v}_{0}=\mathbf{0}\), and \(\beta>0\) is a second step-size parameter.
+
+_GQ(\(\lambda\))_ is the Gradient-TD algorithm for action values with eligibility traces. Its goal is to learn a parameter \(\mathbf{w}_{t}\) such that \(\hat{q}(s,a,\mathbf{w}_{t})\doteq\mathbf{w}_{t}^{\top}\mathbf{x}(s,a)\approx q _{\pi}(s,a)\) from off-policy data. If the target policy is \(\varepsilon\)-greedy, or otherwise biased toward the greedy policy for \(\hat{q}\), then GQ(\(\lambda\)) can be used as a control algorithm. Its update is
+
+\[\mathbf{w}_{t+1}\doteq\mathbf{w}_{t}+\alpha\delta_{t}^{a}\mathbf{z}_{t}- \alpha\gamma_{t+1}(1-\lambda_{t+1})\left(\mathbf{z}_{t}^{\top}\mathbf{v}_{t} \right)\bar{\mathbf{x}}_{t+1},\]
+
+where \(\bar{\mathbf{x}}_{t}\) is the average feature vector for \(S_{t}\) under the target policy,
+
+\[\bar{\mathbf{x}}_{t}\doteq\sum_{a}\pi(a|S_{t})\mathbf{x}(S_{t},a),\]
+
+\(\delta_{t}^{a}\) is the expectation form of the TD error, which can be written
+
+\[\delta_{t}^{a}\doteq R_{t+1}+\gamma_{t+1}\mathbf{w}_{t}^{\top}\
+
+--- Page 338 ---
+high variance and potentially slow convergence. Emphatic TD(\(\lambda\)) is defined by
+
+\[\mathbf{w}_{t+1} \doteq\mathbf{w}_{t}+\alpha\delta_{t}\mathbf{z}_{t}\] \[\delta_{t} \doteq R_{t+1}+\gamma_{t+1}\mathbf{w}_{t}^{\top}\mathbf{x}_{t+1}- \mathbf{w}_{t}^{\top}\mathbf{x}_{t}\] \[\mathbf{z}_{t} \doteq\rho_{t}\big{(}\gamma_{t}\lambda_{t}\mathbf{z}_{t-1}+M_{t} \mathbf{x}_{t}\big{)},\quad\text{ with }\mathbf{z}_{-1}\doteq\mathbf{0},\] \[M_{t} \doteq\lambda_{t}\,I_{t}+(1-\lambda_{t})F_{t}\] \[F_{t} \doteq\rho_{t-1}\gamma_{t}F_{t-1}+I_{t},\quad\text{ with }F_{0} \doteq i(S_{0}),\]
+
+where \(M_{t}\geq 0\) is the general form of _emphasis_, \(F_{t}\geq 0\) is termed the _followon trace_, and \(I_{t}\geq 0\) is the _interest_, as described in Section 11.8. Note that \(M_{t}\), like \(\delta_{t}\), is not really an additional memory variable. It can be removed from the algorithm by substituting its definition into the eligibility-trace equation. Pseudocode and software for the true online version of Emphatic-TD(\(\lambda\)) are available on the web (Sutton, 2015b).
+
+In the on-policy case (\(\rho_{t}\!=\!1\), for all \(t\)), Emphatic-TD(\(\lambda\)) is similar to conventional TD(\(\lambda\)), but still significantly different. In fact, whereas Emphatic-TD(\(\lambda\)) is guaranteed to converge for all state-dependent \(\lambda\) functions, TD(\(\lambda\)) is not. TD(\(\lambda\)) is guaranteed convergent only for all constant \(\lambda\). See Yu's counterexample (Ghiassian, Rafiee, and Sutton, 2016).
+
+### 12.12 Implementation Issues
+
+It might at first appear that tabular methods using eligibility traces are much more complex than one-step methods. A naive implementation would require every state (or state-action pair) to update both its value estimate and its eligibility trace on every time step. This would not be a problem for implementations on single-instruction, multiple-data, parallel computers or in plausible artificial neural network (ANN) implementations, but it is a problem for implementations on conventional serial computers. Fortunately, for typical values of \(\lambda\) and \(\gamma\) the eligibility traces of almost all states are almost always nearly zero; only those states that have recently been visited will have traces significantly greater than zero and only these few states need to be updated to closely approximate these algorithms.
+
+In practice, then, implementations on conventional computers may keep track of and update only the few traces that are significantly greater than zero. Using this trick, the computational expense of using traces in tabular methods is typically just a few times that of a one-step method. The exact multiple of course depends on \(\lambda\) and \(\gamma\) and on the expense of the other computations. Note that the tabular case is in some sense the worst case for the computational complexity of eligibility traces. When function approximation is used, the computational advantages of not using traces generally decrease. For example, if ANNs and backpropagation are used, then eligibility traces generally cause only a doubling of the required memory and computation per step. Truncated \(\lambda\)-return methods (Section 12.3) can be computationally efficient on conventional computers though they always require some additional memory.
+
+
+
+--- Page 339 ---
+
+
+## Chapter 12.13 Conclusions
+
+Eligibility traces in conjunction with TD errors provide an efficient, incremental way of shifting and choosing between Monte Carlo and TD methods. The _n_-step methods of Chapter 7 also enabled this, but eligibility trace methods are more general, often faster to learn, and offer different computational complexity tradeoffs. This chapter has offered an introduction to the elegant, emerging theoretical understanding of eligibility traces for on- and off-policy learning and for variable bootstrapping and discounting. One aspect of this elegant theory is true online methods, which exactly reproduce the behavior of expensive ideal methods while retaining the computational congeniality of conventional TD methods. Another aspect is the possibility of derivations that automatically convert from intuitive forward-view methods to more efficient incremental backward-view algorithms. We illustrated this general idea in a derivation that started with a classical, expensive Monte Carlo algorithm and ended with a cheap incremental non-TD implementation using the same novel eligibility trace used in true online TD methods.
+
+As we mentioned in Chapter 5, Monte Carlo methods may have advantages in non-Markov tasks because they do not bootstrap. Because eligibility traces make TD methods more like Monte Carlo methods, they also can have advantages in these cases. If one wants to use TD methods because of their other advantages, but the task is at least partially non-Markov, then the use of an eligibility trace method is indicated. Eligibility traces are the first line of defense against both long-delayed rewards and non-Markov tasks.
+
+By adjusting \(\lambda\), we can place eligibility trace methods anywhere along a continuum from Monte Carlo to one-step TD methods. Where shall we place them? We do not yet have a good theoretical answer to this question, but a clear empirical answer appears to be emerging. On tasks with many steps per episode, or many steps within the half-life of discounting, it appears significantly better to use eligibility traces than not to (e.g., see Figure 12.14). On the other hand, if the traces are so long as to produce a pure Monte Carlo method, or nearly so, then performance degrades sharply. An intermediate mixture appears to be the best choice. Eligibility traces should be used to bring us toward Monte Carlo methods, but not all the way there. In the future it may be possible to more finely vary the trade-off between TD and Monte Carlo methods by using variable \(\lambda\), but at present it is not clear how this can be done reliably and usefully.
+
+Methods using eligibility traces require more computation than one-step methods, but in return they offer significantly faster learning, particularly when rewards are delayed by many steps. Thus it often makes sense to use eligibility traces when data are scarce and cannot be repeatedly processed, as is often the case in online applications. On the other hand, in off-line applications in which data can be generated cheaply, perhaps from an inexpensive simulation, then it often does not pay to use eligibility traces. In these cases the objective is not to get more out of a limited amount of data, but simply to process as much data as possible as quickly as possible. In these cases the speedup per datum due to traces is typically not worth their computational cost, and one-step methods are favored.
+
+
+
+--- Page 340 ---
+
+
+## Chapter 12: Eligibility Traces
+
+Figure 12.14: The effect of \(\lambda\) on reinforcement learning performance in four different test problems. In all cases, performance is generally best (a _lower_ number in the graph) at an intermediate value of \(\lambda\). The two left panels are applications to simple continuous-state control tasks using the Sarsa(\(\lambda\)) algorithm and tile coding, with either replacing or accumulating traces (Sutton, 1996). The upper-right panel is for policy evaluation on a random walk task using TD(\(\lambda\)) (Singh and Sutton, 1996). The lower right panel is unpublished data for the pole-balancing task (Example 3.4) from an earlier study (Sutton, 1984).
+
+
+
+--- Page 341 ---
+
+
+## Bibliographical and Historical Remarks
+
+Eligibility traces came into reinforcement learning via the fecund ideas of Klopf (1972). Our use of eligibility traces is based on Klopf's work (Sutton, 1978a, 1978b, 1978c; Barto and Sutton, 1981a, 1981b; Sutton and Barto, 1981a; Barto, Sutton, and Anderson, 1983; Sutton, 1984). We may have been the first to use the term "eligibility trace" (Sutton and Barto, 1981a). The idea that stimuli produce after effects in the nervous system that are important for learning is very old (see Chapter 14). Some of the earliest uses of eligibility traces were in the actor-critic methods discussed in Chapter 13 (Barto, Sutton, and Anderson, 1983; Sutton, 1984).
+
+Compound updates were called "complex backups" in the first edition of this book.
+
+The \(\lambda\)-return and its error-reduction properties were introduced by Watkins (1989) and further developed by Jaakkola, Jordan, and Singh (1994). The random walk results in this and subsequent sections are new to this text, as are the terms "forward view" and "backward view." The notion of a \(\lambda\)-return algorithm was introduced in the first edition of this text. The more refined treatment presented here was developed in conjunction with Harm van Seijen (e.g., van Seijen and Sutton, 2014).
+
+TD(\(\lambda\)) with accumulating traces was introduced by Sutton (1988, 1984). Convergence in the mean was proved by Dayan (1992), and with probability 1 by many researchers, including Peng (1993), Dayan and Sejnowski (1994), Tsitsiklis (1994), and Gurvits, Lin, and Hanson (1994). The bound on the error of the asymptotic \(\lambda\)-dependent solution of linear TD(\(\lambda\)) is due to Tsitsiklis and Van Roy (1997).
+
+Truncated TD methods were developed by Cichosz (1995) and van Seijen (2016).
+
+The idea of redoing updates was extensively developed by van Seijen, originally under the name "best-match learning" (van Seijen, 2011; van Seijen, Whiteson, van Hasselt, and Weiring, 2011).
+
+True online TD(\(\lambda\)) is primarily due to Harm van Seijen (van Seijen and Sutton, 2014; van Seijen et al., 2016) though some of its key ideas were discovered independently by Hado van Hasselt (personal communication). The name "dutch traces" is in recognition of the contributions of both scientists. Replacing traces are due to Singh and Sutton (1996).
+
+The material in this section is from van Hasselt and Sutton (2015).
+
+Sarsa(\(\lambda\)) with accumulating traces was first explored as a control method by Rummery and Niranjan (1994; Rummery, 1995). True Online Sarsa(\(\lambda\)) was
+
+--- Page 342 ---
+introduced by van Seijen and Sutton (2014). The algorithm on page 307 was adapted from van Seijen et al. (2016). The Mountain Car results were made for this text, except for Figure 12.11 which is adapted from van Seijen and Sutton (2014).
+12.8 Perhaps the first published discussion of variable \(\lambda\) was by Watkins (1989), who pointed out that the cutting off of the update sequence (Figure 12.12) in his Q(\(\lambda\)) when a nongreedy action was selected could be implemented by temporarily setting \(\lambda\) to 0. Variable \(\lambda\) was introduced in the first edition of this text. The roots of variable \(\gamma\) are in the work on options (Sutton, Precup, and Singh, 1999) and its precursors (Sutton, 1995a), becoming explicit in the GQ(\(\lambda\)) paper (Maei and Sutton, 2010), which also introduced some of these recursive forms for the \(\lambda\)-returns. A different notion of variable \(\lambda\) has been developed by Yu (2012).
+12.9 Off-policy eligibility traces were introduced by Precup et al. (2000, 2001), then further developed by Bertsekas and Yu (2009), Maei (2011; Maei and Sutton, 2010), Yu (2012), and by Sutton, Mahmood, Precup, and van Hasselt (2014). The last reference in particular gives a powerful forward view for off-policy TD methods with general state-dependent \(\lambda\) and \(\gamma\). The presentation here seems to be new. This section ends with an elegant Expected Sarsa(\(\lambda\)) algorithm. Although it is a natural algorithm, to our knowledge it has not previously been described or tested in the literature.
+12.10 Watkins's Q(\(\lambda\)) is due to Watkins (1989). The tabular, episodic, off-line version has been proven convergent by Munos, Stepleton, Harutyunyan, and Bellemare (2016). Alternative Q(\(\lambda\)) algorithms were proposed by Peng and Williams (1994, 1996) and by Sutton, Mahmood, Precup, and van Hasselt (2014). Tree Backup(\(\lambda\)) is due to Precup, Sutton, and Singh (2000).
+12.11 GTD(\(\lambda\)) is due to Maei (2011). GQ(\(\lambda\)) is due to Maei and Sutton (2010). HTD(\(\lambda\)) is due to White and White (2016) based on the one-step HTD algorithm introduced by Hackman (2012). The latest developments in the theory of Gradient-TD methods are by Yu (2017). Emphatic TD(\(\lambda\)) was introduced by Sutton, Mahmood, and White (2016), who proved its stability. Yu (2015, 2016) proved its convergence, and the algorithm was developed further by Hallak et al. (2015, 2016).
+
+
+
+--- Page 343 ---
+
+
+## Chapter 13 Policy Gradient Methods
+
+In this chapter we consider something new. So far in this book almost all the methods have been _action-value methods_; they learned the values of actions and then selected actions based on their estimated action values1; their policies would not even exist without the action-value estimates. In this chapter we consider methods that instead learn a _parameterized policy_ that can select actions without consulting a value function. A value function may still be used to _learn_ the policy parameter, but is not required for action selection. We use the notation \(\boldsymbol{\theta}\in\mathbb{R}^{d^{\prime}}\) for the policy's parameter vector. Thus we write \(\pi(a|s,\boldsymbol{\theta})=\Pr\{A_{t}\!=\!a\mid S_{t}\!=\!s,\boldsymbol{ \theta}_{t}\!=\!\boldsymbol{\theta}\}\) for the probability that action \(a\) is taken at time \(t\) given that the environment is in state \(s\) at time \(t\) with parameter \(\boldsymbol{\theta}\). If a method uses a learned value function as well, then the value function's weight vector is denoted \(\mathbf{w}\in\mathbb{R}^{d}\) as usual, as in \(\hat{v}(s,\!\mathbf{w})\).
+
+Footnote 1: The lone exception is the gradient bandit algorithms of Section 2.8. In fact, that section goes through many of the same steps, in the single-state bandit case, as we go through here for full MDPs. Reviewing that section would be good preparation for fully understanding this chapter.
+
+In this chapter we consider methods for learning the policy parameter based on the gradient of some scalar performance measure \(J(\boldsymbol{\theta})\) with respect to the policy parameter. These methods seek to _maximize_ performance, so their updates approximate gradient _ascent_ in \(J\):
+
+\[\boldsymbol{\theta}_{t+1}=\boldsymbol{\theta}_{t}+\alpha\widehat{\nabla J( \boldsymbol{\theta}_{t})}, \tag{13.1}\]
+
+where \(\widehat{\nabla J(\boldsymbol{\theta}_{t})}\in\mathbb{R}^{d^{\prime}}\) is a stochastic estimate whose expectation approximates the gradient of the performance measure with respect to its argument \(\boldsymbol{\theta}_{t}\). All methods that follow this general schema we call _policy gradient methods_, whether or not they also learn an approximate value function. Methods that learn approximations to both policy and value functions are often called _actor-critic methods_, where 'actor' is a reference to the learned policy, and 'critic' refers to the learned value function, usually a state-value function. First we treat the episodic case, in which performance is defined as the value of the start state under the parameterized policy, before going on to consider the continuing case, in
+
+--- Page 344 ---
+which performance is defined as the average reward rate, as in Section 10.3. In the end, we are able to express the algorithms for both cases in very similar terms.
+
+### 13.1 Policy Approximation and its Advantages
+
+In policy gradient methods, the policy can be parameterized in any way, as long as \(\pi(a|s,\boldsymbol{\theta})\) is differentiable with respect to its parameters, that is, as long as \(\nabla\pi(a|s,\boldsymbol{\theta})\) (the column vector of partial derivatives of \(\pi(a|s,\boldsymbol{\theta})\) with respect to the components of \(\boldsymbol{\theta}\)) exists and is finite for all \(s\in\mathscr{S}\), \(a\in\mathscr{A}(s)\), and \(\boldsymbol{\theta}\in\mathbb{R}^{d^{\prime}}\). In practice, to ensure exploration we generally require that the policy never becomes deterministic (i.e., that \(\pi(a|s,\boldsymbol{\theta})\in(0,1)\), for all \(s,a,\boldsymbol{\theta}\)). In this section we introduce the most common parameterization for discrete action spaces and point out the advantages it offers over action-value methods. Policy-based methods also offer useful ways of dealing with continuous action spaces, as we describe later in Section 13.7.
+
+If the action space is discrete and not too large, then a natural and common kind of parameterization is to form parameterized numerical preferences \(h(s,a,\boldsymbol{\theta})\in\mathbb{R}\) for each state-action pair. The actions with the highest preferences in each state are given the highest probabilities of being selected, for example, according to an exponential soft-max distribution:
+
+\[\pi(a|s,\boldsymbol{\theta})\doteq\frac{e^{h(s,a,\boldsymbol{\theta})}}{\sum_{ b}e^{h(s,b,\boldsymbol{\theta})}}, \tag{13.2}\]
+
+where \(e\approx 2.71828\) is the base of the natural logarithm. Note that the denominator here is just what is required so that the action probabilities in each state sum to one. We call this kind of policy parameterization _soft-max in action preferences_.
+
+The action preferences themselves can be parameterized arbitrarily. For example, they might be computed by a deep artificial neural network (ANN), where \(\boldsymbol{\theta}\) is the vector of all the connection weights of the network (as in the AlphaGo system described in Section 16.6). Or the preferences could simply be linear in features,
+
+\[h(s,a,\boldsymbol{\theta})=\boldsymbol{\theta}^{\top}\mathbf{x}(s,a), \tag{13.3}\]
+
+using feature vectors \(\mathbf{x}(s,a)\in\mathbb{R}^{d^{\prime}}\) constructed by any of the methods described in Section 9.5.
+
+One advantage of parameterizing policies according to the soft-max in action preferences is that the approximate policy can approach a deterministic policy, whereas with \(\varepsilon\)-greedy action selection over action values there is always an \(\varepsilon\) probability of selecting a random action. Of course, one could select according to a soft-max distribution based on action values, but this alone would not allow the policy to approach a deterministic policy. Instead, the action-value estimates would converge to their corresponding true values, which would differ by a finite amount, translating to specific probabilities other than 0 and 1. If the soft-max distribution included a temperature parameter, then the temperature could be reduced over time to approach determinism, but in practice it would be difficult to choose the reduction schedule, or even the initial temperature, without more prior knowledge of the true action values than we would like to assume. Action preferences
+
+--- Page 345 ---
+are different because they do not approach specific values; instead they are driven to produce the optimal stochastic policy. If the optimal policy is deterministic, then the preferences of the optimal actions will be driven infinitely higher than all suboptimal actions (if permitted by the parameterization).
+
+A second advantage of parameterizing policies according to the soft-max in action preferences is that it enables the selection of actions with arbitrary probabilities. In problems with significant function approximation, the best approximate policy may be stochastic. For example, in card games with imperfect information the optimal play is often to do two different things with specific probabilities, such as when bluffing in Poker. Action-value methods have no natural way of finding stochastic optimal policies, whereas policy approximating methods can, as shown in Example 13.1.
+
+Example 13.1.1.
+
+
+
+--- Page 346 ---
+Perhaps the simplest advantage that policy parameterization may have over action-value parameterization is that the policy may be a simpler function to approximate. Problems vary in the complexity of their policies and action-value functions. For some, the action-value function is simpler and thus easier to approximate. For others, the policy is simpler. In the latter case a policy-based method will typically learn faster and yield a superior asymptotic policy (as in Tetris; see Simsek, Algorta, and Kothiyal, 2016).
+
+Finally, we note that the choice of policy parameterization is sometimes a good way of injecting prior knowledge about the desired form of the policy into the reinforcement learning system. This is often the most important reason for using a policy-based learning method.
+
+##### Exercise 13.1
+
+Use your knowledge of the gridworld and its dynamics to determine an _exact_ symbolic expression for the optimal probability of selecting the right action in Example 13.1. 
+
+### 13.2 The Policy Gradient Theorem
+
+In addition to the practical advantages of policy parameterization over \(\varepsilon\)-greedy action selection, there is also an important theoretical advantage. With continuous policy parameterization the action probabilities change smoothly as a function of the learned parameter, whereas in \(\varepsilon\)-greedy selection the action probabilities may change dramatically for an arbitrarily small change in the estimated action values, if that change results in a different action having the maximal value. Largely because of this, stronger convergence guarantees are available for policy-gradient methods than for action-value methods. In particular, it is the continuity of the policy dependence on the parameters that enables policy-gradient methods to approximate gradient ascent (13.1).
+
+The episodic and continuing cases define the performance measure, \(J(\boldsymbol{\theta})\), differently and thus have to be treated separately to some extent. Nevertheless, we will try to present both cases uniformly, and we develop a notation so that the major theoretical results can be described with a single set of equations.
+
+In this section we treat the episodic case, for which we define the performance measure as the value of the start state of the episode. We can simplify the notation without losing any meaningful generality by assuming that every episode starts in some particular (non-random) state \(s_{0}\). Then, in the episodic case we define performance as
+
+\[J(\boldsymbol{\theta})\doteq v_{\pi_{\boldsymbol{\theta}}}(s_{0}), \tag{13.4}\]
+
+where \(v_{\pi_{\boldsymbol{\theta}}}\) is the true value function for \(\pi_{\boldsymbol{\theta}}\), the policy determined by \(\boldsymbol{\theta}\). From here on in our discussion we will assume no discounting (\(\gamma=1\)) for the episodic case, although for completeness we do include the possibility of discounting in the boxed algorithms.
+
+With function approximation it may seem challenging to change the policy parameter in a way that ensures improvement. The problem is that performance depends on both the action selections and the distribution of states in which those selections are made, and that both of these are affected by the policy parameter. Given a state, the effect of the policy parameter on the actions, and thus on reward, can be computed in a relatively straightforward way from knowledge of the parameterization. But the effect of the policy 
+
+--- Page 347 ---
+Proof of the Policy Gradient Theorem (episodic case)
+
+With just elementary calculus and re-arranging of terms, we can prove the policy gradient theorem from first principles. To keep the notation simple, we leave it implicit in all cases that \(\pi\) is a function of \(\boldsymbol{\theta}\), and all gradients are also implicitly with respect to \(\boldsymbol{\theta}\). First note that the gradient of the state-value function can be written in terms of the action-value function as
+
+\[\nabla v_{\pi}(s) =\nabla\left[\sum_{a}\pi(a|s)q_{\pi}(s,a)\right],\quad\text{for all }s\in\mathcal{S}\] (Exercise 3.18) \[=\sum_{a}\Bigl{[}\nabla\pi(a|s)q_{\pi}(s,a)+\pi(a|s)\nabla q_{\pi} (s,a)\Bigr{]}\ \ \text{(product rule of calculus)}\] \[=\sum_{a}\Bigl{[}\nabla\pi(a|s)q_{\pi}(s,a)+\pi(a|s)\nabla\sum_{s^{ \prime},r}p(s^{\prime},r|\,s,a)\bigl{(}r+v_{\pi}(s^{\prime})\bigr{)}\Bigr{]}\] (Exercise 3.19 and Equation 3.2) \[=\sum_{a}\Bigl{[}\nabla\pi(a|s)q_{\pi}(s,a)+\pi(a|s)\sum_{s^{ \prime}}p(s^{\prime}|\,s,a)\nabla v_{\pi}(s^{\prime})\Bigr{]}\] (Eq. 3.4) \[=\sum_{a}\Bigl{[}\nabla\pi(a|s)q_{\pi}(s,a)+\pi(a|s)\sum_{s^{ \prime}}p(s^{\prime}|\,s,a)\] (unrolling) \[\qquad\sum_{a^{\prime}}\bigl{[}\nabla\pi(a^{\prime}|s^{\prime})q_ {\pi}(s^{\prime},a^{\prime})+\pi(a^{\prime}|s^{\prime})\sum_{s^{\prime\prime} }p(s^{\prime\prime}\,|\,s^{\prime},a^{\prime})\nabla v_{\pi}(s^{\prime\prime} )\bigr{]}\Bigr{]}\] \[=\sum_{x\in\mathcal{S}}\sum_{k=0}^{\infty}\Pr(s\!\to\!x,k,\pi)\sum_ {a}\nabla\pi(a|x)q_{\pi}(x,a),\]
+
+after repeated unrolling, where \(\Pr(s\!\to\!x,k,\pi)\) is the probability of transitioning from state \(s\) to state \(x\) in \(k\) steps under policy \(\pi\). It is then immediate that
+
+\[\nabla J(\boldsymbol{\theta}) =\nabla v_{\pi}(s_{0})\] \[=\sum_{s}\left(\sum_{k=0}^{\infty}\Pr(s_{0}\!\to\!s,k,\pi)\right) \sum_{a}\nabla\pi(a|s)q_{\pi}(s,a)\] \[=\sum_{s}\eta(s)\sum_{a}\nabla\pi(a|s)
+
+--- Page 348 ---
+on the state distribution is a function of the environment and is typically unknown. How can we estimate the performance gradient with respect to the policy parameter when the gradient depends on the unknown effect of policy changes on the state distribution?
+
+Fortunately, there is an excellent theoretical answer to this challenge in the form of the _policy gradient theorem_, which provides an analytic expression for the gradient of performance with respect to the policy parameter (which is what we need to approximate for gradient ascent (13.1)) that does _not_ involve the derivative of the state distribution. The policy gradient theorem for the episodic case establishes that
+
+\[\nabla J(\boldsymbol{\theta})\propto\sum_{s}\mu(s)\sum_{a}q_{\pi}(s,a)\nabla\pi (a|s,\boldsymbol{\theta}), \tag{13.5}\]
+
+where the gradients are column vectors of partial derivatives with respect to the components of \(\boldsymbol{\theta}\), and \(\pi\) denotes the policy corresponding to parameter vector \(\boldsymbol{\theta}\). The symbol \(\propto\) here means "proportional to". In the episodic case, the constant of proportionality is the average length of an episode, and in the continuing case it is 1, so that the relationship is actually an equality. The distribution \(\mu\) here (as in Chapters 9 and 10) is the on-policy distribution under \(\pi\) (see page 199). The policy gradient theorem is proved for the episodic case in the box on the previous page.
+
+### 13.3 Reinforce: Monte Carlo Policy Gradient
+
+We are now ready to derive our first policy-gradient learning algorithm. Recall our overall strategy of stochastic gradient ascent (13.1), which requires a way to obtain samples such that the expectation of the sample gradient is proportional to the actual gradient of the performance measure as a function of the parameter. The sample gradients need only be proportional to the gradient because any constant of proportionality can be absorbed into the step size \(\alpha\), which is otherwise arbitrary. The policy gradient theorem gives an exact expression proportional to the gradient; all that is needed is some way of sampling whose expectation equals or approximates this expression. Notice that the right-hand side of the policy gradient theorem is a 
+
+--- Page 349 ---
+deserving of further study, but our current interest is the classical REINFORCE algorithm (Willams, 1992) whose update at time \(t\) involves just \(A_{t}\), the one action actually taken at time \(t\).
+
+We continue our derivation of REINFORCE by introducing \(A_{t}\) in the same way as we introduced \(S_{t}\) in (13.6)--by replacing a sum over the random variable's possible values by an expectation under \(\pi\), and then sampling the expectation. Equation (13.6) involves an appropriate sum over actions, but each term is not weighted by \(\pi(a|S_{t},\boldsymbol{\theta})\) as is needed for an expectation under \(\pi\). So we introduce such a weighting, without changing the equality, by multiplying and then dividing the summed terms by \(\pi(a|S_{t},\boldsymbol{\theta})\). Continuing from (13.6), we have
+
+\[\nabla J(\boldsymbol{\theta}) \propto\mathbb{E}_{\pi}\Biggl{[}\sum_{a}\pi(a|S_{t},\boldsymbol{ \theta})q_{\pi}(S_{t},a)\frac{\nabla\pi(a|S_{t},\boldsymbol{\theta})}{\pi(a|S_ {t},\boldsymbol{\theta})}\Biggr{]}\] \[=\mathbb{E}_{\pi}\Biggl{[}q_{\pi}(S_{t},A_{t})\frac{\nabla\pi(A_ {t}|S_{t},\boldsymbol{\theta})}{\pi(A_{t}|S_{t},\boldsymbol{\theta})}\Biggr{]} \text{(replacing $a$ by the sample $A_{t}\sim\pi$)}\] \[=\mathbb{E}_{\pi}\Biggl{[}G_{t}\,\frac{\nabla\pi(A_{t}|S_{t}, \boldsymbol{\theta})}{\pi(A_{t}|S_{t},\boldsymbol{\theta})}\Biggr{]}\,, \text{(because $\mathbb{E}_{\pi}[G_{t}|S_{t},A_{t}]=q_{\pi}(S_{t},A_{t})$)}\]
+
+where \(G_{t}\) is the return as usual. The final expression in brackets is exactly what is needed, a quantity that can be sampled on each time step whose expectation is proportional to the gradient. Using this sample to instantiate our generic stochastic gradient ascent algorithm (13.1) yields the REINFORCE update:
+
+\[\boldsymbol{\theta}_{t+1}\doteq\boldsymbol{\theta}_{t}+\alpha G_{t}\,\frac{ \nabla\pi(A_{t}|S_{t},\boldsymbol{\theta}_{t})}{\pi(A_{t}|S_{t},\boldsymbol{ \theta}_{t})}. \tag{13.8}\]
+
+This update has an intuitive appeal. Each increment is proportional to the product of a return \(G_{t}\) and a vector, the gradient of the probability of taking the action actually taken divided by the probability of taking that action. The vector is the direction in parameter space that most increases the probability of repeating the action \(A_{t}\) on future visits to state \(S_{t}\). The update increases the parameter vector in this direction proportional to the return, and inversely proportional to the action probability. The former makes sense because it causes the parameter to move most in the directions that favor actions that yield the highest return. The latter makes sense because otherwise actions that are selected frequently are at an advantage (the updates will be more often in their direction) and might win out even if they do not yield the highest return.
+
+Note that REINFORCE uses the complete return from time \(t\), which includes all future rewards up until the end of the episode. In this sense REINFORCE is a Monte Carlo algorithm and is well defined only for the episodic case with all updates made in retrospect after the episode is completed (like the Monte Carlo algorithms in Chapter 5). This is shown explicitly in the boxed algorithm on the next page.
+
+Notice that the update in the last line of pseudocode appears rather different from the REINFORCE update rule (13.8). One difference is that the pseudocode uses the compact expression \(\nabla\ln\pi(A_{t}|S_{t},\boldsymbol{\theta}_{t})\) for the fractional vector \(\frac{\nabla\pi(A_{t}|S_{t},\boldsymbol{\theta}_{t})}{\pi(A_{t}|S_{t}, \boldsymbol{\theta}_{t})}\) in (13.8). That these two expressions for the vector are equivalent follows from the identity \(\nabla\ln x=\frac{\nabla x}{x}\)
+
+--- Page 350 ---
+This vector has been given several names and notations in the literature; we will refer to it simply as the _eligibility vector_. Note that it is the only place that the policy parameterization appears in the algorithm.
+
+```
+REINFORCE:Monte-Carlo Policy-Gradient Control (episode) for \(\pi\). Input: a differentiable policy parameterization \(\pi(a|s,\boldsymbol{\theta})\) Algorithm parameter: step size \(\alpha>0\) Initialize policy parameter \(\boldsymbol{\theta}\in\mathbb{R}^{d^{\prime}}\) (e.g., to \(\boldsymbol{0}\)) Loop forever (for each episode): Generate an episode \(S_{0},A_{0},R_{1},\ldots,S_{T-1},A_{T-1},R_{T}\), following \(\pi(\cdot|\cdot,\boldsymbol{\theta})\) Loop for each step of the episode \(t=0,1,\ldots,T-1\): \(G\leftarrow\sum_{k=t+1}^{T}\gamma^{k-t-1}R_{k}\) (\(G_{t}\)) \(\boldsymbol{\theta}\leftarrow\boldsymbol{\theta}+\alpha\gamma^{t}G\nabla\ln \pi(A_{t}|S_{t},\boldsymbol{\theta})\)
+```
+
+The second difference between the pseudocode update and the REINFORCE update equation (13.8) is that the former includes a factor of \(\gamma^{t}\). This is because, as mentioned earlier, in the text we are treating the non-discounted case (\(\gamma\!=\!1\)) while in the boxed algorithms we are giving the algorithms for the general discounted case. All of the ideas go through in the discounted case with appropriate adjustments (including to the box on page 199) but involve additional complexity that distracts from the main ideas.
+
+\({}^{\star}\)_Exercise 13.2_: Generalize the box on page 199, the policy gradient theorem (13.5), the proof of the policy gradient theorem (page 325), and the steps leading to the REINFORCE update equation (13.8), so that (13.8) ends up with a factor of \(\gamma^{t}\) and thus aligns with the general algorithm given in the pseudocode. 
+
+Figure 13.1 shows the performance of REINFORCE on the short-corridor gridworld from Example 13.1.
+
+Figure 13.1: REINFORCE on the short-corridor gridworld (Example 13.1). With a good step size, the total reward per episode approaches the optimal value of the start state.
+
+
+
+--- Page 351 ---
+As a stochastic gradient method, REINFORCE has good theoretical convergence properties. By construction, the expected update over an episode is in the same direction as the performance gradient. This assures an improvement in expected performance for sufficiently small \(\alpha\), and convergence to a local optimum under standard stochastic approximation conditions for decreasing \(\alpha\). However, as a Monte Carlo method REINFORCE may be of high variance and thus produce slow learning.
+
+_Exercise 13.3_: In Section 13.1 we considered policy parameterizations using the soft-max in action preferences (13.2) with linear action preferences (13.3). For this parameterization, prove that the eligibility vector is
+
+\[\nabla\ln\pi(a|s,\boldsymbol{\theta})=\mathbf{x}(s,a)-\sum_{b}\pi(b|s, \boldsymbol{\theta})\mathbf{x}(s,b), \tag{13.9}\]
+
+using the definitions and elementary calculus. 
+
+### 13.4 REINFORCE with Baseline
+
+The policy gradient theorem (13.5) can be generalized to include a comparison of the action value to an arbitrary _baseline_\(b(s)\):
+
+\[\nabla J(\boldsymbol{\theta})\propto\sum_{s}\mu(s)\sum_{a}\Bigl{(}q_{\pi}(s,a) -b(s)\Bigr{)}\nabla\pi(a|s,\boldsymbol{\theta}). \tag{13.10}\]
+
+The baseline can be any function, even a random variable, as long as it does not vary with \(a\); the equation remains valid because the subtracted quantity is zero:
+
+\[\sum_{a}b(s)\nabla\pi(a|s,\boldsymbol{\theta})\ =\ b(s)\nabla\sum_{a}\pi(a|s, \boldsymbol{\theta})\ =\ b(s)\nabla 1\ =\ 0.\]
+
+The policy gradient theorem with baseline (13.10) can be used to derive an update rule using similar steps as in the previous section. The update rule that we end up with is a new version of REINFORCE that includes a general baseline:
+
+\[\boldsymbol{\theta}_{t+1}\doteq\boldsymbol{\theta}_{t}+\alpha\Bigl{(}G_{t}-b( S_{t})\Bigr{)}\frac{\nabla\pi(A_{t}|S_{t},\boldsymbol{\theta}_{t})}{\pi(A_{t}| S_{t},\boldsymbol{\theta}_{t})}. \tag{13.11}\]
+
+Because the baseline could be uniformly zero, this update is a strict generalization of REINFORCE. In general, the baseline leaves the expected value of the update unchanged, but it can have a large effect on its variance. For example, we saw in Section 2.8 that an analogous baseline can significantly reduce the variance (and thus speed the learning) of gradient bandit algorithms. In the bandit algorithms the baseline was just a number (the average of the rewards seen so far), but for MDPs the baseline should vary with state. In some states all actions have high values and we need a high baseline to differentiate the higher valued actions from the less highly valued ones; in other states all actions will have low values and a low baseline is appropriate.
+
+One natural choice for the baseline is an estimate of the state value, \(\hat{v}(S_{t}\),\(\mathbf{w})\), where \(\mathbf{w}\in\mathbb{R}^{d}\) is a weight vector learned by one of the methods presented in previous chapters.
+
+
+
+--- Page 352 ---
+Because REINFORCE is a Monte Carlo method for learning the policy parameter, \(\theta\), it seems natural to also use a Monte Carlo method to learn the state-value weights, \(\mathbf{w}\). A complete pseudocode algorithm for REINFORCE with baseline using such a learned state-value function as the baseline is given in the box below.
+
+**ROINFORCE with Baseline (episodic), for estimating \(\boldsymbol{w}\approx\boldsymbol{w}\).**
+
+Input: a differentiable policy parameterization \(\pi(a|s,\boldsymbol{\theta})\)
+
+Input: a differentiable state-value function parameterization \(\hat{v}(s,\mathbf{w})\)
+
+Algorithm parameters:
+
+--- Page 353 ---
+Figure 13.2 compares the behavior of REINFORCE with and without a baseline on the short-corridor gridword (Example 13.1). Here the approximate state-value function used in the baseline is \(\hat{v}(s,\textbf{w})=w\). That is, **w** is a single component, \(w\).
+
+### 13.5 Actor-Critic Methods
+
+In REINFORCE with baseline, the learned state-value function estimates the value of the _first_ state of each state transition. This estimate sets a baseline for the subsequent return, but is made prior to the transition's action and thus cannot be used to assess that action. In actor-critic methods, on the other hand, the state-value function is applied also to the _second_ state of the transition. The estimated value of the second state, when discounted and added to the reward, constitutes the one-step return, \(G_{t:t+1}\), which is a useful estimate of the actual return and thus _is_ a way of assessing the action. As we have seen in the TD learning of value functions throughout this book, the one-step return is often superior to the actual return in terms of its variance and computational congeniality, even though it introduces bias. We also know how we can flexibly modulate the extent of the bias with _n_-step returns and eligibility traces (Chapters 7 and 12). When the state-value function is used to assess actions in this way it is called a _critic_, and the overall policy-gradient method is termed an _actor-critic_ method. Note that the bias in the gradient estimate is not due to bootstrapping as such; the actor would be biased even if the critic was learned by a Monte Carlo method.
+
+First consider one-step actor-critic methods, the analog of the TD methods introduced in Chapter 6 such as TD(0), Sarsa(0), and Q-learning. The main appeal of one-step methods is that they are fully online and incremental, yet avoid the complexities of eligibility traces. They are a special case of the eligibility trace methods, but easier to understand. One-step actor-critic methods replace the full return of REINFORCE (13.11) with the one-step return (and use a learned state-value function as the baseline) as follows:
+
+\[\boldsymbol{\theta}_{t+1} \doteq\boldsymbol{\theta}_{t}+\alpha\Big{(}G_{t:t+1}-\hat{v}(S_{ t},\textbf{w})\Big{)}\frac{\nabla\pi(A_{t}|S_{t},\boldsymbol{\theta}_{t})}{ \pi(A_{t}|S_{t},\boldsymbol{\theta}_{t})} \tag{13.12}\] \[=\boldsymbol{\theta}_{t}+\alpha\Big{(}R_{t+1}+\gamma\hat{v}(S_{t+ 1},\textbf{w})-\hat{v}(S_{t},\textbf{w})\Big{)}\frac{\nabla\pi(A_{t}|S_{t}, \boldsymbol{\theta}_{t})}{\pi(A_{t}|S_{t},\boldsymbol{\theta}_{t})}\] (13.13) \[=\boldsymbol{\theta}_{t}+\alpha\delta_{t}\frac{\nabla\pi(A_{t}|S_ {t},\boldsymbol{\theta}_{t})}{\pi(A_{t}|S_{t},\boldsymbol{\theta}_{t})}. \tag{13.14}\]
+
+The natural state-value-function learning method to pair with this is semi-gradient TD(0). Pseudocode for the complete algorithm is given in the box at the top of the next page. Note that it is now a fully online, incremental algorithm, with states, actions, and rewards processed as they occur and then never revisited.
+
+
+
+--- Page 354 ---
+
+The generalizations to the forward view of \(n\)-step methods and then to a \(\lambda\)-return algorithm are straightforward. The one-step return in (13.12) is merely replaced by \(G_{t:t+n}\) or \(G_{t}^{\lambda}\) respectively. The backward view of the \(\lambda\)-return algorithm is also straightforward, using separate eligibility traces for the actor and critic, each after the patterns in Chapter 12. Pseudocode for the complete algorithm is given in the box below.
+
+``` Input: a differentiable policy parameterization \(\pi(a|s,\boldsymbol{\theta})\) Input: a differentiable state-value function parameterization \(\hat{v}(s,\)w\()\) Parameters: trace-decay rates \(\lambda^{\boldsymbol{\theta}}\in[0,1]\), \(\lambda^{\mathbf{w}}\in[0,1]\); step sizes \(\alpha^{\boldsymbol{\theta}}>0\), \(\alpha^{\mathbf{w}}>0\) Initialize policy parameter \(\boldsymbol{\theta}\in\mathbb{R}^{d^{\prime}}\) and state-value weights \(\mathbf{w}\in\mathbb{R}^{d}\) (e.g., to \(\mathbf{0}\)) Loop forever (for each episode) Initialize \(S\) (first state of episode) \(\mathbf{z}^{\boldsymbol{\theta}}\leftarrow\mathbf{0}\) (\(d^{\prime}\)-component eligibility trace vector) \(\mathbf{z}^{\mathbf{w}}\leftarrow\mathbf{0}\) (\(d\)-component eligibility trace vector) \(I\gets 1\) Loop while \(S\) is not terminal (for each time step): \(A\sim
+
+--- Page 355 ---
+[Empty page]
+
+--- Page 356 ---
+Naturally, in the continuing case, we define values, \(v_{\pi}(s)\doteq\mathbb{E}_{\pi}[G_{t}|S_{t}\!=\!s]\) and \(q_{\pi}(s,a)\doteq\mathbb{E}_{\pi}[G_{t}|S_{t}\!=\!s,A_{t}\!=\!a]\), with respect to the differential return:
+
+\[G_{t}\ \doteq\ R_{t+1}-r(\pi)\ +\ R_{t+2}-r(\pi)\ +\ R_{t+3}-r(\pi)\ +\ \cdots. \tag{13.17}\]
+
+With these alternate definitions, the policy gradient theorem as given for the episodic case (13.5) remains true for the continuing case. A proof is given in the box on the next page. The forward and backward view equations also remain the same.
+
+Proof of the Policy Gradient Theorem (continuing case)
+
+The proof of the policy gradient theorem for the continuing case begins similarly to the episodic case. Again we leave it implicit in all cases that \(\pi\) is a function of \(\boldsymbol{\theta}\) and that the gradients are with respect to \(\boldsymbol{\theta}\). Recall that in the continuing case \(J(\boldsymbol{\theta})=r(\pi)\) (13.15) and that \(v_{\pi}\) and \(q_{
+
+--- Page 357 ---
+\[=\sum_{s}\mu(s)\sum_{a}\nabla\pi(a|s)q_{\pi}(s,a)\] \[\qquad+\sum_{s^{\prime}}\underbrace{\sum_{s}\mu(s)\sum_{a}\pi(a|s)p (s^{\prime}\,|s,a)}_{\mu(s^{\prime})\ (\ref{eq:eq:eq:eq:eq:eq:eq:eq:eq:eq:eq: eq:eq:eq: eq
+
+--- Page 358 ---
+[Empty page]
+
+--- Page 359 ---
+
+
+### 13.8 Summary
+
+Prior to this chapter, this book focused on _action-value methods_--meaning methods that learn action values and then use them to determine action selections. In this chapter, on the other hand, we considered methods that learn a parameterized policy that enables actions to be taken without consulting action-value estimates. In particular, we have considered _policy-gradient methods_--meaning methods that update the policy parameter on each step in the direction of an estimate of the gradient of performance with respect to the policy parameter.
+
+Methods that learn and store a policy parameter have many advantages. They can learn specific probabilities for taking the actions. They can learn appropriate levels of exploration and approach deterministic policies asymptotically. They can naturally handle continuous action spaces. All these things are easy for policy-based methods but awkward or impossible for \(\varepsilon\)-greedy methods and for action-value methods in general. In addition, on some problems the policy is just simpler to represent parametrically than the value function; these problems are more suited to parameterized policy methods.
+
+Parameterized policy methods also have an important theoretical advantage over action-value methods in the form of the _policy gradient theorem_, which gives an exact formula for how performance is affected by the policy parameter that does not involve derivatives of the state distribution. This theorem provides a theoretical foundation for all policy gradient methods.
+
+The REINFORCE method follows directly from the policy gradient theorem. Adding a state-value function as a _baseline_ reduces REINFORCE's variance without introducing bias. If the state-value function is also used to assess--or criticize--the policy's action selections, then the value function is called a _critic_ and the policy is called an _actor_; the overall method is called an _actor-critic_ method. The critic introduces bias into the actor's gradient estimates, but is often desirable for the same reason that bootstrapping TD methods are often superior to Monte Carlo methods (substantially reduced variance).
+
+Overall, policy-gradient methods provide a significantly different set of strengths and weaknesses than action-value methods. Today they are less well understood in some respects, but a subject of excitement and ongoing research.
+
+## Bibliographical and Historical Remarks
+
+Methods that we now see as related to policy gradients were actually some of the earliest to be studied in reinforcement learning (Witten, 1977; Barto, Sutton, and Anderson, 1983; Sutton, 1984; Williams, 1987, 1992) and in predecessor fields (see Phansalkar and Thathachar, 1995). They were largely supplanted in the 1990s by the action-value methods that are the focus of the other chapters of this book. In recent years, however, attention has returned to actor-critic methods and to policy-gradient methods in general. Among the further developments beyond what we cover here are natural-gradient methods (Amari, 1998; Kakade, 2002, Peters, Vijayakumar and Schaal, 2005; Peters and Schaal, 2008; Park, Kim and Kang, 2005; Bhatnagar, Sutton, Ghavamzadeh and Lee, 2009; see Grondman, Busoniu, Lopes and Babuska, 2012), deterministic policy-gradient methods
+
+--- Page 360 ---
+(Silver et al., 2014), off-policy policy-gradient methods (Degris, White, and Sutton, 2012; Maei, 2018), and entropy regularization (see Schulman, Chen, and Abbeel, 2017). Major applications include acrobatic helicopter autopilots and AlphaGo (Section 16.6).
+
+Our presentation in this chapter is based primarily on that by Sutton, McAllester, Singh, and Mansour (2000), who introduced the term "policy gradient methods." A useful overview is provided by Bhatnagar et al. (2009). One of the earliest related works is by Aleksandrov, Sysoyev, and Shemeneva (1968). Thomas (2014) first realized that the factor of \(\gamma^{t}\), as specified in the boxed algorithms of this chapter, was needed in the case of discounted episodic problems.
+
+Example 13.1 and the results with it in this chapter were developed with Eric Graves.
+
+The policy gradient theorem here and on page 334 was first obtained by Marbach and Tsitsiklis (1998, 2001) and then independently by Sutton et al. (2000). A similar expression was obtained by Cao and Chen (1997). Other early results are due to Konda and Tsitsiklis (2000, 2003), Baxter and Bartlett (2001), and Baxter, Bartlett, and Weaver (2001). Some additional results are developed by Sutton, Singh, and McAllester (2000).
+
+REINFORCE is due to Williams (1987, 1992). Phansalkar and Thathachar (1995) proved both local and global convergence theorems for modified versions of REINFORCE algorithms.
+
+The all-actions algorithm was first presented in an unpublished but widely circulated incomplete paper (Sutton, Singh, and McAllester, 2000) and then developed further by Ciosek and Whiteson (2017, 2018), who termed it "expected policy gradients," and by Asadi, Allen, Roderick, Mohamed, Konidaris, and Littman (2017), who called it "mean actor critic."
+
+The baseline was introduced in Williams's (1987, 1992) original work. Greensmith, Bartlett, and Baxter (2004) analyzed an arguably better baseline (see Dick, 2015). Thomas and Brunskill (2017) argue that an action-dependent baseline can be used without incurring bias.
+
+### 13.5-6
+
+Actor-critic methods were among the earliest to be investigated in reinforcement learning (Witten, 1977; Barto, Sutton, and Anderson, 1983; Sutton, 1984). The algorithms presented here are based on the work of Degris, White, and Sutton (2012). Actor-critic methods are sometimes referred to as advantage actor-critic ("A2C") methods in the literature.
+
+The first to show how continuous actions could be handled this way appears to have been Williams (1987, 1992). The figure on page 335 is adapted from Wikipedia.
+
+
+
+--- Page 361 ---
+
+
+## Part III: Looking Deeper
+
+In this last part of the book we look beyond the standard reinforcement learning ideas presented in the first two parts of the book to briefly survey their relationships with psychology and neuroscience, a sampling of reinforcement learning applications, and some of the active frontiers for future reinforcement learning research.
+
+
+
+--- Page 362 ---
+
+
+[MISSING_PAGE_POST]
+
+
+
+--- Page 363 ---
+
+
+## Chapter 14 Psychology
+
+In previous chapters we developed ideas for algorithms based on computational considerations alone. In this chapter we look at some of these algorithms from another perspective: the perspective of psychology and its study of how animals learn. The goals of this chapter are, first, to discuss ways that reinforcement learning ideas and algorithms correspond to what psychologists have discovered about animal learning, and second, to explain the influence reinforcement learning is having on the study of animal learning. The clear formalism provided by reinforcement learning that systemizes tasks, returns, and algorithms is proving to be enormously useful in making sense of experimental data, in suggesting new kinds of experiments, and in pointing to factors that may be critical to manipulate and to measure. The idea of optimizing return over the long term that is at the core of reinforcement learning is contributing to our understanding of otherwise puzzling features of animal learning and behavior.
+
+Some of the correspondences between reinforcement learning and psychological theories are not surprising because the development of reinforcement learning drew inspiration from psychological learning theories. However, as developed in this book, reinforcement learning explores idealized situations from the perspective of an artificial intelligence researcher or engineer, with the goal of solving computational problems with efficient algorithms, rather than to replicate or explain in detail how animals learn. As a result, some of the correspondences we describe connect ideas that arose independently in their respective fields. We believe these points of contact are specially meaningful because they expose computational principles important to learning, whether it is learning by artificial or by natural systems.
+
+For the most part, we describe correspondences between reinforcement learning and learning theories developed to explain how animals like rats, pigeons, and rabbits learn in controlled laboratory experiments. Thousands of these experiments were conducted throughout the 20th century, and many are still being conducted today. Although sometimes dismissed as irrelevant to wider issues in psychology, these experiments probe subtle properties of animal learning, often motivated by precise theoretical questions. As psychology shifted its focus to more cognitive aspects of behavior, that is, to mental
+
+--- Page 364 ---
+processes such as thought and reasoning, animal learning experiments came to play less of a role in psychology than they once did. But this experimentation led to the discovery of learning principles that are elemental and widespread throughout the animal kingdom, principles that should not be neglected in designing artificial learning systems. In addition, as we shall see, some aspects of cognitive processing connect naturally to the computational perspective provided by reinforcement learning.
+
+This chapter's final section includes references relevant to the connections we discuss as well as to connections we neglect. We hope this chapter encourages readers to probe all of these connections more deeply. Also included in this final section is a discussion of how the terminology used in reinforcement learning relates to that of psychology. Many of the terms and phrases used in reinforcement learning are borrowed from animal learning theories, but the computational/engineering meanings of these terms and phrases do not always coincide with their meanings in psychology.
+
+### 14.1 Prediction and Control
+
+The algorithms we describe in this book fall into two broad categories: algorithms for _prediction_ and algorithms for _control_.1 These categories arise naturally in solution methods for the reinforcement learning problem presented in Chapter 3. In many ways these categories respectively correspond to categories of learning extensively studied by psychologists: _classical_, or _Pavlovian_, _conditioning_ and _instrumental_, or _operant_, _conditioning_. These correspondences are not completely accidental because of psychology's influence on reinforcement learning, but they are nevertheless striking because they connect ideas arising from different objectives.
+
+Footnote 1: What control means for us is different from what it typically means in animal learning theories; there the environment controls the agent instead of the other way around. See our comments on terminology at the end of this chapter.
+
+The prediction algorithms presented in this book estimate quantities that depend on how features of an agent's environment are expected to unfold over the future. We specifically focus on estimating the amount of reward an agent can expect to receive over the future while it interacts with its environment. In this role, prediction algorithms are _policy evaluation algorithms_, which are integral components of algorithms for improving policies. But prediction algorithms are not limited to predicting future reward; they can predict any feature of the environment (see, for example, Modayil, White, and Sutton, 2014). The correspondence between prediction algorithms and classical conditioning rests on their common property of predicting upcoming stimuli, whether or not those stimuli are rewarding (or punishing).
+
+The situation in an instrumental, or operant, conditioning experiment is different. Here, the experimental apparatus is set up so that an animal is given something it likes (a reward) or something it dislikes (a penalty) depending on what the animal did. The animal learns to increase its tendency to produce rewarded behavior and to decrease its tendency to produce penalized behavior. The reinforcing stimulus is said to be _contingent_ on the animal's behavior, whereas in classical conditioning it is not (although it is difficult to remove all behavior contingencies in a classical conditioning experiment). Instrumental
+
+--- Page 365 ---
+conditioning experiments are like those that inspired Thorndike's Law of Effect that we briefly discuss in Chapter 1. _Control_ is at the core of this form of learning, which corresponds to the operation of reinforcement learning's policy-improvement algorithms.
+
+Thinking of classical conditioning in terms of prediction, and instrumental conditioning in terms of control, is a starting point for connecting our computational view of reinforcement learning to animal learning, but in reality, the situation is more complicated than this. There is more to classical conditioning than prediction; it also involves action, and so is a mode of control, sometimes called _Pavlovian control_. Further, classical and instrumental conditioning interact in interesting ways, with both sorts of learning likely being engaged in most experimental situations. Despite these complications, aligning the classical/instrumental distinction with the prediction/control distinction is a convenient first approximation in connecting reinforcement learning to animal learning.
+
+In psychology, the term reinforcement is used to describe learning in both classical and instrumental conditioning. Originally referring only to the strengthening of a pattern of behavior, it is frequently also used for the weakening of a pattern of behavior. A stimulus considered to be the cause of the change in behavior is called a reinforcer, whether or not it is contingent on the animal's previous behavior. At the end of this chapter we discuss this terminology in more detail and how it relates to terminology used in machine learning.
+
+### 14.2 Classical Conditioning
+
+While studying the activity of the digestive system, the celebrated Russian physiologist Ivan Pavlov found that an animal's innate responses to certain triggering stimuli can come to be triggered by other stimuli that are quite unrelated to the inborn triggers. His experimental subjects were dogs that had undergone minor surgery to allow the intensity of their salivary reflex to be accurately measured. In one case he describes, the dog did not salivate under most circumstances, but about 5 seconds after being presented with food it produced about six drops of saliva over the next several seconds. After several repetitions of presenting another stimulus, one not related to food, in this case the sound of a metronome, shortly before the introduction of food, the dog salivated in response to the sound of the metronome in the same way it did to the food. "The activity of the salivary gland has thus been called into play by impulses of sound--a stimulus quite alien to food" (Pavlov, 1927, p. 22). Summarizing the significance of this finding, Pavlov wrote:
+
+It is pretty evident that under natural conditions the normal animal must respond not only to stimuli which themselves bring immediate benefit or harm, but also to other physical or chemical agencies--waves of sound, light, and the like--which in themselves only _signal_ the approach of these stimuli; though it is not the sight and sound of the beast of prey which is in itself harmful to the smaller animal, but its teeth and claws. (Pavlov, 1927, p. 14)
+
+Connecting new stimuli to innate reflexes in this way is now called classical, or Pavlovian, conditioning. Pavlov (or more exactly, his translators) called inborn responses (e.g.,
+
+--- Page 366 ---
+[Empty page]
+
+--- Page 367 ---
+
+
+#### Blocking and Higher-order Conditioning
+
+Many interesting properties of classical conditioning have been observed in experiments. Beyond the anticipatory nature of CRs, two widely observed properties figured prominently in the development of classical conditioning models: _blocking_ and _higher-order conditioning_. Blocking occurs when an animal fails to learn a CR when a potential CS is presented along with another CS that had been used previously to condition the animal to produce that CR. For example, in the first stage of a blocking experiment involving rabbit nictitating membrane conditioning, a rabbit is first conditioned with a tone CS and an air puff US to produce the CR of closing its nictitating membrane in anticipation of the air puff. The experiment's second stage consists of additional trials in which a second stimulus, say a light, is added to the tone to form a compound tone/light CS followed by the same air puff US. In the experiment's third phase, the second stimulus alone--the light--is presented to the rabbit to see if the rabbit has learned to respond to it with a CR. It turns out that the rabbit produces very few, or no, CRs in response to the light: learning to the light had been _blocked_ by the previous learning to the tone.2 Blocking results like this challenged the idea that conditioning depends only on simple temporal contiguity, that is, that a necessary and sufficient condition for conditioning is that a US frequently follows a CS closely in time. In the next section we describe the _Rescorla-Wagner model_(Rescorla and Wagner, 1972) that offered an influential explanation for blocking.
+
+Footnote 2: Comparison with a control group is necessary to show that the previous conditioning to the tone is responsible for blocking learning to the light. This is done by trials with the tone/light CS but with no prior conditioning to the tone. Learning to the light in this case is unimpaired. Moore and Schmajuk (2008) give a full account of this procedure.
+
+Higher-order conditioning occurs when a previously-conditioned CS acts as a US in conditioning another initially neutral stimulus. Pavlov described an experiment in which his assistant first conditioned a dog to salivate to the sound of a metronome that predicted a food US, as described above. After this stage of conditioning, a number of trials were conducted in which a black square, to which the dog was initially indifferent, was placed in the dog's line of vision followed by the sound of the metronome--and this was _not_ followed by food. In just ten trials, the dog began to salivate merely upon seeing the black square, despite the fact that the sight of it had never been followed by food. The sound of the metronome itself acted as a US in conditioning a salivation CR to the black square CS. This was second-order conditioning. If the black square had been used as a US to establish salivation CRs to another otherwise neutral CS, it would have been third-order conditioning, and so on. Higher-order conditioning is difficult to demonstrate, especially above the second order, in part because a higher-order reinforcer loses its reinforcing value due to not being repeatedly followed by the original US during higher-order conditioning trials. But under the right conditions, such as intermixing first-order trials with higher-order trials or by providing a general energizing stimulus, higher-order conditioning beyond the second order can be demonstrated. As we describe below, the _TD model of classical conditioning_ uses the bootstrapping idea that is central to our approach to extend the Rescorla-Wagner model's account of blocking to include both the anticipatory nature of CRs and higher-order conditioning.
+
+
+
+--- Page 368 ---
+
+Higher-order instrumental conditioning occurs as well. In this case, a stimulus that consistently predicts primary reinforcement becomes a reinforcer itself, where reinforcement is primary if its rewarding or penalizing quality has been built into the animal by evolution. The predicting stimulus becomes a _secondary reinforcer_, or more generally, a _higher-order_ or _conditioned reinforcer_--the latter being a better term when the predicted reinforcing stimulus is itself a secondary, or an even higher-order, reinforcer. A conditioned reinforcer delivers _conditioned reinforcement_: conditioned reward or conditioned penalty. Conditioned reinforcement acts like primary reinforcement in increasing an animal's tendency to produce behavior that leads to conditioned reward, and to decrease an animal's tendency to produce behavior that leads to conditioned penalty. (See our comments at the end of this chapter that explain how our terminology sometimes differs, as it does here, from terminology used in psychology.)
+
+Conditioned reinforcement is a key phenomenon that explains, for instance, why we work for the conditioned reinforcer money, whose worth derives solely from what is predicted by having it. In actor-critic methods described in Section 13.5 (and discussed in the context of neuroscience in Sections 15.7 and 15.8), the critic uses a TD method to evaluate the actor's policy, and its value estimates provide conditioned reinforcement to the actor, allowing the actor to improve its policy. This analog of higher-order instrumental conditioning helps address the credit-assignment problem mentioned in Section 1.7 because the critic gives moment-by-moment reinforcement to the actor when the primary reward signal is delayed. We discuss this more below in Section 14.4.
+
+#### The Rescorla-Wagner Model
+
+Rescorla and Wagner created their model mainly to account for blocking. The core idea of the Rescorla-Wagner model is that an animal only learns when events violate its expectations, in other words, only when the animal is surprised (although without necessarily implying any _conscious_ expectation or emotion). We first present Rescorla and Wagner's model using their terminology and notation before shifting to the terminology and notation we use to describe the TD model.
+
+Here is how Rescorla and Wagner described their model. The model adjusts the "associative strength" of each component stimulus of a compound CS, which is a number representing how strongly or reliably that component is predictive of a US. When a compound CS consisting of several component stimuli is presented in a classical conditioning trial, the associative strength of each component stimulus changes in a way that depends on an associative strength associated with the entire stimulus compound, called the "aggregate associative strength," and not just on the associative strength of each component itself.
+
+Rescorla and Wagner considered a compound CS AX, consisting of component stimuli A and X, where the animal may have already experienced stimulus A, and stimulus X might be new to the animal. Let \(V_{\text{A}}\), \(V_{\text{X}}\), and \(V_{\text{AX}}\) respectively denote the associative strengths of stimuli A, X, and the compound AX. Suppose that on a trial the compound CS AX is followed by a US, which we label stimulus Y. Then the associative strengths of 
+
+--- Page 369 ---
+the stimulus components change according to these expressions:
+
+\[\Delta V_{\rm A} =\alpha_{\rm A}\beta_{\rm Y}(R_{\rm Y}-V_{\rm AX})\] \[\Delta V_{\rm X} =\alpha_{\rm X}\beta_{\rm Y}(R_{\rm Y}-V_{\rm AX}),\]
+
+where \(\alpha_{\rm A}\beta_{\rm Y}\) and \(\alpha_{\rm X}\beta_{\rm Y}\) are the step-size parameters, which depend on the identities of the CS components and the US, and \(R_{\rm Y}\) is the asymptotic level of associative strength that the US Y can support. (Rescorla and Wagner used \(\lambda\) here instead of \(R\), but we use \(R\) to avoid confusion with our use of \(\lambda\) and because we usually think of this as the magnitude of a reward signal, with the caveat that the US in classical conditioning is not necessarily rewarding or penalizing.) A key assumption of the model is that the aggregate associative strength \(V_{\rm AX}\) is equal to \(V_{\rm A}+V_{\rm X}\). The associative strengths as changed by these \(\Delta\)s become the associative strengths at the beginning of the next trial.
+
+To be complete, the model needs a response-generation mechanism, which is a way of mapping values of \(V\)s to CRs. Because this mapping would depend on details of the experimental situation, Rescorla and Wagner did not specify a mapping but simply assumed that larger \(V\)s would produce stronger or more likely CRs, and that negative \(V\)s would mean that there would be no CRs.
+
+The Rescorla-Wagner model accounts for the acquisition of CRs in a way that explains blocking. As long as the aggregate associative strength, \(V_{\rm AX}\), of the stimulus compound is below the asymptotic level of associative strength, \(R_{\rm Y}\), that the US Y can support, the prediction error \(R_{\rm Y}-V_{\rm AX}\) is positive. This means that over successive trials the associative strengths \(V_{\rm A}\) and \(V_{\rm X}\) of the component stimuli increase until the aggregate associative strength \(V_{\rm AX}\) equals \(R_{\rm Y}\), at which point the associative strengths stop changing (unless the US changes). When a new component is added to a compound CS to which the animal has already been conditioned, further conditioning with the augmented compound produces little or no increase in the associative strength of the added CS component because the error has already been reduced to zero, or to a low value. The occurrence of the US is already predicted nearly perfectly, so little or no error--or surprise--is introduced by the new CS component. Prior learning blocks learning to the new component.
+
+To transition from Rescorla and Wagner's model to the TD model of classical conditioning (which we just call the TD model), we first recast their model in terms of the concepts that we are using throughout this book. Specifically, we match the notation we use for learning with linear function approximation (Section 9.4), and we think of the conditioning process as one of learning to predict the "magnitude of the US" on a trial on the basis of the compound CS presented on that trial, where the magnitude of a US Y is the \(R_{\rm Y}\) of the Rescorla-Wagner model as given above. We also introduce states. Because the Rescorla-Wagner model is a _trial-level_ model, meaning that it deals with how associative strengths change from trial to trial without considering any details about what happens within and between trials, we do not have to consider how states change during a trial until we present the full TD model in the following section. Instead, here we simply think of a state as a way of labeling a trial in terms of the collection of component CSs that are present on the trial.
+
+Therefore, assume that trial-type, or state, \(s\) is described by a real-valued vector of features \({\bf x}(s)=(x_{1}(s),x_{2}(s),\ldots,x_{d}(s))^{\top}\) where \(x_{i}(s)=1\) if CS\({}_{i}\), the \(i^{\rm th}\) component of a 
+
+--- Page 370 ---
+compound CS, is present on the trial and 0 otherwise. Then if the \(d\)-dimensional vector of associative strengths is \(\mathbf{w}\), the aggregate associative strength for trial-type \(s\) is
+
+\[\hat{v}(s,\!\mathbf{w})=\mathbf{w}^{\top}\mathbf{x}(s). \tag{14.1}\]
+
+This corresponds to a _value estimate_ in reinforcement learning, and we think of it as the _US prediction_.
+
+Now temporally let \(t\) denote the number of a complete trial and not its usual meaning as a time step (we revert to \(t\)'s usual meaning when we extend this to the TD model below), and assume that \(S_{t}\) is the state corresponding to trial \(t\). Conditioning trial \(t\) updates the associative strength vector \(\mathbf{w}_{t}\) to \(\mathbf{w}_{t+1}\) as follows:
+
+\[\mathbf{w}_{t+1}=\mathbf{w}_{t}+\alpha\,\!\delta_{t}\,\mathbf{x}(S_{t}), \tag{14.2}\]
+
+where \(\alpha\) is the step-size parameter, and--because here we are describing the Rescorla-Wagner model--\(\delta_{t}\) is the _prediction error_
+
+\[\delta_{t}=R_{t}-\hat{v}(S_{t},\!\mathbf{w}_{t}). \tag{14.3}\]
+
+\(R_{t}\) is the target of the prediction on trial \(t\), that is, the magnitude of the US, or in Rescorla and Wagner's terms, the associative strength that the US on the trial can support. Note that because of the factor \(\mathbf{x}(S_{t})\) in (14.2), only the associative strengths of CS components present on a trial are adjusted as a result of that trial. You can think of the prediction error as a measure of surprise, and the aggregate associative strength as the animal's expectation that is violated when it does not match the target US magnitude.
+
+From the perspective of machine learning, the Rescorla-Wagner model is an error-correction supervised learning rule. It is essentially the same as the Least Mean Square (LMS), or Widrow-Hoff, learning rule (Widrow and Hoff, 1960) that finds the weights--here the associative strengths--that make the average of the squares of all the errors as close to zero as possible. It is a "curve-fitting," or regression, algorithm that is widely used in engineering and scientific applications (see Section 9.4).3
+
+Footnote 3: The only differences between the LMS rule and the Rescorla–Wagner model are that for LMS the input vectors \(\mathbf{x}_{t}\) can have any real numbers as components, and—at least in the simplest version of the LMS rule—the step-size parameter \(\alpha\) does not depend on the input vector or the identity of the stimulus setting the prediction target.
+
+The Rescorla-Wagner model was very influential in the history of animal learning theory because it showed that a "mechanistic" theory could account for the main facts about blocking without resorting to more complex cognitive theories involving, for example, an animal's explicit recognition that another stimulus component had been added and then scanning its short-term memory backward to reassess the predictive relationships involving the US. The Rescorla-Wagner model showed how traditional contiguity theories of conditioning--that temporal contiguity of stimuli was a necessary and sufficient condition for learning--could be adjusted in a simple way to account for blocking (Moore and Schmajuk, 2008).
+
+The Rescorla-Wagner model provides a simple account of blocking and some other features of classical conditioning, but it is not a complete or perfect model of classical 
+
+--- Page 371 ---
+
+
+#### 14.2.2 The TD model
+
+The TD model is a _real-time_ model, as opposed to a trial-level model like the Rescorla-Wagner model. A single step \(t\) in the Rescorla-Wagner model represents an entire conditioning trial. The model does not apply to details about what happens during the time a trial is taking place, or what might happen between trials. Within each trial an animal might experience various stimuli whose onsets occur at particular times and that have particular durations. These timing relationships strongly influence learning. The Rescorla-Wagner model also does not include a mechanism for higher-order conditioning, whereas for the TD model, higher-order conditioning is a natural consequence of the bootstrapping idea that is at the base of TD algorithms.
+
+To describe the TD model we begin with the formulation of the Rescorla-Wagner model above, but \(t\) now labels time steps within or between trials instead of complete trials. Think of the time between \(t\) and \(t+1\) as a small time interval, say \(.01\) second, and think of a trial as a sequences of states, one associated with each time step, where the state at step \(t\) now represents details of how stimuli are represented at \(t\) instead of just a label for the CS components present on a trial. In fact, we can completely abandon the idea of trials. From the point of view of the animal, a trial is just a fragment of its
+
+--- Page 372 ---
+the representation and just assume that each state \(s\) is represented by a feature vector \(\mathbf{x}(s)=(x_{1}(s),x_{2}(s),\ldots,x_{n}(s))^{\top}\). Then the aggregate associative strength corresponding to a state \(s\) is given by (14.1), the same as for the Rescorla-Wagner model, but the TD model updates the associative strength vector, \(\mathbf{w}\), differently. With \(t\) now labeling a time step instead of a complete trial, the TD model governs learning according to this update:
+
+\[\mathbf{w}_{t+1}=\mathbf{w}_{t}+\alpha\,\delta_{t}\mathbf{z}_{t}, \tag{14.4}\]
+
+which replaces \(\mathbf{x}_{t}(S_{t})\) in the Rescorla-Wagner update (14.2) with \(\mathbf{z}_{t}\), a vector of eligibility traces, and instead of the \(\delta_{t}\) of (14.3), here \(\delta_{t}\) is a TD error:
+
+\[\delta_{t}=R_{t+1}+\gamma\hat{v}(S_{t+1},\mathbf{w}_{t})-\hat{v}(S_{t}, \mathbf{w}_{t}), \tag{14.5}\]
+
+where \(\gamma\) is a discount factor (between 0 and 1), \(R_{t}\) is the prediction target at time \(t\), and \(\hat{v}(S_{t+1},\mathbf{w}_{t})\) and \(\hat{v}(S_{t},\mathbf{w}_{t})\) are aggregate associative strengths at \(t+1\) and \(t\) as defined by (14.1).
+
+Each component \(i\) of the eligibility-trace vector \(\mathbf{z}_{t}\) increments or decrements according to the component \(x_{i}(S_{t})\) of the feature vector \(\mathbf{x}(S_{t})\), and otherwise decays with a rate determined by \(\gamma\lambda\):
+
+\[\mathbf{z}_{t}=\gamma\lambda\mathbf{z}_{t-1}+\mathbf{x}(S_{t}). \tag{14.6}\]
+
+Here \(\lambda\) is the usual eligibility trace decay parameter.
+
+Note that if \(\gamma=0\), the TD model reduces to the Rescorla-Wagner model with the exceptions that: the meaning of \(t\) is different in each case (a trial number for the Rescorla-Wagner model and a time step for the TD model), and in the TD model there is a one-time-step lead in the prediction target \(R\). The TD model is equivalent to the backward view of the semi-gradient TD(\(\lambda\)) algorithm with linear function approximation (Chapter 12), except that \(R_{t}\) in the model does not have to be a reward signal as it does when the TD algorithm is used to learn a value function for policy-improvement.
+
+#### TD Model Simulations
+
+Real-time conditioning models like the TD model are interesting primarily because they make predictions for a wide range of situations that cannot be represented by trial-level models. These situations involve the timing and durations of conditionable stimuli, the timing of these stimuli in relation to the timing of the US, and the timing and shapes of CRs. For example, the US generally must begin after the onset of a neutral stimulus for conditioning to occur, with the rate and effectiveness of learning depending on the inter-stimulus interval, or ISI, the interval between the onsets of the CS and the US. When CRs appear, they generally begin before the appearance of the US and their temporal profiles change during learning. In conditioning with compound CSs, the component stimuli of the compound CSs may not all begin and end at the same time, sometimes forming what is called a _serial compound_ in which the component stimuli occur in a sequence over time. Timing considerations like these make it important to consider how 
+
+--- Page 373 ---
+stimuli are represented, how these representations unfold over time during and between trials, and how they interact with discounting and eligibility traces.
+
+Figure 14.1 shows three of the stimulus representations that have been used in exploring the behavior of the TD model: the _complete serial compound_ (CSC), the _microstimulus_ (MS), and the _presence_ representations (Ludvig, Sutton, and Kehoe, 2012). These representations differ in the degree to which they force generalization among nearby time points during which a stimulus is present.
+
+The simplest of the representations shown in Figure 14.1 is the presence representation in the figure's right column. This representation has a single feature for each component CS present on a trial, where the feature has value 1 whenever that component is present, and 0 otherwise.4 The presence representation is not a realistic hypothesis about how stimuli are represented in an animal's brain, but as we describe below, the TD model with this representation can produce many of the timing phenomena seen in classical conditioning.
+
+Footnote 4: In our formalism, there is a different state, \(S_{t}\), for each time step \(t\) during a trial, and for a trial in which a compound CS consists of \(n\) component CSs of various durations occurring at various times throughout the trial, there is a feature, \(x_{i}\), for each component CSi, \(i=1,\ldots,n\), where \(x_{i}(S_{t})=1\) for all times \(t\) when the CSi is present, and equals zero otherwise.
+
+Figure 14.1: Three stimulus representations (in columns) sometimes used with the TD model. Each row represents one element of the stimulus representation. The three representations vary along a temporal generalization gradient, with no generalization between nearby time points in the complete serial compound (left column) and complete generalization between nearby time points in the presence representation (right column). The microstimulus representation occupies a middle ground. The degree of temporal generalization determines the temporal granularity with which US predictions are learned. Adapted with minor changes from _Learning & Behavior_, Evaluating the TD Model of Classical Conditioning, volume 40, 2012, p. 311, E. A. Ludvig, R. S. Sutton, E. J. Kehoe. With permission of Springer.
+
+
+
+--- Page 374 ---
+For the CSC representation (left column of Figure 14.1), the onset of each external stimulus initiates a sequence of precisely-timed short-duration internal signals that continues until the external stimulus ends.5 This is like assuming the animal's nervous system has a clock that keeps precise track of time during stimulus presentations; it is what engineers call a "tapped delay line." Like the presence representation, the CSC representation is unrealistic as a hypothesis about how the brain internally represents stimuli, but Ludvig et al. (2012) call it a "useful fiction" because it can reveal details of how the TD model works when relatively unconstrained by the stimulus representation. The CSC representation is also used in most TD models of dopamine-producing neurons in the brain, a topic we take up in Chapter 15. The CSC representation is often viewed as an essential part of the TD model, although this view is mistaken.
+
+Footnote 5: In our formalism, for each CS component \(\rm CS_{i}\) present on a trial, and for each time step \(t\) during a trial, there is a separate feature \(x_{i}^{t}\), where \(x_{i}^{t}(S_{t^{\prime}})=1\) if \(t=t^{\prime}\) for any \(t^{\prime}\) at which \(\rm CS_{i}\) is present, and equals 0 otherwise. This is different from the CSC representation in Sutton and Barto (1990) in which there are the same distinct features for each time step but no reference to external stimuli; hence the name complete serial compound.
+
+The MS representation (center column of Figure 14.1) is like the CSC representation in that each external stimulus initiates a cascade of internal stimuli, but in this case the internal stimuli--the microstimuli--are not of such limited and non-overlapping form; they are extended over time and overlap. As time elapses from stimulus onset, different sets of microstimuli become more or less active, and each subsequent microstimulus becomes progressively wider in time and reaches a lower maximal level. Of course, there are many MS representations depending on the nature of the microstimuli, and a number of examples of MS representations have been studied in the literature, in some cases along with proposals for how an animal's brain might generate them (see the Bibliographic and Historical Comments at the end of this chapter). MS representations are more realistic than the presence or CSC representations as hypotheses about neural representations of stimuli, and they allow the behavior of the TD model to be related to a broader collection of phenomena observed in animal experiments. In particular, by assuming that cascades of microstimuli are initiated by USs as well as by CSs, and by studying the significant effects on learning of interactions between microstimuli, eligibility traces, and discounting, the TD model is helping to frame hypotheses to account for many of the subtle phenomena of classical conditioning and how an animal's brain might produce them. We say more about this below, particularly in Chapter 15 where we discuss reinforcement learning and neuroscience.
+
+Even with the simple presence representation, however, the TD model produces all the basic properties of classical conditioning that are accounted for by the Rescorla-Wagner model, plus features of conditioning that are beyond the scope of trial-level models. For example, as we have already mentioned, a conspicuous feature of classical conditioning is that the US generally must begin _after_ the onset of a neutral stimulus for conditioning to occur, and that after conditioning, the CR begins _before_ the appearance of the US. In other words, conditioning generally requires a positive ISI, and the CR generally anticipates the US. How the strength of conditioning (e.g., the percentage of CRs elicited by a CS) depends on the ISI varies substantially across species and response systems, but it typically has the following properties: it is negligible for a zero or negative ISI, i.e., when 
+

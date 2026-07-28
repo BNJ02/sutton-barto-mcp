@@ -1,0 +1,2817 @@
+--- Page 151 ---
+6.4. Sarsa: On-policy TD Control
+129
+6.4
+Sarsa: On-policy TD Control
+We turn now to the use of TD prediction methods for the control problem. As usual, we
+follow the pattern of generalized policy iteration (GPI), only this time using TD methods
+for the evaluation or prediction part. As with Monte Carlo methods, we face the need to
+trade o↵exploration and exploitation, and again approaches fall into two main classes:
+on-policy and o↵-policy. In this section we present an on-policy TD control method.
+The ﬁrst step is to learn an action-value function rather than a state-value function.
+In particular, for an on-policy method we must estimate q⇡(s, a) for the current behavior
+policy ⇡and for all states s and actions a. This can be done using essentially the same TD
+method described above for learning v⇡. Recall that an episode consists of an alternating
+sequence of states and state–action pairs:
+At
+Rt+1
+St
+At+1
+Rt+2
+St+1
+At+2
+Rt+3
+St+2
+At+3
+St+3
+. . .
+. . .
+In the previous section we considered transitions from state to state and learned the
+values of states. Now we consider transitions from state–action pair to state–action pair,
+and learn the values of state–action pairs. Formally these cases are identical: they are
+both Markov chains with a reward process. The theorems assuring the convergence of
+state values under TD(0) also apply to the corresponding algorithm for action values:
+Q(St, At)  Q(St, At) + ↵
+h
+Rt+1 + γQ(St+1, At+1) −Q(St, At)
+i
+.
+(6.7)
+Sarsa
+This update is done after every transition from a nonterminal state St. If
+St+1 is terminal, then Q(St+1, At+1) is deﬁned as zero. This rule uses every
+element of the quintuple of events, (St, At, Rt+1, St+1, At+1), that make up a
+transition from one state–action pair to the next. This quintuple gives rise to
+the name Sarsa for the algorithm. The backup diagram for Sarsa is as shown
+to the right.
+It is straightforward to design an on-policy control algorithm based on the Sarsa
+prediction method. As in all on-policy methods, we continually estimate q⇡for the
+behavior policy ⇡, and at the same time change ⇡toward greediness with respect to q⇡.
+The general form of the Sarsa control algorithm is given in the box on the next page.
+The convergence properties of the Sarsa algorithm depend on the nature of the policy’s
+dependence on Q. For example, one could use "-greedy or "-soft policies. Sarsa converges
+with probability 1 to an optimal policy and action-value function, under the usual
+conditions on the step sizes (2.7), as long as all state–action pairs are visited an inﬁnite
+number of times and the policy converges in the limit to the greedy policy (which can be
+arranged, for example, with "-greedy policies by setting " = 1/t).
+Exercise 6.8 Show that an action-value version of (6.6) holds for the action-value form
+of the TD error δt = Rt+1 + γQ(St+1, At+1) −Q(St, At), again assuming that the values
+don’t change from step to step.
+⇤
+
+--- Page 152 ---
+130
+Chapter 6: Temporal-Di↵erence Learning
+Sarsa (on-policy TD control) for estimating Q ⇡q⇤
+Algorithm parameters: step size ↵2 (0, 1], small " > 0
+Initialize Q(s, a), for all s 2 S+, a 2 A(s), arbitrarily except that Q(terminal, ·) = 0
+Loop for each episode:
+Initialize S
+Choose A from S using policy derived from Q (e.g., "-greedy)
+Loop for each step of episode:
+Take action A, observe R, S0
+Choose A0 from S0 using policy derived from Q (e.g., "-greedy)
+Q(S, A)  Q(S, A) + ↵
+⇥
+R + γQ(S0, A0) −Q(S, A)
+⇤
+S  S0; A  A0;
+until S is terminal
+Example 6.5: Windy Gridworld Shown inset below is a standard gridworld, with
+start and goal states, but with one di↵erence: there is a crosswind running upward
+through the middle of the grid. The actions are the standard four—up, down, right,
+and left—but in the middle region the resultant next states are shifted upward by a
+“wind,” the strength of which varies from column to column. The strength of the wind
+0
+1000
+2000
+3000
+4000
+5000
+6000
+7000
+8000
+0
+50
+100
+150
+170
+Time steps
+S
+G
+0
+0
+0
+0
+1
+1
+1
+1
+2
+2
+Actions
+Episodes
+is given below each column, in num-
+ber of cells shifted upward. For ex-
+ample, if you are one cell to the
+right of the goal, then the action
+left takes you to the cell just above
+the goal. This is an undiscounted
+episodic task, with constant rewards
+of −1 until the goal state is reached.
+The graph to the right shows the
+results of applying "-greedy Sarsa to
+this task, with " = 0.1, ↵= 0.5,
+and the initial values Q(s, a) = 0
+for all s, a. The increasing slope of
+the graph shows that the goal was
+reached more quickly over time. By
+8000 time steps, the greedy policy was long since optimal (a trajectory from it is shown
+inset); continued "-greedy exploration kept the average episode length at about 17 steps,
+two more than the minimum of 15. Note that Monte Carlo methods cannot easily be
+used here because termination is not guaranteed for all policies. If a policy was ever
+found that caused the agent to stay in the same state, then the next episode would
+never end. Online learning methods such as Sarsa do not have this problem because they
+quickly learn during the episode that such policies are poor, and switch to something
+else.
+
+--- Page 153 ---
+6.5. Q-learning: O↵-policy TD Control
+131
+Exercise 6.9: Windy Gridworld with King’s Moves (programming)
+Re-solve the windy
+gridworld assuming eight possible actions, including the diagonal moves, rather than four.
+How much better can you do with the extra actions? Can you do even better by including
+a ninth action that causes no movement at all other than that caused by the wind?
+⇤
+Exercise 6.10: Stochastic Wind (programming) Re-solve the windy gridworld task with
+King’s moves, assuming that the e↵ect of the wind, if there is any, is stochastic, sometimes
+varying by 1 from the mean values given for each column. That is, a third of the time
+you move exactly according to these values, as in the previous exercise, but also a third
+of the time you move one cell above that, and another third of the time you move one
+cell below that. For example, if you are one cell to the right of the goal and you move
+left, then one-third of the time you move one cell above the goal, one-third of the time
+you move two cells above the goal, and one-third of the time you move to the goal.
+⇤
+6.5
+Q-learning: O↵-policy TD Control
+One of the early breakthroughs in reinforcement learning was the development of an
+o↵-policy TD control algorithm known as Q-learning (Watkins, 1989), deﬁned by
+Q(St, At)  Q(St, At) + ↵
+h
+Rt+1 + γ max
+a
+Q(St+1, a) −Q(St, At)
+i
+.
+(6.8)
+In this case, the learned action-value function, Q, directly approximates q⇤, the optimal
+action-value function, independent of the policy being followed.
+This dramatically
+simpliﬁes the analysis of the algorithm and enabled early convergence proofs. The policy
+still has an e↵ect in that it determines which state–action pairs are visited and updated.
+However, all that is required for correct convergence is that all pairs continue to be
+updated. As we observed in Chapter 5, this is a minimal requirement in the sense that
+any method guaranteed to ﬁnd optimal behavior in the general case must require it.
+Under this assumption and a variant of the usual stochastic approximation conditions on
+the sequence of step-size parameters, Q has been shown to converge with probability 1 to
+q⇤. The Q-learning algorithm is shown below in procedural form.
+Q-learning (o↵-policy TD control) for estimating ⇡⇡⇡⇤
+Algorithm parameters: step size ↵2 (0, 1], small " > 0
+Initialize Q(s, a), for all s 2 S+, a 2 A(s), arbitrarily except that Q(terminal, ·) = 0
+Loop for each episode:
+Initialize S
+Loop for each step of episode:
+Choose A from S using policy derived from Q (e.g., "-greedy)
+Take action A, observe R, S0
+Q(S, A)  Q(S, A) + ↵
+⇥
+R + γ maxa Q(S0, a) −Q(S, A)
+⇤
+S  S0
+until S is terminal
+
+--- Page 154 ---
+132
+Chapter 6: Temporal-Di↵erence Learning
+What is the backup diagram for Q-learning? The rule (6.8) updates a state–action
+pair, so the top node, the root of the update, must be a small, ﬁlled action node. The
+update is also from action nodes, maximizing over all those actions possible in the next
+state. Thus the bottom nodes of the backup diagram should be all these action nodes.
+Finally, remember that we indicate taking the maximum of these “next action” nodes
+with an arc across them (Figure 3.4-right). Can you guess now what the diagram is? If
+so, please do make a guess before turning to the answer in Figure 6.4 on page 134.
+Example 6.6: Cli↵Walking
+This gridworld example compares Sarsa and Q-learning,
+highlighting the di↵erence between on-policy (Sarsa) and o↵-policy (Q-learning) methods.
+S
+G
+  
+T h e  C l i f f
+ 
+R
+R = -1
+Safer path
+Optimal path
+R = -100
+Sarsa
+Q-learning
+Sum of 
+rewards
+during
+episode
+Episodes
+-25
+-50
+-75
+-100
+0
+100
+200
+300
+400
+500
+Consider the gridworld shown to the
+right.
+This is a standard undis-
+counted, episodic task, with start
+and goal states, and the usual ac-
+tions causing movement up, down,
+right, and left. Reward is −1 on all
+transitions except those into the re-
+gion marked “The Cli↵.” Stepping
+into this region incurs a reward of
+−100 and sends the agent instantly
+back to the start.
+The graph to the right shows the
+performance of the Sarsa and Q-
+learning methods with "-greedy ac-
+tion selection, " = 0.1.
+After an
+initial transient, Q-learning learns
+values for the optimal policy, that
+which travels right along the edge
+of the cli↵. Unfortunately, this re-
+sults in its occasionally falling o↵
+the cli↵because of the "-greedy ac-
+tion selection. Sarsa, on the other
+hand, takes the action selection into
+account and learns the longer but
+safer path through the upper part
+of the grid. Although Q-learning ac-
+tually learns the values of the opti-
+mal policy, its online performance
+is worse than that of Sarsa, which
+learns the roundabout policy. Of course, if " were gradually reduced, then both methods
+would asymptotically converge to the optimal policy.
+Exercise 6.11 Why is Q-learning considered an o↵-policy control method?
+⇤
+Exercise 6.12 Suppose action selection is greedy. Is Q-learning then exactly the same
+algorithm as Sarsa? Will they make exactly the same action selections and weight
+updates?
+⇤
+
+--- Page 155 ---
+6.6. Expected Sarsa
+133
+6.6
+Expected Sarsa
+Consider the learning algorithm that is just like Q-learning except that instead of the
+maximum over next state–action pairs it uses the expected value, taking into account
+how likely each action is under the current policy. That is, consider the algorithm with
+the update rule
+Q(St, At)  Q(St, At) + ↵
+h
+Rt+1 + γE⇡[Q(St+1, At+1) | St+1] −Q(St, At)
+i
+= Q(St, At) + ↵
+h
+Rt+1 + γ
+X
+a
+⇡(a|St+1)Q(St+1, a) −Q(St, At)
+i
+,
+(6.9)
+but that otherwise follows the schema of Q-learning. Given the next state, St+1, this
+algorithm moves deterministically in the same direction as Sarsa moves in expectation,
+and accordingly it is called Expected Sarsa. Its backup diagram is shown on the right in
+Figure 6.4.
+Expected Sarsa is more complex computationally than Sarsa but, in return, it eliminates
+the variance due to the random selection of At+1. Given the same amount of experience
+we might expect it to perform slightly better than Sarsa, and indeed it generally does.
+Figure 6.3 shows summary results on the cli↵-walking task with Expected Sarsa compared
+to Sarsa and Q-learning. Expected Sarsa retains the signiﬁcant advantage of Sarsa over
+Q-learning on this problem. In addition, Expected Sarsa shows a signiﬁcant improvement
+0.1
+0.2
+0.3
+0.4
+0.5
+0.6
+0.7
+0.8
+0.9
+1
+−160
+−140
+−120
+−100
+−80
+−60
+−40
+−20
+0
+ 
+ 
+n = 100, Sarsa
+n = 100, Q−learning
+n = 100, Expected Sarsa
+n = 1E5, Sarsa
+n = 1E5, Q−learning
+n = 1E5, Expected Sarsa
+Expected Sarsa
+Sarsa
+Q-learning
+Asymptotic Performance
+Interim Performance
+Q-learning
+Sum of rewards
+per episode
+↵
+1
+0.1
+0.2
+0.4
+0.6
+0.8
+0.3
+0.5
+0.7
+0.9
+0
+-40
+-80
+-120
+Figure 6.3: Interim and asymptotic performance of TD control methods on the cli↵-walking
+task as a function of ↵. All algorithms used an "-greedy policy with " = 0.1. Asymptotic
+performance is an average over 100,000 episodes whereas interim performance is an average
+over the ﬁrst 100 episodes. These data are averages of over 50,000 and 10 runs for the interim
+and asymptotic cases respectively. The solid circles mark the best interim performance of each
+method. Adapted from van Seijen et al. (2009).
+
+--- Page 156 ---
+134
+Chapter 6: Temporal-Di↵erence Learning
+Q-learning
+Expected Sarsa
+Figure 6.4: The backup diagrams for Q-learning and Expected Sarsa.
+over Sarsa over a wide range of values for the step-size parameter ↵. In cli↵walking
+the state transitions are all deterministic and all randomness comes from the policy. In
+such cases, Expected Sarsa can safely set ↵= 1 without su↵ering any degradation of
+asymptotic performance, whereas Sarsa can only perform well in the long run at a small
+value of ↵, at which short-term performance is poor. In this and other examples there is
+a consistent empirical advantage of Expected Sarsa over Sarsa.
+In these cli↵walking results Expected Sarsa was used on-policy, but in general it
+might use a policy di↵erent from the target policy ⇡to generate behavior, in which case
+it becomes an o↵-policy algorithm. For example, suppose ⇡is the greedy policy while
+behavior is more exploratory; then Expected Sarsa is exactly Q-learning. In this sense
+Expected Sarsa subsumes and generalizes Q-learning while reliably improving over Sarsa.
+Except for the small additional computational cost, Expected Sarsa may completely
+dominate both of the other more-well-known TD control algorithms.
+6.7
+Maximization Bias and Double Learning
+All the control algorithms that we have discussed so far involve maximization in the
+construction of their target policies. For example, in Q-learning the target policy is
+the greedy policy given the current action values, which is deﬁned with a max, and in
+Sarsa the policy is often "-greedy, which also involves a maximization operation. In these
+algorithms, a maximum over estimated values is used implicitly as an estimate of the
+maximum value, which can lead to a signiﬁcant positive bias. To see why, consider a
+single state s where there are many actions a whose true values, q(s, a), are all zero but
+whose estimated values, Q(s, a), are uncertain and thus distributed some above and some
+below zero. The maximum of the true values is zero, but the maximum of the estimates
+is positive, a positive bias. We call this maximization bias.
+Example 6.7:
+Maximization Bias Example
+The small MDP shown inset in
+Figure 6.5 provides a simple example of how maximization bias can harm the performance
+of TD control algorithms. The MDP has two non-terminal states A and B. Episodes
+always start in A with a choice between two actions, left and right. The right action
+transitions immediately to the terminal state with a reward and return of zero. The
+left action transitions to B, also with a reward of zero, from which there are many
+possible actions all of which cause immediate termination with a reward drawn from a
+normal distribution with mean −0.1 and variance 1.0. Thus, the expected return for
+any trajectory starting with left is −0.1, and thus taking left in state A is always a
+
+--- Page 157 ---
+6.7. Maximization Bias and Double Learning
+135
+B
+A
+right
+left
+0
+. . .
+N(−0.1, 1)
+0
+Q-learning
+Double
+Q-learning
+Episodes
+100
+1
+200
+300
+% left
+actions
+from A
+100%
+75%
+50%
+25%
+5%
+0
+optimal
+Figure 6.5: Comparison of Q-learning and Double Q-learning on a simple episodic MDP (shown
+inset). Q-learning initially learns to take the left action much more often than the right action,
+and always takes it signiﬁcantly more often than the 5% minimum probability enforced by
+"-greedy action selection with " = 0.1. In contrast, Double Q-learning is essentially una↵ected by
+maximization bias. These data are averaged over 10,000 runs. The initial action-value estimates
+were zero. Any ties in "-greedy action selection were broken randomly.
+mistake. Nevertheless, our control methods may favor left because of maximization bias
+making B appear to have a positive value. Figure 6.5 shows that Q-learning with "-greedy
+action selection initially learns to strongly favor the left action on this example. Even at
+asymptote, Q-learning takes the left action about 5% more often than is optimal at our
+parameter settings (" = 0.1, ↵= 0.1, and γ = 1).
+Are there algorithms that avoid maximization bias? To start, consider a bandit case in
+which we have noisy estimates of the value of each of many actions, obtained as sample
+averages of the rewards received on all the plays with each action. As we discussed above,
+there will be a positive maximization bias if we use the maximum of the estimates as
+an estimate of the maximum of the true values. One way to view the problem is that
+it is due to using the same samples (plays) both to determine the maximizing action
+and to estimate its value. Suppose we divided the plays in two sets and used them to
+learn two independent estimates, call them Q1(a) and Q2(a), each an estimate of the
+true value q(a), for all a 2 A. We could then use one estimate, say Q1, to determine
+the maximizing action A⇤= argmaxa Q1(a), and the other, Q2, to provide the estimate
+of its value, Q2(A⇤) = Q2(argmaxa Q1(a)). This estimate will then be unbiased in the
+sense that E[Q2(A⇤)] = q(A⇤). We can also repeat the process with the role of the two
+estimates reversed to yield a second unbiased estimate Q1(argmaxa Q2(a)). This is the
+idea of double learning. Note that although we learn two estimates, only one estimate is
+updated on each play; double learning doubles the memory requirements, but does not
+increase the amount of computation per step.
+The idea of double learning extends naturally to algorithms for full MDPs. For example,
+the double learning algorithm analogous to Q-learning, called Double Q-learning, divides
+the time steps in two, perhaps by ﬂipping a coin on each step. If the coin comes up heads,
+the update is
+
+--- Page 158 ---
+136
+Chapter 6: Temporal-Di↵erence Learning
+Q1(St, At)  Q1(St, At)+↵
+h
+Rt+1+γQ2
+#
+St+1, argmax
+a
+Q1(St+1, a)
+$
+−Q1(St, At)
+i
+. (6.10)
+If the coin comes up tails, then the same update is done with Q1 and Q2 switched,
+so that Q2 is updated. The two approximate value functions are treated completely
+symmetrically. The behavior policy can use both action-value estimates. For example, an
+"-greedy policy for Double Q-learning could be based on the average (or sum) of the two
+action-value estimates. A complete algorithm for Double Q-learning is given in the box
+below. This is the algorithm used to produce the results in Figure 6.5. In that example,
+double learning seems to eliminate the harm caused by maximization bias. Of course
+there are also double versions of Sarsa and Expected Sarsa.
+Double Q-learning, for estimating Q1 ⇡Q2 ⇡q⇤
+Algorithm parameters: step size ↵2 (0, 1], small " > 0
+Initialize Q1(s, a) and Q2(s, a), for all s 2 S+, a 2 A(s), such that Q(terminal, ·) = 0
+Loop for each episode:
+Initialize S
+Loop for each step of episode:
+Choose A from S using the policy "-greedy in Q1 + Q2
+Take action A, observe R, S0
+With 0.5 probabilility:
+Q1(S, A)  Q1(S, A) + ↵
+⇣
+R + γQ2
+#
+S0, argmaxa Q1(S0, a)
+$
+−Q1(S, A)
+⌘
+else:
+Q2(S, A)  Q2(S, A) + ↵
+⇣
+R + γQ1
+#
+S0, argmaxa Q2(S0, a)
+$
+−Q2(S, A)
+⌘
+S  S0
+until S is terminal
+⇤Exercise 6.13
+What are the update equations for Double Expected Sarsa with an
+"-greedy target policy?
+⇤
+6.8
+Games, Afterstates, and Other Special Cases
+In this book we try to present a uniform approach to a wide class of tasks, but of
+course there are always exceptional tasks that are better treated in a specialized way. For
+example, our general approach involves learning an action-value function, but in Chapter 1
+we presented a TD method for learning to play tic-tac-toe that learned something much
+more like a state-value function. If we look closely at that example, it becomes apparent
+that the function learned there is neither an action-value function nor a state-value
+function in the usual sense. A conventional state-value function evaluates states in which
+the agent has the option of selecting an action, but the state-value function used in
+
+--- Page 159 ---
+6.8. Games, Afterstates, and Other Special Cases
+137
+tic-tac-toe evaluates board positions after the agent has made its move. Let us call these
+afterstates, and value functions over these, afterstate value functions. Afterstates are
+useful when we have knowledge of an initial part of the environment’s dynamics but not
+necessarily of the full dynamics. For example, in games we typically know the immediate
+e↵ects of our moves. We know for each possible chess move what the resulting position
+will be, but not how our opponent will reply. Afterstate value functions are a natural
+way to take advantage of this kind of knowledge and thereby produce a more eﬃcient
+learning method.
+The reason it is more eﬃcient to design algorithms in terms of afterstates is ap-
+parent from the tic-tac-toe example. A conventional action-value function would map
+from positions and moves to an estimate of the value.
+But many position—move
+pairs produce the same resulting position, as in the example below: In such cases the
+X
+O X
+X
+O
++
+X
+O
++
+X
+X
+position–move pairs are di↵er-
+ent but produce the same “af-
+terposition,” and thus must have
+the same value. A conventional
+action-value function would have
+to separately assess both pairs,
+whereas an afterstate value func-
+tion would immediately assess
+both equally. Any learning about
+the position–move pair on the left
+would immediately transfer to the
+pair on the right.
+Afterstates arise in many tasks,
+not just games. For example, in
+queuing tasks there are actions
+such as assigning customers to servers, rejecting customers, or discarding information. In
+such cases the actions are in fact deﬁned in terms of their immediate e↵ects, which are
+completely known.
+It is impossible to describe all the possible kinds of specialized problems and corre-
+sponding specialized learning algorithms. However, the principles developed in this book
+should apply widely. For example, afterstate methods are still aptly described in terms
+of generalized policy iteration, with a policy and (afterstate) value function interacting in
+essentially the same way. In many cases one will still face the choice between on-policy
+and o↵-policy methods for managing the need for persistent exploration.
+Exercise 6.14
+Describe how the task of Jack’s Car Rental (Example 4.2) could be
+reformulated in terms of afterstates. Why, in terms of this speciﬁc task, would such a
+reformulation be likely to speed convergence?
+⇤
+
+--- Page 160 ---
+138
+Chapter 6: Temporal-Di↵erence Learning
+6.9
+Summary
+In this chapter we introduced a new kind of learning method, temporal-di↵erence (TD)
+learning, and showed how it can be applied to the reinforcement learning problem. As
+usual, we divided the overall problem into a prediction problem and a control problem.
+TD methods are alternatives to Monte Carlo methods for solving the prediction problem.
+In both cases, the extension to the control problem is via the idea of generalized policy
+iteration (GPI) that we abstracted from dynamic programming. This is the idea that
+approximate policy and value functions should interact in such a way that they both
+move toward their optimal values.
+One of the two processes making up GPI drives the value function to accurately predict
+returns for the current policy; this is the prediction problem. The other process drives
+the policy to improve locally (e.g., to be "-greedy) with respect to the current value
+function. When the ﬁrst process is based on experience, a complication arises concerning
+maintaining suﬃcient exploration. We can classify TD control methods according to
+whether they deal with this complication by using an on-policy or o↵-policy approach.
+Sarsa is an on-policy method, and Q-learning is an o↵-policy method. Expected Sarsa
+is also an o↵-policy method as we present it here. There is a third way in which TD
+methods can be extended to control which we did not include in this chapter, called
+actor–critic methods. These methods are covered in full in Chapter 13.
+The methods presented in this chapter are today the most widely used reinforcement
+learning methods. This is probably due to their great simplicity: they can be applied
+online, with a minimal amount of computation, to experience generated from interaction
+with an environment; they can be expressed nearly completely by single equations that
+can be implemented with small computer programs. In the next few chapters we extend
+these algorithms, making them slightly more complicated and signiﬁcantly more powerful.
+All the new algorithms will retain the essence of those introduced here: they will be able
+to process experience online, with relatively little computation, and they will be driven
+by TD errors. The special cases of TD methods introduced in the present chapter should
+rightly be called one-step, tabular, model-free TD methods. In the next two chapters we
+extend them to n-step forms (a link to Monte Carlo methods) and forms that include
+a model of the environment (a link to planning and dynamic programming). Then, in
+the second part of the book we extend them to various forms of function approximation
+rather than tables (a link to deep learning and artiﬁcial neural networks).
+Finally, in this chapter we have discussed TD methods entirely within the context of
+reinforcement learning problems, but TD methods are actually more general than this.
+They are general methods for learning to make long-term predictions about dynamical
+systems. For example, TD methods may be relevant to predicting ﬁnancial data, life
+spans, election outcomes, weather patterns, animal behavior, demands on power stations,
+or customer purchases. It was only when TD methods were analyzed as pure prediction
+methods, independent of their use in reinforcement learning, that their theoretical
+properties ﬁrst came to be well understood. Even so, these other potential applications
+of TD learning methods have not yet been extensively explored.
+
+--- Page 161 ---
+6.9. Summary
+139
+Bibliographical and Historical Remarks
+As we outlined in Chapter 1, the idea of TD learning has its early roots in animal learning
+psychology and artiﬁcial intelligence, most notably the work of Samuel (1959) and Klopf
+(1972). Samuel’s work is described as a case study in Section 16.2. Also related to TD
+learning are Holland’s (1975, 1976) early ideas about consistency among value predictions.
+These inﬂuenced one of the authors (Barto), who was a graduate student from 1970 to
+1975 at the University of Michigan, where Holland was teaching. Holland’s ideas led to
+a number of TD-related systems, including the work of Booker (1982) and the bucket
+brigade of Holland (1986), which is related to Sarsa as discussed below.
+6.1–2
+Most of the speciﬁc material from these sections is from Sutton (1988), includ-
+ing the TD(0) algorithm, the random walk example, and the term “temporal-
+di↵erence learning.” The characterization of the relationship to dynamic pro-
+gramming and Monte Carlo methods was inﬂuenced by Watkins (1989), Werbos
+(1987), and others. The use of backup diagrams was new to the ﬁrst edition of
+this book.
+Tabular TD(0) was proved to converge in the mean by Sutton (1988) and with
+probability 1 by Dayan (1992), based on the work of Watkins and Dayan (1992).
+These results were extended and strengthened by Jaakkola, Jordan, and Singh
+(1994) and Tsitsiklis (1994) by using extensions of the powerful existing theory
+of stochastic approximation. Other extensions and generalizations are covered in
+later chapters.
+6.3
+The optimality of the TD algorithm under batch training was established by
+Sutton (1988). Illuminating this result is Barnard’s (1993) derivation of the TD
+algorithm as a combination of one step of an incremental method for learning a
+model of the Markov chain and one step of a method for computing predictions
+from the model. The term certainty equivalence is from the adaptive control
+literature (e.g., Goodwin and Sin, 1984).
+6.4
+The Sarsa algorithm was introduced by Rummery and Niranjan (1994). They
+explored it in conjunction with artiﬁcial neural networks and called it “Modiﬁed
+Connectionist Q-learning”. The name “Sarsa” was introduced by Sutton (1996).
+The convergence of one-step tabular Sarsa (the form treated in this chapter) has
+been proved by Singh, Jaakkola, Littman, and Szepesv´ari (2000). The “windy
+gridworld” example was suggested by Tom Kalt.
+Holland’s (1986) bucket brigade idea evolved into an algorithm closely related to
+Sarsa. The original idea of the bucket brigade involved chains of rules triggering
+each other; it focused on passing credit back from the current rule to the rules
+that triggered it. Over time, the bucket brigade came to be more like TD learning
+in passing credit back to any temporally preceding rule, not just to the ones
+that triggered the current rule. The modern form of the bucket brigade, when
+simpliﬁed in various natural ways, is nearly identical to one-step Sarsa, as detailed
+by Wilson (1994).
+
+--- Page 162 ---
+140
+Chapter 6: Temporal-Di↵erence Learning
+6.5
+Q-learning was introduced by Watkins (1989), whose outline of a convergence
+proof was made rigorous by Watkins and Dayan (1992). More general convergence
+results were proved by Jaakkola, Jordan, and Singh (1994) and Tsitsiklis (1994).
+6.6
+The Expected Sarsa algorithm was introduced by George John (1994), who
+called it “Q-learning” and stressed its advantages over Q-learning as an o↵-policy
+algorithm.
+John’s work was not known to us when we presented Expected
+Sarsa in the ﬁrst edition of this book as an exercise, or to van Seijen, van
+Hasselt, Whiteson, and Weiring (2009) when they established Expected Sarsa’s
+convergence properties and conditions under which it will outperform regular
+Sarsa and Q-learning. Our Figure 6.3 is adapted from their results. Van Seijen
+et al. deﬁned “Expected Sarsa” to be an on-policy method exclusively (as we
+did in the ﬁrst edition), whereas now we use this name for the general algorithm
+in which the target and behavior policies may di↵er. The general o↵-policy
+view of Expected Sarsa was noted by van Hasselt (2011), who called it “General
+Q-learning.”
+6.7
+Maximization bias and double learning were introduced and extensively investi-
+gated by van Hasselt (2010, 2011). The example MDP in Figure 6.5 was adapted
+from that in his Figure 4.1 (van Hasselt, 2011).
+6.8
+The notion of an afterstate is the same as that of a “post-decision state” (Van
+Roy, Bertsekas, Lee, and Tsitsiklis, 1997; Powell, 2011).
+
+--- Page 163 ---
+Chapter 7
+n-step Bootstrapping
+In this chapter we unify the Monte Carlo (MC) methods and the one-step temporal-
+di↵erence (TD) methods presented in the previous two chapters. Neither MC methods nor
+one-step TD methods are always the best. In this chapter we present n-step TD methods
+that generalize both methods so that one can shift from one to the other smoothly as
+needed to meet the demands of a particular task. n-step methods span a spectrum with
+MC methods at one end and one-step TD methods at the other. The best methods are
+often intermediate between the two extremes.
+Another way of looking at the beneﬁts of n-step methods is that they free you from
+the tyranny of the time step. With one-step TD methods the same time step determines
+how often the action can be changed and the time interval over which bootstrapping
+is done. In many applications one wants to be able to update the action very fast to
+take into account anything that has changed, but bootstrapping works best if it is over a
+length of time in which a signiﬁcant and recognizable state change has occurred. With
+one-step TD methods, these time intervals are the same, and so a compromise must be
+made. n-step methods enable bootstrapping to occur over multiple steps, freeing us from
+the tyranny of the single time step.
+The idea of n-step methods is usually used as an introduction to the algorithmic
+idea of eligibility traces (Chapter 12), which enable bootstrapping over multiple time
+intervals simultaneously. Here we instead consider the n-step bootstrapping idea on its
+own, postponing the treatment of eligibility-trace mechanisms until later. This allows us
+to separate the issues better, dealing with as many of them as possible in the simpler
+n-step setting.
+As usual, we ﬁrst consider the prediction problem and then the control problem. That
+is, we ﬁrst consider how n-step methods can help in predicting returns as a function of
+state for a ﬁxed policy (i.e., in estimating v⇡). Then we extend the ideas to action values
+and control methods.
+
+--- Page 164 ---
+142
+Chapter 7: n-step Bootstrapping
+7.1
+n-step TD Prediction
+What is the space of methods lying between Monte Carlo and TD methods? Consider
+estimating v⇡from sample episodes generated using ⇡. Monte Carlo methods perform
+an update for each state based on the entire sequence of observed rewards from that
+state until the end of the episode. The update of one-step TD methods, on the other
+hand, is based on just the one next reward, bootstrapping from the value of the state
+one step later as a proxy for the remaining rewards. One kind of intermediate method,
+then, would perform an update based on an intermediate number of rewards: more than
+one, but less than all of them until termination. For example, a two-step update would
+be based on the ﬁrst two rewards and the estimated value of the state two steps later.
+Similarly, we could have three-step updates, four-step updates, and so on. Figure 7.1
+shows the backup diagrams of the spectrum of n-step updates for v⇡, with the one-step
+TD update on the left and the up-until-termination Monte Carlo update on the right.
+1-step TD
+and TD(0)
+2-step TD
+3-step TD
+n-step TD
+∞-step TD
+and Monte Carlo
+· · ·
+· · ·
+· · ·
+· · ·
+Figure 7.1: The backup diagrams of n-step methods. These methods form a spectrum ranging
+from one-step TD methods to Monte Carlo methods.
+The methods that use n-step updates are still TD methods because they still change
+an earlier estimate based on how it di↵ers from a later estimate. Now the later estimate
+is not one step later, but n steps later. Methods in which the temporal di↵erence extends
+over n steps are called n-step TD methods. The TD methods introduced in the previous
+chapter all used one-step updates, which is why we called them one-step TD methods.
+More formally, consider the update of the estimated value of state St as a result of the
+state–reward sequence, St, Rt+1, St+1, Rt+2, . . . , RT , ST (omitting the actions). We know
+that in Monte Carlo updates the estimate of v⇡(St) is updated in the direction of the
+
+--- Page 165 ---
+7.1. n-step TD Prediction
+143
+complete return:
+Gt .= Rt+1 + γRt+2 + γ2Rt+3 + · · · + γT −t−1RT ,
+where T is the last time step of the episode. Let us call this quantity the target of the
+update. Whereas in Monte Carlo updates the target is the return, in one-step updates
+the target is the ﬁrst reward plus the discounted estimated value of the next state, which
+we call the one-step return:
+Gt:t+1 .= Rt+1 + γVt(St+1),
+where Vt : S ! R here is the estimate at time t of v⇡. The subscripts on Gt:t+1 indicate
+that it is a truncated return for time t using rewards up until time t+1, with the discounted
+estimate γVt(St+1) taking the place of the other terms γRt+2 + γ2Rt+3 + · · · + γT −t−1RT
+of the full return, as discussed in the previous chapter. Our point now is that this idea
+makes just as much sense after two steps as it does after one. The target for a two-step
+update is the two-step return:
+Gt:t+2 .= Rt+1 + γRt+2 + γ2Vt+1(St+2),
+where now γ2Vt+1(St+2) corrects for the absence of the terms γ2Rt+3 + γ3Rt+4 + · · · +
+γT −t−1RT . Similarly, the target for an arbitrary n-step update is the n-step return:
+Gt:t+n .= Rt+1 + γRt+2 + · · · + γn−1Rt+n + γnVt+n−1(St+n),
+(7.1)
+for all n, t such that n ≥1 and 0 t < T −n. All n-step returns can be considered
+approximations to the full return, truncated after n steps and then corrected for the
+remaining missing terms by Vt+n−1(St+n). If t + n ≥T (if the n-step return extends
+to or beyond termination), then all the missing terms are taken as zero, and the n-step
+return deﬁned to be equal to the ordinary full return (Gt:t+n .= Gt if t + n ≥T).
+Note that n-step returns for n > 1 involve future rewards and states that are not
+available at the time of transition from t to t + 1. No real algorithm can use the n-step
+return until after it has seen Rt+n and computed Vt+n−1. The ﬁrst time these are
+available is t + n. The natural state-value learning algorithm for using n-step returns is
+thus
+Vt+n(St) .= Vt+n−1(St) + ↵
+⇥
+Gt:t+n −Vt+n−1(St)
+⇤
+,
+0 t < T,
+(7.2)
+while the values of all other states remain unchanged: Vt+n(s) = Vt+n−1(s), for all s6=St.
+We call this algorithm n-step TD. Note that no changes at all are made during the ﬁrst
+n −1 steps of each episode. To make up for that, an equal number of additional updates
+are made at the end of the episode, after termination and before starting the next episode.
+Complete pseudocode is given in the box on the next page.
+Exercise 7.1 In Chapter 6 we noted that the Monte Carlo error can be written as the
+sum of TD errors (6.6) if the value estimates don’t change from step to step. Show that
+the n-step error used in (7.2) can also be written as a sum of TD errors (again if the
+value estimates don’t change) generalizing the earlier result.
+⇤
+Exercise 7.2 (programming) With an n-step method, the value estimates do change from
+step to step, so an algorithm that used the sum of TD errors (see previous exercise) in
+
+--- Page 166 ---
+144
+Chapter 7: n-step Bootstrapping
+n-step TD for estimating V ⇡v⇡
+Input: a policy ⇡
+Algorithm parameters: step size ↵2 (0, 1], a positive integer n
+Initialize V (s) arbitrarily, for all s 2 S
+All store and access operations (for St and Rt) can take their index mod n + 1
+Loop for each episode:
+Initialize and store S0 6= terminal
+T  1
+Loop for t = 0, 1, 2, . . . :
+|
+If t < T, then:
+|
+Take an action according to ⇡(·|St)
+|
+Observe and store the next reward as Rt+1 and the next state as St+1
+|
+If St+1 is terminal, then T  t + 1
+|
+⌧ t −n + 1
+(⌧is the time whose state’s estimate is being updated)
+|
+If ⌧≥0:
+|
+G  Pmin(⌧+n,T )
+i=⌧+1
+γi−⌧−1Ri
+|
+If ⌧+ n < T, then: G  G + γnV (S⌧+n)
+(G⌧:⌧+n)
+|
+V (S⌧)  V (S⌧) + ↵[G −V (S⌧)]
+Until ⌧= T −1
+place of the error in (7.2) would actually be a slightly di↵erent algorithm. Would it be a
+better algorithm or a worse one? Devise and program a small experiment to answer this
+question empirically.
+⇤
+The n-step return uses the value function Vt+n−1 to correct for the missing rewards
+beyond Rt+n. An important property of n-step returns is that their expectation is
+guaranteed to be a better estimate of v⇡than Vt+n−1 is, in a worst-state sense. That is,
+the worst error of the expected n-step return is guaranteed to be less than or equal to γn
+times the worst error under Vt+n−1:
+max
+s
+444E⇡[Gt:t+n|St =s] −v⇡(s)
+444 γn max
+s
+444Vt+n−1(s) −v⇡(s)
+444,
+(7.3)
+for all n ≥1. This is called the error reduction property of n-step returns. Because of the
+error reduction property, one can show formally that all n-step TD methods converge to
+the correct predictions under appropriate technical conditions. The n-step TD methods
+thus form a family of sound methods, with one-step TD methods and Monte Carlo
+methods as extreme members.
+Example 7.1: n-step TD Methods on the Random Walk
+Consider using n-step
+TD methods on the 5-state random walk task described in Example 6.2 (page 125).
+Suppose the ﬁrst episode progressed directly from the center state, C, to the right,
+through D and E, and then terminated on the right with a return of 1. Recall that the
+estimated values of all the states started at an intermediate value, V (s) = 0.5. As a result
+of this experience, a one-step method would change only the estimate for the last state,
+
+--- Page 167 ---
+7.2. n-step Sarsa
+145
+V (E), which would be incremented toward 1, the observed return. A two-step method,
+on the other hand, would increment the values of the two states preceding termination:
+V (D) and V (E) both would be incremented toward 1. A three-step method, or any n-step
+method for n > 2, would increment the values of all three of the visited states toward 1,
+all by the same amount.
+Which value of n is better? Figure 7.2 shows the results of a simple empirical test for
+a larger random walk process, with 19 states instead of 5 (and with a −1 outcome on the
+left, all values initialized to 0), which we use as a running example in this chapter. Results
+are shown for n-step TD methods with a range of values for n and ↵. The performance
+measure for each parameter setting, shown on the vertical axis, is the square-root of
+the average squared error between the predictions at the end of the episode for the 19
+states and their true values, then averaged over the ﬁrst 10 episodes and 100 repetitions
+of the whole experiment (the same sets of walks were used for all parameter settings).
+Note that methods with an intermediate value of n worked best. This illustrates how
+the generalization of TD and Monte Carlo methods to n-step methods can potentially
+perform better than either of the two extreme methods.
+↵
+Average
+RMS error
+over 19 states
+and ﬁrst 10 
+episodes
+n=1
+n=2
+n=4
+n=8
+n=16
+n=32
+n=32
+n=64
+128
+512
+256
+0.55
+0.5
+0.45
+0.35
+0.3
+0.25
+0.4
+0.4
+0.2
+0
+0.8
+0.6
+1
+Figure 7.2: Performance of n-step TD methods as a function of ↵, for various values of n, on
+a 19-state random walk task (Example 7.1).
+Exercise 7.3 Why do you think a larger random walk task (19 states instead of 5) was
+used in the examples of this chapter? Would a smaller walk have shifted the advantage
+to a di↵erent value of n? How about the change in left-side outcome from 0 to −1 made
+in the larger walk? Do you think that made any di↵erence in the best value of n?
+⇤
+7.2
+n-step Sarsa
+How can n-step methods be used not just for prediction, but for control? In this section
+we show how n-step methods can be combined with Sarsa in a straightforward way to
+
+--- Page 168 ---
+146
+Chapter 7: n-step Bootstrapping
+produce an on-policy TD control method. The n-step version of Sarsa we call n-step
+Sarsa, and the original version presented in the previous chapter we henceforth call
+one-step Sarsa, or Sarsa(0).
+The main idea is to simply switch states for actions (state–action pairs) and then use
+an "-greedy policy. The backup diagrams for n-step Sarsa (shown in Figure 7.3), like
+those of n-step TD (Figure 7.1), are strings of alternating states and actions, except that
+the Sarsa ones all start and end with an action rather a state. We redeﬁne n-step returns
+(update targets) in terms of estimated action values:
+Gt:t+n .= Rt+1+γRt+2+· · ·+γn−1Rt+n+γnQt+n−1(St+n, At+n), n ≥1, 0 t < T −n,
+(7.4)
+with Gt:t+n .= Gt if t + n ≥T. The natural algorithm is then
+Qt+n(St, At) .= Qt+n−1(St, At) + ↵[Gt:t+n −Qt+n−1(St, At)] ,
+0 t < T, (7.5)
+while the values of all other states remain unchanged: Qt+n(s, a) = Qt+n−1(s, a), for all
+s, a such that s 6= St or a 6= At. This is the algorithm we call n-step Sarsa. Pseudocode
+is shown in the box on the next page, and an example of why it can speed up learning
+compared to one-step methods is given in Figure 7.4.
+1-step Sarsa
+aka Sarsa(0)
+2-step Sarsa
+3-step Sarsa
+n-step Sarsa
+∞-step Sarsa
+aka Monte Carlo
+n-step 
+Expected Sarsa
+Figure 7.3: The backup diagrams for the spectrum of n-step methods for state–action values.
+They range from the one-step update of Sarsa(0) to the up-until-termination update of the
+Monte Carlo method. In between are the n-step updates, based on n steps of real rewards and
+the estimated value of the nth next state–action pair, all appropriately discounted. On the far
+right is the backup diagram for n-step Expected Sarsa.
+
+--- Page 169 ---
+7.2. n-step Sarsa
+147
+n-step Sarsa for estimating Q ⇡q⇤or q⇡
+Initialize Q(s, a) arbitrarily, for all s 2 S, a 2 A
+Initialize ⇡to be "-greedy with respect to Q, or to a ﬁxed given policy
+Algorithm parameters: step size ↵2 (0, 1], small " > 0, a positive integer n
+All store and access operations (for St, At, and Rt) can take their index mod n + 1
+Loop for each episode:
+Initialize and store S0 6= terminal
+Select and store an action A0 ⇠⇡(·|S0)
+T  1
+Loop for t = 0, 1, 2, . . . :
+|
+If t < T, then:
+|
+Take action At
+|
+Observe and store the next reward as Rt+1 and the next state as St+1
+|
+If St+1 is terminal, then:
+|
+T  t + 1
+|
+else:
+|
+Select and store an action At+1 ⇠⇡(·|St+1)
+|
+⌧ t −n + 1
+(⌧is the time whose estimate is being updated)
+|
+If ⌧≥0:
+|
+G  Pmin(⌧+n,T )
+i=⌧+1
+γi−⌧−1Ri
+|
+If ⌧+ n < T, then G  G + γnQ(S⌧+n, A⌧+n)
+(G⌧:⌧+n)
+|
+Q(S⌧, A⌧)  Q(S⌧, A⌧) + ↵[G −Q(S⌧, A⌧)]
+|
+If ⇡is being learned, then ensure that ⇡(·|S⌧) is "-greedy wrt Q
+Until ⌧= T −1
+Path taken
+Action values increased
+by one-step Sarsa
+Action values increased
+ by 10-step Sarsa
+G
+G
+G
+Figure 7.4: Gridworld example of the speedup of policy learning due to the use of n-step
+methods. The ﬁrst panel shows the path taken by an agent in a single episode, ending at a
+location of high reward, marked by the G. In this example the values were all initially 0, and all
+rewards were zero except for a positive reward at G. The arrows in the other two panels show
+which action values were strengthened as a result of this path by one-step and n-step Sarsa
+methods. The one-step method strengthens only the last action of the sequence of actions that
+led to the high reward, whereas the n-step method strengthens the last n actions of the sequence,
+so that much more is learned from the one episode.
+
+--- Page 170 ---
+148
+Chapter 7: n-step Bootstrapping
+Exercise 7.4 Prove that the n-step return of Sarsa (7.4) can be written exactly in terms
+of a novel TD error, as
+Gt:t+n = Qt−1(St, At)+
+min(t+n,T )−1
+X
+k=t
+γk−t [Rk+1 + γQk(Sk+1, Ak+1) −Qk−1(Sk, Ak)] .
+(7.6)
+⇤
+What about Expected Sarsa? The backup diagram for the n-step version of Expected
+Sarsa is shown on the far right in Figure 7.3. It consists of a linear string of sample
+actions and states, just as in n-step Sarsa, except that its last element is a branch over
+all action possibilities weighted, as always, by their probability under ⇡. This algorithm
+can be described by the same equation as n-step Sarsa (above) except with the n-step
+return redeﬁned as
+Gt:t+n .= Rt+1 + · · · + γn−1Rt+n + γn ¯Vt+n−1(St+n),
+t + n < T,
+(7.7)
+(with Gt:t+n .=Gt for t + n ≥T) where ¯Vt(s) is the expected approximate value of state s,
+using the estimated action values at time t, under the target policy:
+¯Vt(s) .=
+X
+a
+⇡(a|s)Qt(s, a),
+for all s 2 S.
+(7.8)
+Expected approximate values are used in developing many of the action-value methods
+in the rest of this book. If s is terminal, then its expected approximate value is deﬁned
+to be 0.
+7.3
+n-step O↵-policy Learning
+Recall that o↵-policy learning is learning the value function for one policy, ⇡, while
+following another policy, b. Often, ⇡is the greedy policy for the current action-value-
+function estimate, and b is a more exploratory policy, perhaps "-greedy. In order to
+use the data from b we must take into account the di↵erence between the two policies,
+using their relative probability of taking the actions that were taken (see Section 5.5). In
+n-step methods, returns are constructed over n steps, so we are interested in the relative
+probability of just those n actions. For example, to make a simple o↵-policy version of
+n-step TD, the update for time t (actually made at time t + n) can simply be weighted
+by ⇢t:t+n−1:
+Vt+n(St) .= Vt+n−1(St) + ↵⇢t:t+n−1 [Gt:t+n −Vt+n−1(St)] ,
+0 t < T,
+(7.9)
+where ⇢t:t+n−1, called the importance sampling ratio, is the relative probability under
+the two policies of taking the n actions from At to At+n−1 (cf. Eq. 5.3):
+⇢t:h .=
+min(h,T −1)
+Y
+k=t
+⇡(Ak|Sk)
+b(Ak|Sk) .
+(7.10)
+
+--- Page 171 ---
+7.3. n-step O↵-policy Learning
+149
+For example, if any one of the actions would never be taken by ⇡(i.e., ⇡(Ak|Sk) = 0) then
+the n-step return should be given zero weight and be totally ignored. On the other hand,
+if by chance an action is taken that ⇡would take with much greater probability than b
+does, then this will increase the weight that would otherwise be given to the return. This
+makes sense because that action is characteristic of ⇡(and therefore we want to learn
+about it) but is selected only rarely by b and thus rarely appears in the data. To make
+up for this we have to over-weight it when it does occur. Note that if the two policies
+are actually the same (the on-policy case) then the importance sampling ratio is always
+1. Thus our new update (7.9) generalizes and can completely replace our earlier n-step
+TD update. Similarly, our previous n-step Sarsa update can be completely replaced by a
+simple o↵-policy form:
+Qt+n(St, At) .= Qt+n−1(St, At) + ↵⇢t+1:t+n [Gt:t+n −Qt+n−1(St, At)] ,
+(7.11)
+for 0 t < T. Note that the importance sampling ratio here starts and ends one step
+later than for n-step TD (7.9). This is because here we are updating a state–action
+pair. We do not have to care how likely we were to select the action; now that we have
+selected it we want to learn fully from what happens, with importance sampling only for
+subsequent actions. Pseudocode for the full algorithm is shown in the box below.
+O↵-policy n-step Sarsa for estimating Q ⇡q⇤or q⇡
+Input: an arbitrary behavior policy b such that b(a|s) > 0, for all s 2 S, a 2 A
+Initialize Q(s, a) arbitrarily, for all s 2 S, a 2 A
+Initialize ⇡to be greedy with respect to Q, or as a ﬁxed given policy
+Algorithm parameters: step size ↵2 (0, 1], a positive integer n
+All store and access operations (for St, At, and Rt) can take their index mod n + 1
+Loop for each episode:
+Initialize and store S0 6= terminal
+Select and store an action A0 ⇠b(·|S0)
+T  1
+Loop for t = 0, 1, 2, . . . :
+|
+If t < T, then:
+|
+Take action At
+|
+Observe and store the next reward as Rt+1 and the next state as St+1
+|
+If St+1 is terminal, then:
+|
+T  t + 1
+|
+else:
+|
+Select and store an action At+1 ⇠b(·|St+1)
+|
+⌧ t −n + 1
+(⌧is the time whose estimate is being updated)
+|
+If ⌧≥0:
+|
+⇢ Qmin(⌧+n,T −1)
+i=⌧+1
+⇡(Ai|Si)
+b(Ai|Si)
+(⇢⌧+1:⌧+n)
+|
+G  Pmin(⌧+n,T )
+i=⌧+1
+γi−⌧−1Ri
+|
+If ⌧+ n < T, then: G  G + γnQ(S⌧+n, A⌧+n)
+(G⌧:⌧+n)
+|
+Q(S⌧, A⌧)  Q(S⌧, A⌧) + ↵⇢[G −Q(S⌧, A⌧)]
+|
+If ⇡is being learned, then ensure that ⇡(·|S⌧) is greedy wrt Q
+Until ⌧= T −1
+
+--- Page 172 ---
+150
+Chapter 7: n-step Bootstrapping
+The o↵-policy version of n-step Expected Sarsa would use the same update as above
+for n-step Sarsa except that the importance sampling ratio would have one less factor in
+it. That is, the above equation would use ⇢t+1:t+n−1 instead of ⇢t+1:t+n, and of course
+it would use the Expected Sarsa version of the n-step return (7.7). This is because in
+Expected Sarsa all possible actions are taken into account in the last state; the one
+actually taken has no e↵ect and does not have to be corrected for.
+7.4
+*Per-decision Methods with Control Variates
+The multi-step o↵-policy methods presented in the previous section are simple and
+conceptually clear, but are probably not the most eﬃcient. A more sophisticated approach
+would use per-decision importance sampling ideas such as were introduced in Section 5.9.
+To understand this approach, ﬁrst note that the ordinary n-step return (7.1), like all
+returns, can be written recursively. For the n steps ending at horizon h, the n-step return
+can be written
+Gt:h = Rt+1 + γGt+1:h,
+t < h < T,
+(7.12)
+where Gh:h .= Vh−1(Sh). (Recall that this return is used at time h, previously denoted
+t + n.) Now consider the e↵ect of following a behavior policy b that is not the same
+as the target policy ⇡. All of the resulting experience, including the ﬁrst reward Rt+1
+and the next state St+1, must be weighted by the importance sampling ratio for time t,
+⇢t = ⇡(At|St)
+b(At|St) . One might be tempted to simply weight the righthand side of the above
+equation, but one can do better. Suppose the action at time t would never be selected by
+⇡, so that ⇢t is zero. Then a simple weighting would result in the n-step return being
+zero, which could result in high variance when it was used as a target. Instead, in this
+more sophisticated approach, one uses an alternate, o↵-policy deﬁnition of the n-step
+return ending at horizon h, as
+Gt:h .= ⇢t (Rt+1 + γGt+1:h) + (1 −⇢t)Vh−1(St),
+t < h < T,
+(7.13)
+where again Gh:h .= Vh−1(Sh). In this approach, if ⇢t is zero, then instead of the target
+being zero and causing the estimate to shrink, the target is the same as the estimate and
+causes no change. The importance sampling ratio being zero means we should ignore the
+sample, so leaving the estimate unchanged seems appropriate. The second, additional
+term in (7.13) is called a control variate (for obscure reasons). Notice that the control
+variate does not change the expected update; the importance sampling ratio has expected
+value one (Section 5.9) and is uncorrelated with the estimate, so the expected value
+of the control variate is zero. Also note that the o↵-policy deﬁnition (7.13) is a strict
+generalization of the earlier on-policy deﬁnition of the n-step return (7.1), as the two are
+identical in the on-policy case, in which ⇢t is always 1.
+For a conventional n-step method, the learning rule to use in conjunction with (7.13)
+is the n-step TD update (7.2), which has no explicit importance sampling ratios other
+than those embedded in the return.
+Exercise 7.5 Write the pseudocode for the o↵-policy state-value prediction algorithm
+described above.
+⇤
+
+--- Page 173 ---
+7.4. Per-decision Methods with Control Variates
+151
+For action values, the o↵-policy deﬁnition of the n-step return is a little di↵erent
+because the ﬁrst action does not play a role in the importance sampling. That ﬁrst action
+is the one being learned; it does not matter if it was unlikely or even impossible under the
+target policy—it has been taken and now full unit weight must be given to the reward
+and state that follows it. Importance sampling will apply only to the actions that follow
+it.
+First note that for action values the n-step on-policy return ending at horizon h,
+expectation form (7.7), can be written recursively just as in (7.12), except that for action
+values the recursion ends with Gh:h .= ¯Vh−1(Sh) as in (7.8). An o↵-policy form with
+control variates is
+Gt:h .= Rt+1 + γ
+⇣
+⇢t+1Gt+1:h + ¯Vh−1(St+1) −⇢t+1Qh−1(St+1, At+1)
+⌘
+,
+= Rt+1 + γ⇢t+1
+⇣
+Gt+1:h −Qh−1(St+1, At+1)
+⌘
++ γ ¯Vh−1(St+1),
+t < h T.
+(7.14)
+If h < T, then the recursion ends with Gh:h
+.= Qh−1(Sh, Ah), whereas, if h ≥T,
+the recursion ends with and GT −1:h .= RT . The resultant prediction algorithm (after
+combining with (7.5)) is analogous to Expected Sarsa.
+Exercise 7.6 Prove that the control variate in the above equations does not change the
+expected value of the return.
+⇤
+⇤Exercise 7.7 Write the pseudocode for the o↵-policy action-value prediction algorithm
+described immediately above. Pay particular attention to the termination conditions for
+the recursion upon hitting the horizon or the end of episode.
+⇤
+Exercise 7.8 Show that the general (o↵-policy) version of the n-step return (7.13) can
+still be written exactly and compactly as the sum of state-based TD errors (6.5) if the
+approximate state value function does not change.
+⇤
+Exercise 7.9 Repeat the above exercise for the action version of the o↵-policy n-step
+return (7.14) and the Expected Sarsa TD error (the quantity in brackets in Equation 6.9).
+⇤
+Exercise 7.10 (programming) Devise a small o↵-policy prediction problem and use it to
+show that the o↵-policy learning algorithm using (7.13) and (7.2) is more data eﬃcient
+than the simpler algorithm using (7.1) and (7.9).
+⇤
+The importance sampling that we have used in this section, the previous section, and
+in Chapter 5, enables sound o↵-policy learning, but also results in high variance updates,
+forcing the use of a small step-size parameter and thereby causing learning to be slow. It
+is probably inevitable that o↵-policy training is slower than on-policy training—after all,
+the data is less relevant to what is being learned. However, it is probably also true that
+these methods can be improved on. The control variates are one way of reducing the
+variance. Another is to rapidly adapt the step sizes to the observed variance, as in the
+Autostep method (Mahmood, Sutton, Degris and Pilarski, 2012). Yet another promising
+approach is the invariant updates of Karampatziakis and Langford (2010) as extended
+to TD by Tian (in preparation). The usage technique of Mahmood (2017; Mahmood
+
+--- Page 174 ---
+152
+Chapter 7: n-step Bootstrapping
+and Sutton, 2015) may also be part of the solution. In the next section we consider an
+o↵-policy learning method that does not use importance sampling.
+7.5
+O↵-policy Learning Without Importance Sampling:
+The n-step Tree Backup Algorithm
+Is o↵-policy learning possible without importance sampling? Q-learning and Expected
+Sarsa from Chapter 6 do this for the one-step case, but is there a corresponding multi-step
+algorithm? In this section we present just such an n-step method, called the tree-backup
+algorithm.
+St, At
+At+1
+Rt+1
+St+1
+St+2
+Rt+2
+At+2
+Rt+3
+St+3
+the 3-step
+tree-backup
+update
+The idea of the algorithm is suggested by the 3-step tree-backup backup
+diagram shown to the right. Down the central spine and labeled in the
+diagram are three sample states and rewards, and two sample actions.
+These are the random variables representing the events occurring after the
+initial state–action pair St, At. Hanging o↵to the sides of each state are
+the actions that were not selected. (For the last state, all the actions are
+considered to have not (yet) been selected.) Because we have no sample
+data for the unselected actions, we bootstrap and use the estimates of
+their values in forming the target for the update. This slightly extends the
+idea of a backup diagram. So far we have always updated the estimated
+value of the node at the top of the diagram toward a target combining
+the rewards along the way (appropriately discounted) and the estimated
+values of the nodes at the bottom. In the tree-backup update, the target
+includes all these things plus the estimated values of the dangling action
+nodes hanging o↵the sides, at all levels. This is why it is called a tree-
+backup update; it is an update from the entire tree of estimated action
+values.
+More precisely, the update is from the estimated action values of the
+leaf nodes of the tree. The action nodes in the interior, corresponding to
+the actual actions taken, do not participate. Each leaf node contributes to the target
+with a weight proportional to its probability of occurring under the target policy ⇡. Thus
+each ﬁrst-level action a contributes with a weight of ⇡(a|St+1), except that the action
+actually taken, At+1, does not contribute at all. Its probability, ⇡(At+1|St+1), is used
+to weight all the second-level action values. Thus, each non-selected second-level action
+a0 contributes with weight ⇡(At+1|St+1)⇡(a0|St+2). Each third-level action contributes
+with weight ⇡(At+1|St+1)⇡(At+2|St+2)⇡(a00|St+3), and so on. It is as if each arrow to an
+action node in the diagram is weighted by the action’s probability of being selected under
+the target policy and, if there is a tree below the action, then that weight applies to all
+the leaf nodes in the tree.
+
+--- Page 175 ---
+7.5. O↵-policy Learning Without Importance Sampling: n-step Tree Backup
+153
+We can think of the 3-step tree-backup update as consisting of 6 half-steps, alternating
+between sample half-steps from an action to a subsequent state, and expected half-steps
+considering from that state all possible actions with their probabilities of occurring under
+the policy.
+Now let us develop the detailed equations for the n-step tree-backup algorithm. The
+one-step return (target) is the same as that of Expected Sarsa,
+Gt:t+1 .= Rt+1 + γ
+X
+a
+⇡(a|St+1)Qt(St+1, a),
+(7.15)
+for t < T −1, and the two-step tree-backup return is
+Gt:t+2 .= Rt+1 + γ
+X
+a6=At+1
+⇡(a|St+1)Qt+1(St+1, a)
++ γ⇡(At+1|St+1)
+⇣
+Rt+2 + γ
+X
+a
+⇡(a|St+2)Qt+1(St+2, a)
+⌘
+= Rt+1 + γ
+X
+a6=At+1
+⇡(a|St+1)Qt+1(St+1, a) + γ⇡(At+1|St+1)Gt+1:t+2,
+for t < T −2. The latter form suggests the general recursive deﬁnition of the tree-backup
+n-step return:
+Gt:t+n .= Rt+1 + γ
+X
+a6=At+1
+⇡(a|St+1)Qt+n−1(St+1, a) + γ⇡(At+1|St+1)Gt+1:t+n, (7.16)
+for t < T −1, n ≥2, with the n = 1 case handled by (7.15) except for GT −1:t+n .= RT .
+This target is then used with the usual action-value update rule from n-step Sarsa:
+Qt+n(St, At) .= Qt+n−1(St, At) + ↵[Gt:t+n −Qt+n−1(St, At)] ,
+for 0 t < T, while the values of all other state–action pairs remain unchanged:
+Qt+n(s, a) = Qt+n−1(s, a), for all s, a such that s 6= St or a 6= At. Pseudocode for this
+algorithm is shown in the box on the next page.
+Exercise 7.11
+Show that if the approximate action values are unchanging, then the
+tree-backup return (7.16) can be written as a sum of expectation-based TD errors:
+Gt:t+n = Q(St, At) +
+min(t+n−1,T −1)
+X
+k=t
+δk
+k
+Y
+i=t+1
+γ⇡(Ai|Si),
+where δt .= Rt+1 + γ ¯Vt(St+1) −Q(St, At) and ¯Vt is given by (7.8).
+⇤
+
+--- Page 176 ---
+154
+Chapter 7: n-step Bootstrapping
+n-step Tree Backup for estimating Q ⇡q⇤or q⇡
+Initialize Q(s, a) arbitrarily, for all s 2 S, a 2 A
+Initialize ⇡to be greedy with respect to Q, or as a ﬁxed given policy
+Algorithm parameters: step size ↵2 (0, 1], a positive integer n
+All store and access operations can take their index mod n + 1
+Loop for each episode:
+Initialize and store S0 6= terminal
+Choose an action A0 arbitrarily as a function of S0; Store A0
+T  1
+Loop for t = 0, 1, 2, . . . :
+|
+If t < T:
+|
+Take action At; observe and store the next reward and state as Rt+1, St+1
+|
+If St+1 is terminal:
+|
+T  t + 1
+|
+else:
+|
+Choose an action At+1 arbitrarily as a function of St+1; Store At+1
+|
+⌧ t + 1 −n
+(⌧is the time whose estimate is being updated)
+|
+If ⌧≥0:
+|
+If t + 1 ≥T:
+|
+G  RT
+|
+else
+|
+G  Rt+1 + γ P
+a ⇡(a|St+1)Q(St+1, a)
+|
+Loop for k = min(t, T −1) down through ⌧+ 1:
+|
+G  Rk + γ P
+a6=Ak ⇡(a|Sk)Q(Sk, a) + γ⇡(Ak|Sk)G
+|
+Q(S⌧, A⌧)  Q(S⌧, A⌧) + ↵[G −Q(S⌧, A⌧)]
+|
+If ⇡is being learned, then ensure that ⇡(·|S⌧) is greedy wrt Q
+Until ⌧= T −1
+7.6
+*A Unifying Algorithm: n-step Q(σ)
+So far in this chapter we have considered three di↵erent kinds of action-value algorithms,
+corresponding to the ﬁrst three backup diagrams shown in Figure 7.5. n-step Sarsa has
+all sample transitions, the tree-backup algorithm has all state-to-action transitions fully
+branched without sampling, and n-step Expected Sarsa has all sample transitions except
+for the last state-to-action one, which is fully branched with an expected value. To what
+extent can these algorithms be uniﬁed?
+One idea for uniﬁcation is suggested by the fourth backup diagram in Figure 7.5. This
+is the idea that one might decide on a step-by-step basis whether one wanted to take the
+action as a sample, as in Sarsa, or consider the expectation over all actions instead, as in
+the tree-backup update. Then, if one chose always to sample, one would obtain Sarsa,
+whereas if one chose never to sample, one would get the tree-backup algorithm. Expected
+Sarsa would be the case where one chose to sample for all steps except for the last one.
+
+--- Page 177 ---
+7.6. A Unifying Algorithm: n-step Q(σ)
+155
+⇢
+⇢
+⇢
+⇢
+⇢
+⇢
+⇢
+⇢
+⇢
+σ = 1
+σ = 0
+σ = 1
+σ = 0
+4-step
+Sarsa
+4-step
+Tree backup
+4-step
+Expected Sarsa
+4-step
+ Q(σ)
+Figure 7.5: The backup diagrams of the three kinds of n-step action-value updates considered
+so far in this chapter (4-step case) plus the backup diagram of a fourth kind of update that uniﬁes
+them all. The label ‘⇢’ indicates half transitions on which importance sampling is required in the
+o↵-policy case. The fourth kind of update uniﬁes all the others by choosing on a state-by-state
+basis whether to sample (σt = 1) or not (σt = 0).
+And of course there would be many other possibilities, as suggested by the last diagram
+in the ﬁgure. To increase the possibilities even further we can consider a continuous
+variation between sampling and expectation. Let σt 2 [0, 1] denote the degree of sampling
+on step t, with σ = 1 denoting full sampling and σ = 0 denoting a pure expectation with
+no sampling. The random variable σt might be set as a function of the state, action, or
+state–action pair at time t. We call this proposed new algorithm n-step Q(σ).
+Now let us develop the equations of n-step Q(σ). First we write the tree-backup
+n-step return (7.16) in terms of the horizon h = t + n and then in terms of the expected
+approximate value ¯V (7.8):
+Gt:h = Rt+1 + γ
+X
+a6=At+1
+⇡(a|St+1)Qh−1(St+1, a) + γ⇡(At+1|St+1)Gt+1:h
+= Rt+1 + γ ¯Vh−1(St+1) −γ⇡(At+1|St+1)Qh−1(St+1, At+1) + γ⇡(At+1|St+1)Gt+1:h
+= Rt+1 + γ⇡(At+1|St+1)
+⇣
+Gt+1:h −Qh−1(St+1, At+1)
+⌘
++ γ ¯Vh−1(St+1),
+after which it is exactly like the n-step return for Sarsa with control variates (7.14) except
+with the action probability ⇡(At+1|St+1) substituted for the importance-sampling ratio
+⇢t+1. For Q(σ), we slide linearly between these two cases:
+Gt:h .= Rt+1 + γ
+⇣
+σt+1⇢t+1 + (1 −σt+1)⇡(At+1|St+1)
+⌘⇣
+Gt+1:h −Qh−1(St+1, At+1)
+⌘
++ γ ¯Vh−1(St+1),
+(7.17)
+
+--- Page 178 ---
+156
+Chapter 7: n-step Bootstrapping
+for t < h T.
+The recursion ends with Gh:h
+.= Qh−1(Sh, Ah) if h < T, or with
+GT −1:T
+.= RT if h = T.
+Then we use the earlier update for n-step Sarsa without
+importance-sampling ratios (7.5) instead of (7.11), because now the ratios are incorporated
+in the n-step return. A complete algorithm is given in the box.
+O↵-policy n-step Q(σ) for estimating Q ⇡q⇤or q⇡
+Input: an arbitrary behavior policy b such that b(a|s) > 0, for all s 2 S, a 2 A
+Initialize Q(s, a) arbitrarily, for all s 2 S, a 2 A
+Initialize ⇡to be greedy with respect to Q, or else it is a ﬁxed given policy
+Algorithm parameters: step size ↵2 (0, 1], a positive integer n
+All store and access operations can take their index mod n + 1
+Loop for each episode:
+Initialize and store S0 6= terminal
+Choose and store an action A0 ⇠b(·|S0)
+T  1
+Loop for t = 0, 1, 2, . . . :
+|
+If t < T:
+|
+Take action At; observe and store the next reward and state as Rt+1, St+1
+|
+If St+1 is terminal:
+|
+T  t + 1
+|
+else:
+|
+Choose and store an action At+1 ⇠b(·|St+1)
+|
+Select and store σt+1
+|
+Store ⇡(At+1|St+1)
+b(At+1|St+1) as ⇢t+1
+|
+⌧ t −n + 1
+(⌧is the time whose estimate is being updated)
+|
+If ⌧≥0:
+|
+If t + 1 < T:
+|
+G  Q(St+1, At+1)
+|
+Loop for k = min(t + 1, T) down through ⌧+ 1:
+|
+if k = T:
+|
+G  RT
+|
+else:
+|
+¯V  P
+a ⇡(a|Sk)Q(Sk, a)
+|
+G  Rk + γ
+#
+σk⇢k + (1 −σk)⇡(Ak|Sk)
+$#
+G −Q(Sk, Ak)
+$
++ γ ¯V
+|
+Q(S⌧, A⌧)  Q(S⌧, A⌧) + ↵[G −Q(S⌧, A⌧)]
+|
+If ⇡is being learned, then ensure that ⇡(·|S⌧) is greedy wrt Q
+Until ⌧= T −1
+
+--- Page 179 ---
+7.7. Summary
+157
+7.7
+Summary
+In this chapter we have developed a range of temporal-di↵erence learning methods that lie
+in between the one-step TD methods of the previous chapter and the Monte Carlo methods
+of the chapter before. Methods that involve an intermediate amount of bootstrapping
+are important because they will typically perform better than either extreme.
+⇢
+⇢
+σ=1
+σ=0
+σ=1
+σ=0
+4-step
+ Q(σ)
+⇢
+⇢
+⇢
+⇢
+4-step
+TD
+Our focus in this chapter has been on n-step methods, which
+look ahead to the next n rewards, states, and actions. The two
+4-step backup diagrams to the right together summarize most of the
+methods introduced. The state-value update shown is for n-step
+TD with importance sampling, and the action-value update is for
+n-step Q(σ), which generalizes Expected Sarsa and Q-learning. All
+n-step methods involve a delay of n time steps before updating,
+as only then are all the required future events known. A further
+drawback is that they involve more computation per time step
+than previous methods. Compared to one-step methods, n-step
+methods also require more memory to record the states, actions,
+rewards, and sometimes other variables over the last n time steps.
+Eventually, in Chapter 12, we will see how multi-step TD methods
+can be implemented with minimal memory and computational
+complexity using eligibility traces, but there will always be some
+additional computation beyond one-step methods. Such costs can
+be well worth paying to escape the tyranny of the single time step.
+Although n-step methods are more complex than those using
+eligibility traces, they have the great beneﬁt of being conceptually
+clear. We have sought to take advantage of this by developing two
+approaches to o↵-policy learning in the n-step case. One, based on
+importance sampling is conceptually simple but can be of high variance. If the target and
+behavior policies are very di↵erent it probably needs some new algorithmic ideas before
+it can be eﬃcient and practical. The other, based on tree-backup updates, is the natural
+extension of Q-learning to the multi-step case with stochastic target policies. It involves
+no importance sampling but, again if the target and behavior policies are substantially
+di↵erent, the bootstrapping may span only a few steps even if n is large.
+
+--- Page 180 ---
+158
+Chapter 7: n-step Bootstrapping
+Bibliographical and Historical Remarks
+The notion of n-step returns is due to Watkins (1989), who also ﬁrst discussed their error
+reduction property. n-step algorithms were explored in the ﬁrst edition of this book,
+in which they were treated as of conceptual interest, but not feasible in practice. The
+work of Cichosz (1995) and particularly van Seijen (2016) showed that they are actually
+completely practical algorithms. Given this, and their conceptual clarity and simplicity,
+we have chosen to highlight them here in the second edition. In particular, we now
+postpone all discussion of the backward view and of eligibility traces until Chapter 12.
+7.1–2
+The results in the random walk examples were made for this text based on work
+of Sutton (1988) and Singh and Sutton (1996). The use of backup diagrams to
+describe these and other algorithms in this chapter is new.
+7.3–5
+The developments in these sections are based on the work of Precup, Sutton,
+and Singh (2000), Precup, Sutton, and Dasgupta (2001), and Sutton, Mahmood,
+Precup, and van Hasselt (2014).
+The tree-backup algorithm is due to Precup, Sutton, and Singh (2000), but the
+presentation of it here is new.
+7.6
+The Q(σ) algorithm is new to this text, but closely related algorithms have been
+explored further by De Asis, Hernandez-Garcia, Holland, and Sutton (2017).
+
+--- Page 181 ---
+Chapter 8
+Planning and Learning with
+Tabular Methods
+In this chapter we develop a uniﬁed view of reinforcement learning methods that require
+a model of the environment, such as dynamic programming and heuristic search, and
+methods that can be used without a model, such as Monte Carlo and temporal-di↵erence
+methods. These are respectively called model-based and model-free reinforcement learning
+methods. Model-based methods rely on planning as their primary component, while
+model-free methods primarily rely on learning. Although there are real di↵erences between
+these two kinds of methods, there are also great similarities. In particular, the heart of
+both kinds of methods is the computation of value functions. Moreover, all the methods
+are based on looking ahead to future events, computing a backed-up value, and then
+using it as an update target for an approximate value function. Earlier in this book we
+presented Monte Carlo and temporal-di↵erence methods as distinct alternatives, then
+showed how they can be uniﬁed by n-step methods. Our goal in this chapter is a similar
+integration of model-based and model-free methods. Having established these as distinct
+in earlier chapters, we now explore the extent to which they can be intermixed.
+8.1
+Models and Planning
+By a model of the environment we mean anything that an agent can use to predict how the
+environment will respond to its actions. Given a state and an action, a model produces a
+prediction of the resultant next state and next reward. If the model is stochastic, then
+there are several possible next states and next rewards, each with some probability of
+occurring. Some models produce a description of all possibilities and their probabilities;
+these we call distribution models. Other models produce just one of the possibilities,
+sampled according to the probabilities; these we call sample models. For example, consider
+modeling the sum of a dozen dice. A distribution model would produce all possible sums
+and their probabilities of occurring, whereas a sample model would produce an individual
+
+--- Page 182 ---
+160
+Chapter 8: Planning and Learning with Tabular Methods
+sum drawn according to this probability distribution. The kind of model assumed in
+dynamic programming—estimates of the MDP’s dynamics, p(s0, r|s, a)—is a distribution
+model. The kind of model used in the blackjack example in Chapter 5 is a sample model.
+Distribution models are stronger than sample models in that they can always be used
+to produce samples. However, in many applications it is much easier to obtain sample
+models than distribution models. The dozen dice are a simple example of this. It would
+be easy to write a computer program to simulate the dice rolls and return the sum, but
+harder and more error-prone to ﬁgure out all the possible sums and their probabilities.
+Models can be used to mimic or simulate experience. Given a starting state and action,
+a sample model produces a possible transition, and a distribution model generates all
+possible transitions weighted by their probabilities of occurring. Given a starting state
+and a policy, a sample model could produce an entire episode, and a distribution model
+could generate all possible episodes and their probabilities. In either case, we say the
+model is used to simulate the environment and produce simulated experience.
+The word planning is used in several di↵erent ways in di↵erent ﬁelds. We use the
+term to refer to any computational process that takes a model as input and produces or
+improves a policy for interacting with the modeled environment:
+planning
+model
+policy
+In artiﬁcial intelligence, there are two distinct approaches to planning according to our
+deﬁnition. State-space planning, which includes the approach we take in this book,
+is viewed primarily as a search through the state space for an optimal policy or an
+optimal path to a goal. Actions cause transitions from state to state, and value functions
+are computed over states. In what we call plan-space planning, planning is instead a
+search through the space of plans. Operators transform one plan into another, and
+value functions, if any, are deﬁned over the space of plans. Plan-space planning includes
+evolutionary methods and “partial-order planning,” a common kind of planning in artiﬁcial
+intelligence in which the ordering of steps is not completely determined at all stages of
+planning. Plan-space methods are diﬃcult to apply eﬃciently to the stochastic sequential
+decision problems that are the focus in reinforcement learning, and we do not consider
+them further (but see, e.g., Russell and Norvig, 2010).
+The uniﬁed view we present in this chapter is that all state-space planning methods
+share a common structure, a structure that is also present in the learning methods
+presented in this book. It takes the rest of the chapter to develop this view, but there are
+two basic ideas: (1) all state-space planning methods involve computing value functions
+as a key intermediate step toward improving the policy, and (2) they compute value
+functions by updates or backup operations applied to simulated experience. This common
+structure can be diagrammed as follows:
+values
+backups
+model
+simulated
+experience
+policy
+updates
+backups
+Dynamic programming methods clearly ﬁt this structure: they make sweeps through the
+space of states, generating for each state the distribution of possible transitions. Each
+distribution is then used to compute a backed-up value (update target) and update the
+
+--- Page 183 ---
+8.2. Dyna: Integrated Planning, Acting, and Learning
+161
+state’s estimated value. In this chapter we argue that various other state-space planning
+methods also ﬁt this structure, with individual methods di↵ering only in the kinds of
+updates they do, the order in which they do them, and in how long the backed-up
+information is retained.
+Viewing planning methods in this way emphasizes their relationship to the learning
+methods that we have described in this book. The heart of both learning and planning
+methods is the estimation of value functions by backing-up update operations. The
+di↵erence is that whereas planning uses simulated experience generated by a model,
+learning methods use real experience generated by the environment. Of course this
+di↵erence leads to a number of other di↵erences, for example, in how performance is
+assessed and in how ﬂexibly experience can be generated. But the common structure
+means that many ideas and algorithms can be transferred between planning and learning.
+In particular, in many cases a learning algorithm can be substituted for the key update
+step of a planning method. Learning methods require only experience as input, and in
+many cases they can be applied to simulated experience just as well as to real experience.
+The box below shows a simple example of a planning method based on one-step tabular
+Q-learning and on random samples from a sample model. This method, which we call
+random-sample one-step tabular Q-planning, converges to the optimal policy for the model
+under the same conditions that one-step tabular Q-learning converges to the optimal
+policy for the real environment (each state–action pair must be selected an inﬁnite number
+of times in Step 1, and ↵must decrease appropriately over time).
+Random-sample one-step tabular Q-planning
+Loop forever:
+1. Select a state, S 2 S, and an action, A 2 A(S), at random
+2. Send S, A to a sample model, and obtain
+a sample next reward, R, and a sample next state, S0
+3. Apply one-step tabular Q-learning to S, A, R, S0:
+Q(S, A)  Q(S, A) + ↵
+⇥
+R + γ maxa Q(S0, a) −Q(S, A)
+⇤
+In addition to the uniﬁed view of planning and learning methods, a second theme in
+this chapter is the beneﬁts of planning in small, incremental steps. This enables planning
+to be interrupted or redirected at any time with little wasted computation, which appears
+to be a key requirement for eﬃciently intermixing planning with acting and with learning
+of the model. Planning in very small steps may be the most eﬃcient approach even on
+pure planning problems if the problem is too large to be solved exactly.
+8.2
+Dyna: Integrated Planning, Acting, and Learning
+When planning is done online, while interacting with the environment, a number of
+interesting issues arise. New information gained from the interaction may change the
+model and thereby interact with planning. It may be desirable to customize the planning
+process in some way to the states or decisions currently under consideration, or expected
+
+--- Page 184 ---
+162
+Chapter 8: Planning and Learning with Tabular Methods
+in the near future. If decision making and model learning are both computation-intensive
+processes, then the available computational resources may need to be divided between
+them. To begin exploring these issues, in this section we present Dyna-Q, a simple
+architecture integrating the major functions needed in an online planning agent. Each
+function appears in Dyna-Q in a simple, almost trivial, form. In subsequent sections we
+elaborate some of the alternate ways of achieving each function and the trade-o↵s between
+them. For now, we seek merely to illustrate the ideas and stimulate your intuition.
+Within a planning agent, there are at least two roles for real experience: it can be
+used to improve the model (to make it more accurately match the real environment)
+and it can be used to directly improve the value function and policy using the kinds of
+planning
+value/policy
+experience
+model
+model
+learning
+acting
+direct
+RL
+reinforcement learning methods we have discussed
+in previous chapters. The former we call model-
+learning, and the latter we call direct reinforcement
+learning (direct RL). The possible relationships
+between experience, model, values, and policy are
+summarized in the diagram to the right. Each ar-
+row shows a relationship of inﬂuence and presumed
+improvement. Note how experience can improve
+value functions and policies either directly or in-
+directly via the model. It is the latter, which is
+sometimes called indirect reinforcement learning,
+that is involved in planning.
+Both direct and indirect methods have advantages and disadvantages. Indirect methods
+often make fuller use of a limited amount of experience and thus achieve a better policy
+with fewer environmental interactions. On the other hand, direct methods are much
+simpler and are not a↵ected by biases in the design of the model. Some have argued
+that indirect methods are always superior to direct ones, while others have argued that
+direct methods are responsible for most human and animal learning. Related debates
+in psychology and artiﬁcial intelligence concern the relative importance of cognition as
+opposed to trial-and-error learning, and of deliberative planning as opposed to reactive
+decision making (see Chapter 14 for discussion of some of these issues from the perspective
+of psychology). Our view is that the contrast between the alternatives in all these debates
+has been exaggerated, that more insight can be gained by recognizing the similarities
+between these two sides than by opposing them. For example, in this book we have
+emphasized the deep similarities between dynamic programming and temporal-di↵erence
+methods, even though one was designed for planning and the other for model-free learning.
+Dyna-Q includes all of the processes shown in the diagram above—planning, acting,
+model-learning, and direct RL—all occurring continually. The planning method is the
+random-sample one-step tabular Q-planning method on page 161. The direct RL method
+is one-step tabular Q-learning. The model-learning method is also table-based and assumes
+the environment is deterministic. After each transition St, At ! Rt+1, St+1, the model
+records in its table entry for St, At the prediction that Rt+1, St+1 will deterministically
+follow. Thus, if the model is queried with a state–action pair that has been experienced
+before, it simply returns the last-observed next state and next reward as its prediction.
+
+--- Page 185 ---
+8.2. Dyna: Integrated Planning, Acting, and Learning
+163
+During planning, the Q-planning algorithm randomly samples only from state–action
+pairs that have previously been experienced (in Step 1), so the model is never queried
+with a pair about which it has no information.
+The overall architecture of Dyna agents, of which the Dyna-Q algorithm is one example,
+is shown in Figure 8.1. The central column represents the basic interaction between
+agent and environment, giving rise to a trajectory of real experience. The arrow on the
+left of the ﬁgure represents direct reinforcement learning operating on real experience to
+improve the value function and the policy. On the right are model-based processes. The
+model is learned from real experience and gives rise to simulated experience. We use the
+term search control to refer to the process that selects the starting states and actions
+for the simulated experiences generated by the model. Finally, planning is achieved by
+applying reinforcement learning methods to the simulated experiences just as if they had
+really happened. Typically, as in Dyna-Q, the same reinforcement learning method is
+used both for learning from real experience and for planning from simulated experience.
+The reinforcement learning method is thus the “ﬁnal common path” for both learning
+and planning. Learning and planning are deeply integrated in the sense that they share
+almost all the same machinery, di↵ering only in the source of their experience.
+real
+direct RL
+update
+Model
+planning update
+search
+control
+Policy/value functions
+experience
+model
+learning
+Environment
+simulated
+experience
+Figure 8.1: The general Dyna Architecture. Real experience, passing back and forth between
+the environment and the policy, a↵ects policy and value functions in much the same way as does
+simulated experience generated by the model of the environment.
+Conceptually, planning, acting, model-learning, and direct RL occur simultaneously
+and in parallel in Dyna agents. For concreteness and implementation on a serial computer,
+however, we fully specify the order in which they occur within a time step. In Dyna-Q,
+the acting, model-learning, and direct RL processes require little computation, and we
+assume they consume just a fraction of the time. The remaining time in each step can be
+devoted to the planning process, which is inherently computation-intensive. Let us assume
+that there is time in each step, after acting, model-learning, and direct RL, to complete
+
+--- Page 186 ---
+164
+Chapter 8: Planning and Learning with Tabular Methods
+n iterations (Steps 1–3) of the Q-planning algorithm. In the pseudocode algorithm for
+Dyna-Q in the box below, Model(s, a) denotes the contents of the model (predicted
+next state and reward) for state–action pair (s, a). Direct reinforcement learning, model-
+learning, and planning are implemented by steps (d), (e), and (f), respectively. If (e) and
+(f) were omitted, the remaining algorithm would be one-step tabular Q-learning.
+Tabular Dyna-Q
+Initialize Q(s, a) and Model(s, a) for all s 2 S and a 2 A(s)
+Loop forever:
+(a) S  current (nonterminal) state
+(b) A  "-greedy(S, Q)
+(c) Take action A; observe resultant reward, R, and state, S0
+(d) Q(S, A)  Q(S, A) + ↵
+⇥
+R + γ maxa Q(S0, a) −Q(S, A)
+⇤
+(e) Model(S, A)  R, S0 (assuming deterministic environment)
+(f) Loop repeat n times:
+S  random previously observed state
+A  random action previously taken in S
+R, S0  Model(S, A)
+Q(S, A)  Q(S, A) + ↵
+⇥
+R + γ maxa Q(S0, a) −Q(S, A)
+⇤
+Example 8.1: Dyna Maze Consider the simple maze shown inset in Figure 8.2. In
+each of the 47 states there are four actions, up, down, right, and left, which take the
+agent deterministically to the corresponding neighboring states, except when movement
+is blocked by an obstacle or the edge of the maze, in which case the agent remains where
+it is. Reward is zero on all transitions, except those into the goal state, on which it is +1.
+After reaching the goal state (G), the agent returns to the start state (S) to begin a new
+episode. This is a discounted, episodic task with γ = 0.95.
+The main part of Figure 8.2 shows average learning curves from an experiment in
+which Dyna-Q agents were applied to the maze task. The initial action values were zero,
+the step-size parameter was ↵= 0.1, and the exploration parameter was " = 0.1. When
+selecting greedily among actions, ties were broken randomly. The agents varied in the
+number of planning steps, n, they performed per real step. For each n, the curves show
+the number of steps taken by the agent to reach the goal in each episode, averaged over 30
+repetitions of the experiment. In each repetition, the initial seed for the random number
+generator was held constant across algorithms. Because of this, the ﬁrst episode was
+exactly the same (about 1700 steps) for all values of n, and its data are not shown in
+the ﬁgure. After the ﬁrst episode, performance improved for all values of n, but much
+more rapidly for larger values. Recall that the n = 0 agent is a nonplanning agent, using
+only direct reinforcement learning (one-step tabular Q-learning). This was by far the
+slowest agent on this problem, despite the fact that the parameter values (↵and ") were
+optimized for it. The nonplanning agent took about 25 episodes to reach ("-)optimal
+performance, whereas the n = 5 agent took about ﬁve episodes, and the n = 50 agent
+took only three episodes.
+
+--- Page 187 ---
+8.2. Dyna: Integrated Planning, Acting, and Learning
+165
+2
+800
+600
+400
+200
+14
+20
+10
+30
+40
+50
+ 
+ 
+0 planning steps
+(direct RL only)
+Episodes
+Steps
+per
+episode
+5 planning steps
+ 
+ 
+50 planning steps
+S
+G
+actions
+Figure 8.2: A simple maze (inset) and the average learning curves for Dyna-Q agents varying
+in their number of planning steps (n) per real step. The task is to travel from S to G as quickly
+as possible.
+Figure 8.3 shows why the planning agents found the solution so much faster than
+the nonplanning agent. Shown are the policies found by the n = 0 and n = 50 agents
+halfway through the second episode. Without planning (n = 0), each episode adds only
+one additional step to the policy, and so only one step (the last) has been learned so far.
+With planning, again only one step is learned during the ﬁrst episode, but here during
+the second episode an extensive policy has been developed that by the end of the episode
+will reach almost back to the start state. This policy is built by the planning process
+while the agent is still wandering near the start state. By the end of the third episode a
+complete optimal policy will have been found and perfect performance attained.
+S
+G
+S
+G
+WITHOUT PLANNING ( =0)
+WITH PLANNING ( =50)
+n
+n
+Figure 8.3: Policies found by planning and nonplanning Dyna-Q agents halfway through the
+second episode. The arrows indicate the greedy action in each state; if no arrow is shown for a
+state, then all of its action values were equal. The black square indicates the location of the
+agent.
+
+--- Page 188 ---
+166
+Chapter 8: Planning and Learning with Tabular Methods
+In Dyna-Q, learning and planning are accomplished by exactly the same algorithm,
+operating on real experience for learning and on simulated experience for planning.
+Because planning proceeds incrementally, it is trivial to intermix planning and acting.
+Both proceed as fast as they can. The agent is always reactive and always deliberative,
+responding instantly to the latest sensory information and yet always planning in the
+background. Also ongoing in the background is the model-learning process. As new
+information is gained, the model is updated to better match reality. As the model changes,
+the ongoing planning process will gradually compute a di↵erent way of behaving to match
+the new model.
+Exercise 8.1 The nonplanning method looks particularly poor in Figure 8.3 because it is
+a one-step method; a method using multi-step bootstrapping would do better. Do you
+think one of the multi-step bootstrapping methods from Chapter 7 could do as well as
+the Dyna method? Explain why or why not.
+⇤
+8.3
+When the Model Is Wrong
+In the maze example presented in the previous section, the changes in the model were
+relatively modest. The model started out empty, and was then ﬁlled only with exactly
+correct information. In general, we cannot expect to be so fortunate. Models may be
+incorrect because the environment is stochastic and only a limited number of samples
+have been observed, or because the model was learned using function approximation that
+has generalized imperfectly, or simply because the environment has changed and its new
+behavior has not yet been observed. When the model is incorrect, the planning process is
+likely to compute a suboptimal policy.
+In some cases, the suboptimal policy computed by planning quickly leads to the
+discovery and correction of the modeling error. This tends to happen when the model
+is optimistic in the sense of predicting greater reward or better state transitions than
+are actually possible. The planned policy attempts to exploit these opportunities and in
+doing so discovers that they do not exist.
+Example 8.2: Blocking Maze
+A maze example illustrating this relatively minor
+kind of modeling error and recovery from it is shown in Figure 8.4. Initially, there is a
+short path from start to goal, to the right of the barrier, as shown in the upper left of the
+ﬁgure. After 1000 time steps, the short path is “blocked,” and a longer path is opened up
+along the left-hand side of the barrier, as shown in upper right of the ﬁgure. The graph
+shows average cumulative reward for a Dyna-Q agent and an enhanced Dyna-Q+ agent
+to be described shortly. The ﬁrst part of the graph shows that both Dyna agents found
+the short path within 1000 steps. When the environment changed, the graphs become
+ﬂat, indicating a period during which the agents obtained no reward because they were
+wandering around behind the barrier. After a while, however, they were able to ﬁnd the
+new opening and the new optimal behavior.
+Greater diﬃculties arise when the environment changes to become better than it was
+before, and yet the formerly correct policy does not reveal the improvement. In these
+cases the modeling error may not be detected for a long time, if ever.
+
+--- Page 189 ---
+8.3. When the Model Is Wrong
+167
+Cumulative
+reward
+0
+1000
+2000
+3000
+Time steps
+150
+0
+Dyna-Q+
+S
+G
+G
+S
+Dyna-Q
+Figure 8.4: Average performance of Dyna agents on a blocking task. The left environment
+was used for the ﬁrst 1000 steps, the right environment for the rest. Dyna-Q+ is Dyna-Q with
+an exploration bonus that encourages exploration.
+Cumulative
+reward
+S
+G
+G
+S
+0
+3000
+6000
+Time steps
+400
+0
+Dyna-Q+
+Dyna-Q
+Figure 8.5: Average performance of Dyna agents on
+a shortcut task. The left environment was used for the
+ﬁrst 3000 steps, the right environment for the rest.
+Example 8.3: Shortcut Maze
+The problem caused by this kind of
+environmental change is illustrated
+by the maze example shown in Fig-
+ure 8.5. Initially, the optimal path is
+to go around the left side of the bar-
+rier (upper left). After 3000 steps,
+however, a shorter path is opened up
+along the right side, without disturb-
+ing the longer path (upper right).
+The graph shows that the regular
+Dyna-Q agent never switched to the
+shortcut. In fact, it never realized
+that it existed. Its model said that
+there was no shortcut, so the more it
+planned, the less likely it was to step
+to the right and discover it. Even
+with an "-greedy policy, it is very
+unlikely that an agent will take so
+many exploratory actions as to dis-
+cover the shortcut.
+The general problem here is another version of the conﬂict between exploration and
+exploitation. In a planning context, exploration means trying actions that improve the
+model, whereas exploitation means behaving in the optimal way given the current model.
+
+--- Page 190 ---
+168
+Chapter 8: Planning and Learning with Tabular Methods
+We want the agent to explore to ﬁnd changes in the environment, but not so much that
+performance is greatly degraded. As in the earlier exploration/exploitation conﬂict, there
+probably is no solution that is both perfect and practical, but simple heuristics are often
+e↵ective.
+The Dyna-Q+ agent that did solve the shortcut maze uses one such heuristic. This
+agent keeps track for each state–action pair of how many time steps have elapsed since
+the pair was last tried in a real interaction with the environment. The more time that
+has elapsed, the greater (we might presume) the chance that the dynamics of this pair
+has changed and that the model of it is incorrect. To encourage behavior that tests
+long-untried actions, a special “bonus reward” is given on simulated experiences involving
+these actions. In particular, if the modeled reward for a transition is r, and the transition
+has not been tried in ⌧time steps, then planning updates are done as if that transition
+produced a reward of r + p⌧, for some small . This encourages the agent to keep
+testing all accessible state transitions and even to ﬁnd long sequences of actions in order
+to carry out such tests.1 Of course all this testing has its cost, but in many cases, as in the
+shortcut maze, this kind of computational curiosity is well worth the extra exploration.
+Exercise 8.2
+Why did the Dyna agent with exploration bonus, Dyna-Q+, perform
+better in the ﬁrst phase as well as in the second phase of the blocking and shortcut
+experiments?
+⇤
+Exercise 8.3 Careful inspection of Figure 8.5 reveals that the di↵erence between Dyna-Q+
+and Dyna-Q narrowed slightly over the ﬁrst part of the experiment. What is the reason
+for this?
+⇤
+Exercise 8.4 (programming) The exploration bonus described above actually changes
+the estimated values of states and actions. Is this necessary? Suppose the bonus p⌧
+was used not in updates, but solely in action selection. That is, suppose the action
+selected was always that for which Q(St, a) + 
+p
+⌧(St, a) was maximal. Carry out a
+gridworld experiment that tests and illustrates the strengths and weaknesses of this
+alternate approach.
+⇤
+Exercise 8.5 How might the tabular Dyna-Q algorithm shown on page 164 be modiﬁed
+to handle stochastic environments? How might this modiﬁcation perform poorly on
+changing environments such as considered in this section? How could the algorithm be
+modiﬁed to handle stochastic environments and changing environments?
+⇤
+8.4
+Prioritized Sweeping
+In the Dyna agents presented in the preceding sections, simulated transitions are started in
+state–action pairs selected uniformly at random from all previously experienced pairs. But
+a uniform selection is usually not the best; planning can be much more eﬃcient if simulated
+transitions and updates are focused on particular state–action pairs. For example, consider
+1The Dyna-Q+ agent was changed in two other ways as well. First, actions that had never been
+tried before from a state were allowed to be considered in the planning step (f) of the Tabular Dyna-Q
+algorithm in the box above. Second, the initial model for such actions was that they would lead back to
+the same state with a reward of zero.
+
+--- Page 191 ---
+8.4. Prioritized Sweeping
+169
+what happens during the second episode of the ﬁrst maze task (Figure 8.3). At the
+beginning of the second episode, only the state–action pair leading directly into the goal
+has a positive value; the values of all other pairs are still zero. This means that it is
+pointless to perform updates along almost all transitions, because they take the agent
+from one zero-valued state to another, and thus the updates would have no e↵ect. Only
+an update along a transition into the state just prior to the goal, or from it, will change
+any values. If simulated transitions are generated uniformly, then many wasteful updates
+will be made before stumbling onto one of these useful ones. As planning progresses, the
+region of useful updates grows, but planning is still far less eﬃcient than it would be if
+focused where it would do the most good. In the much larger problems that are our real
+objective, the number of states is so large that an unfocused search would be extremely
+ineﬃcient.
+This example suggests that search might be usefully focused by working backward from
+goal states. Of course, we do not really want to use any methods speciﬁc to the idea of
+“goal state.” We want methods that work for general reward functions. Goal states are
+just a special case, convenient for stimulating intuition. In general, we want to work back
+not just from goal states but from any state whose value has changed. Suppose that the
+values are initially correct given the model, as they were in the maze example prior to
+discovering the goal. Suppose now that the agent discovers a change in the environment
+and changes its estimated value of one state, either up or down. Typically, this will imply
+that the values of many other states should also be changed, but the only useful one-step
+updates are those of actions that lead directly into the one state whose value has been
+changed. If the values of these actions are updated, then the values of the predecessor
+states may change in turn. If so, then actions leading into them need to be updated, and
+then their predecessor states may have changed. In this way one can work backward
+from arbitrary states that have changed in value, either performing useful updates or
+terminating the propagation. This general idea might be termed backward focusing of
+planning computations.
+As the frontier of useful updates propagates backward, it often grows rapidly, producing
+many state–action pairs that could usefully be updated. But not all of these will be
+equally useful. The values of some states may have changed a lot, whereas others may
+have changed little. The predecessor pairs of those that have changed a lot are more
+likely to also change a lot. In a stochastic environment, variations in estimated transition
+probabilities also contribute to variations in the sizes of changes and in the urgency with
+which pairs need to be updated. It is natural to prioritize the updates according to a
+measure of their urgency, and perform them in order of priority. This is the idea behind
+prioritized sweeping. A queue is maintained of every state–action pair whose estimated
+value would change nontrivially if updated , prioritized by the size of the change. When
+the top pair in the queue is updated, the e↵ect on each of its predecessor pairs is computed.
+If the e↵ect is greater than some small threshold, then the pair is inserted in the queue
+with the new priority (if there is a previous entry of the pair in the queue, then insertion
+results in only the higher priority entry remaining in the queue). In this way the e↵ects
+of changes are eﬃciently propagated backward until quiescence. The full algorithm for
+the case of deterministic environments is given in the box on the next page.
+
+--- Page 192 ---
+170
+Chapter 8: Planning and Learning with Tabular Methods
+Prioritized sweeping for a deterministic environment
+Initialize Q(s, a), Model(s, a), for all s, a, and PQueue to empty
+Loop forever:
+(a) S  current (nonterminal) state
+(b) A  policy(S, Q)
+(c) Take action A; observe resultant reward, R, and state, S0
+(d) Model(S, A)  R, S0
+(e) P  |R + γ maxa Q(S0, a) −Q(S, A)|.
+(f) if P > ✓, then insert S, A into PQueue with priority P
+(g) Loop repeat n times, while PQueue is not empty:
+S, A  first(PQueue)
+R, S0  Model(S, A)
+Q(S, A)  Q(S, A) + ↵
+⇥
+R + γ maxa Q(S0, a) −Q(S, A)
+⇤
+Loop for all ¯S, ¯A predicted to lead to S:
+¯R  predicted reward for ¯S, ¯A, S
+P  | ¯R + γ maxa Q(S, a) −Q( ¯S, ¯A)|.
+if P > ✓then insert ¯S, ¯A into PQueue with priority P
+10
+103
+104
+105
+106
+107
+102
+0
+47
+94
+186
+376
+752 1504 3008 6016
+Gridworld size (#states)
+Dyna-Q
+Prioritized
+sweeping
+Updates
+until
+optimal
+solution
+Example 8.4: Prioritized Sweeping
+on Mazes Prioritized sweeping has been
+found to dramatically increase the speed
+at which optimal solutions are found in
+maze tasks, often by a factor of 5 to 10.
+A typical example is shown to the right.
+These data are for a sequence of maze
+tasks of exactly the same structure as the
+one shown in Figure 8.2, except that they
+vary in the grid resolution. Prioritized
+sweeping maintained a decisive advantage
+over unprioritized Dyna-Q. Both systems
+made at most n = 5 updates per environ-
+mental interaction. Adapted from Peng
+and Williams (1993).
+Extensions of prioritized sweeping to stochastic environments are straightforward. The
+model is maintained by keeping counts of the number of times each state–action pair has
+been experienced and of what the next states were. It is natural then to update each pair
+not with a sample update, as we have been using so far, but with an expected update,
+taking into account all possible next states and their probabilities of occurring.
+Prioritized sweeping is just one way of distributing computations to improve planning
+eﬃciency, and probably not the best way. One of prioritized sweeping’s limitations is that
+it uses expected updates, which in stochastic environments may waste lots of computation
+on low-probability transitions. As we show in the following section, sample updates
+
+--- Page 193 ---
+8.4. Prioritized Sweeping
+171
+Example 8.5
+Prioritized Sweeping for Rod Maneuvering
+Start
+Goal
+The objective in this task is to
+maneuver a rod around some awk-
+wardly placed obstacles within a
+limited rectangular work space to a
+goal position in the fewest number
+of steps. The rod can be translated
+along its long axis or perpendicu-
+lar to that axis, or it can be ro-
+tated in either direction around its
+center. The distance of each move-
+ment is approximately 1/20 of the
+work space, and the rotation incre-
+ment is 10 degrees.
+Translations
+are deterministic and quantized to
+one of 20 ⇥20 positions.
+To the
+right is shown the obstacles and the
+shortest solution from start to goal,
+found by prioritized sweeping. This problem is deterministic, but has four actions
+and 14,400 potential states (some of these are unreachable because of the obstacles).
+This problem is probably too large to be solved with unprioritized methods. Figure
+reprinted from Moore and Atkeson (1993).
+can in many cases get closer to the true value function with less computation despite
+the variance introduced by sampling. Sample updates can win because they break the
+overall backing-up computation into smaller pieces—those corresponding to individual
+transitions—which then enables it to be focused more narrowly on the pieces that will
+have the largest impact. This idea was taken to what may be its logical limit in the “small
+backups” introduced by van Seijen and Sutton (2013). These are updates along a single
+transition, like a sample update, but based on the probability of the transition without
+sampling, as in an expected update. By selecting the order in which small updates
+are done it is possible to greatly improve planning eﬃciency beyond that possible with
+prioritized sweeping.
+We have suggested in this chapter that all kinds of state-space planning can be viewed
+as sequences of value updates, varying only in the type of update, expected or sample,
+large or small, and in the order in which the updates are done. In this section we have
+emphasized backward focusing, but this is just one strategy. For example, another would
+be to focus on states according to how easily they can be reached from the states that
+are visited frequently under the current policy, which might be called forward focusing.
+Peng and Williams (1993) and Barto, Bradtke and Singh (1995) have explored versions
+of forward focusing, and the methods introduced in the next few sections take it to an
+extreme form.
+
+--- Page 194 ---
+172
+Chapter 8: Planning and Learning with Tabular Methods
+8.5
+Expected vs. Sample Updates
+The examples in the previous sections give some idea of the range of possibilities for
+combining methods of learning and planning. In the rest of this chapter, we analyze some
+of the component ideas involved, starting with the relative advantages of expected and
+sample updates.
+Much of this book has been about di↵erent kinds of value-function updates, and we
+have considered a great many varieties. Focusing for the moment on one-step updates,
+they vary primarily along three binary dimensions. The ﬁrst two dimensions are whether
+they update state values or action values and whether they estimate the value for the
+optimal policy or for an arbitrary given policy. These two dimensions give rise to four
+classes of updates for approximating the four value functions, q⇤, v⇤, q⇡, and v⇡. The
+Value
+estimated
+Expected updates
+(DP)
+Sample updates 
+(one-step TD)
+⇡
+s
+s0
+⇡
+r
+p
+a
+q⇡(s, a)
+q⇤(s, a)
+v⇡(s)
+v⇤(s)
+s
+s0
+r
+max
+a
+p
+policy evaluation
+value iteration
+r
+s0
+s, a
+a0
+⇡
+p
+q-policy evaluation
+r
+s0
+s, a
+a0
+max
+p
+q-value iteration
+s
+A
+S0
+R
+R
+S0
+s, a
+A0
+R
+S0
+s, a
+max
+TD(0)
+Sarsa
+Q-learning
+a0
+Figure 8.6: Backup diagrams for all the one-step
+updates considered in this book.
+other binary dimension is whether the
+updates are expected updates, consider-
+ing all possible events that might hap-
+pen, or sample updates, considering a
+single sample of what might happen.
+These three binary dimensions give rise
+to eight cases, seven of which corre-
+spond to speciﬁc algorithms, as shown
+in the ﬁgure to the right. (The eighth
+case does not seem to correspond to
+any useful update.) Any of these one-
+step updates can be used in planning
+methods. The Dyna-Q agents discussed
+earlier use q⇤sample updates, but they
+could just as well use q⇤expected up-
+dates, or either expected or sample q⇡
+updates. The Dyna-AC system uses v⇡
+sample updates together with a learning
+policy structure (as in Chapter 13). For
+stochastic problems, prioritized sweep-
+ing is always done using one of the ex-
+pected updates.
+When we introduced one-step sam-
+ple updates in Chapter 6, we presented
+them as substitutes for expected up-
+dates. In the absence of a distribution
+model, expected updates are not pos-
+sible, but sample updates can be done
+using sample transitions from the envi-
+ronment or a sample model. Implicit in
+that point of view is that expected up-
+dates, if possible, are preferable to sam-
+ple updates. But are they? Expected
+
+--- Page 195 ---
+8.5. Expected vs. Sample Updates
+173
+updates certainly yield a better estimate because they are uncorrupted by sampling error,
+but they also require more computation, and computation is often the limiting resource
+in planning. To properly assess the relative merits of expected and sample updates for
+planning we must control for their di↵erent computational requirements.
+For concreteness, consider the expected and sample updates for approximating q⇤,
+and the special case of discrete states and actions, a table-lookup representation of
+the approximate value function, Q, and a model in the form of estimated dynamics,
+ˆp(s0, r|s, a). The expected update for a state–action pair, s, a, is:
+Q(s, a)  
+X
+s0,r
+ˆp(s0, r|s, a)
+h
+r + γ max
+a0 Q(s0, a0)
+i
+.
+(8.1)
+The corresponding sample update for s, a, given a sample next state and reward, S0 and
+R (from the model), is the Q-learning-like update:
+Q(s, a)  Q(s, a) + ↵
+h
+R + γ max
+a0 Q(S0, a0) −Q(s, a)
+i
+,
+(8.2)
+where ↵is the usual positive step-size parameter.
+The di↵erence between these expected and sample updates is signiﬁcant to the extent
+that the environment is stochastic, speciﬁcally, to the extent that, given a state and
+action, many possible next states may occur with various probabilities. If only one next
+state is possible, then the expected and sample updates given above are identical (taking
+↵= 1). If there are many possible next states, then there may be signiﬁcant di↵erences.
+In favor of the expected update is that it is an exact computation, resulting in a new
+Q(s, a) whose correctness is limited only by the correctness of the Q(s0, a0) at successor
+states. The sample update is in addition a↵ected by sampling error. On the other hand,
+the sample update is cheaper computationally because it considers only one next state,
+not all possible next states. In practice, the computation required by update operations
+is usually dominated by the number of state–action pairs at which Q is evaluated. For a
+particular starting pair, s, a, let b be the branching factor (i.e., the number of possible
+next states, s0, for which ˆp(s0|s, a) > 0). Then an expected update of this pair requires
+roughly b times as much computation as a sample update.
+If there is enough time to complete an expected update, then the resulting estimate is
+generally better than that of b sample updates because of the absence of sampling error.
+But if there is insuﬃcient time to complete an expected update, then sample updates are
+always preferable because they at least make some improvement in the value estimate
+with fewer than b updates. In a large problem with many state–action pairs, we are often
+in the latter situation. With so many state–action pairs, expected updates of all of them
+would take a very long time. Before that we may be much better o↵with a few sample
+updates at many state–action pairs than with expected updates at a few pairs. Given a
+unit of computational e↵ort, is it better devoted to a few expected updates or to b times
+as many sample updates?
+Figure 8.7 shows the results of an analysis that suggests an answer to this question. It
+shows the estimation error as a function of computation time for expected and sample
+updates for a variety of branching factors, b. The case considered is that in which all
+
+--- Page 196 ---
+174
+Chapter 8: Planning and Learning with Tabular Methods
+b = 2 (branching factor)
+b =10
+b =100
+b =1000
+b =10,000
+sample
+updates
+expected
+updates
+1
+0
+0
+1b
+2b
+RMS error
+in value
+estimate
+Number of                         computations
+max
+a0 Q(s0, a0)
+Figure 8.7: Comparison of eﬃciency of expected and sample updates.
+b successor states are equally likely and in which the error in the initial estimate is
+1. The values at the next states are assumed correct, so the expected update reduces
+the error to zero upon its completion. In this case, sample updates reduce the error
+according to
+q
+b−1
+bt
+where t is the number of sample updates that have been performed
+(assuming sample averages, i.e., ↵= 1/t). The key observation is that for moderately
+large b the error falls dramatically with a tiny fraction of b updates. For these cases,
+many state–action pairs could have their values improved dramatically, to within a few
+percent of the e↵ect of an expected update, in the same time that a single state–action
+pair could undergo an expected update.
+The advantage of sample updates shown in Figure 8.7 is probably an underestimate of
+the real e↵ect. In a real problem, the values of the successor states would be estimates
+that are themselves updated. By causing estimates to be more accurate sooner, sample
+updates will have a second advantage in that the values backed up from the successor
+states will be more accurate. These results suggest that sample updates are likely to be
+superior to expected updates on problems with large stochastic branching factors and
+too many states to be solved exactly.
+Exercise 8.6
+The analysis above assumed that all of the b possible next states were
+equally likely to occur. Suppose instead that the distribution was highly skewed, that
+some of the b states were much more likely to occur than most. Would this strengthen or
+weaken the case for sample updates over expected updates? Support your answer.
+⇤
+8.6
+Trajectory Sampling
+In this section we compare two ways of distributing updates. The classical approach, from
+dynamic programming, is to perform sweeps through the entire state (or state–action)
+space, updating each state (or state–action pair) once per sweep. This is problematic
+
+--- Page 197 ---
+8.6. Trajectory Sampling
+175
+on large tasks because there may not be time to complete even one sweep. In many
+tasks the vast majority of the states are irrelevant because they are visited only under
+very poor policies or with very low probability. Exhaustive sweeps implicitly devote
+equal time to all parts of the state space rather than focusing where it is needed. As we
+discussed in Chapter 4, exhaustive sweeps and the equal treatment of all states that they
+imply are not necessary properties of dynamic programming. In principle, updates can
+be distributed any way one likes (to assure convergence, all states or state–action pairs
+must be visited in the limit an inﬁnite number of times; although an exception to this is
+discussed in Section 8.7 below), but in practice exhaustive sweeps are often used.
+The second approach is to sample from the state or state–action space according
+to some distribution. One could sample uniformly, as in the Dyna-Q agent, but this
+would su↵er from some of the same problems as exhaustive sweeps. More appealing
+is to distribute updates according to the on-policy distribution, that is, according to
+the distribution observed when following the current policy. One advantage of this
+distribution is that it is easily generated; one simply interacts with the model, following
+the current policy. In an episodic task, one starts in a start state (or according to the
+starting-state distribution) and simulates until the terminal state. In a continuing task,
+one starts anywhere and just keeps simulating. In either case, sample state transitions
+and rewards are given by the model, and sample actions are given by the current policy.
+In other words, one simulates explicit individual trajectories and performs updates at the
+state or state–action pairs encountered along the way. We call this way of generating
+experience and updates trajectory sampling.
+It is hard to imagine any eﬃcient way of distributing updates according to the on-policy
+distribution other than by trajectory sampling. If one had an explicit representation
+of the on-policy distribution, then one could sweep through all states, weighting the
+update of each according to the on-policy distribution, but this leaves us again with all
+the computational costs of exhaustive sweeps. Possibly one could sample and update
+individual state–action pairs from the distribution, but even if this could be done eﬃciently,
+what beneﬁt would this provide over simulating trajectories? Even knowing the on-policy
+distribution in an explicit form is unlikely. The distribution changes whenever the policy
+changes, and computing the distribution requires computation comparable to a complete
+policy evaluation. Consideration of such other possibilities makes trajectory sampling
+seem both eﬃcient and elegant.
+Is the on-policy distribution of updates a good one? Intuitively it seems like a good
+choice, at least better than the uniform distribution. For example, if you are learning to
+play chess, you study positions that might arise in real games, not random positions of
+chess pieces. The latter may be valid states, but to be able to accurately value them is a
+di↵erent skill from evaluating positions in real games. We will also see in Part II that the
+on-policy distribution has signiﬁcant advantages when function approximation is used.
+Whether or not function approximation is used, one might expect on-policy focusing to
+signiﬁcantly improve the speed of planning.
+Focusing on the on-policy distribution could be beneﬁcial because it causes vast,
+uninteresting parts of the space to be ignored, or it could be detrimental because it causes
+the same old parts of the space to be updated over and over. We conducted a small
+
+--- Page 198 ---
+176
+Chapter 8: Planning and Learning with Tabular Methods
+experiment to assess the e↵ect empirically. To isolate the e↵ect of the update distribution,
+we used entirely one-step expected tabular updates, as deﬁned by (8.1). In the uniform
+case, we cycled through all state–action pairs, updating each in place, and in the on-policy
+case we simulated episodes, all starting in the same state, updating each state–action pair
+that occurred under the current "-greedy policy ("=0.1). The tasks were undiscounted
+episodic tasks, generated randomly as follows. From each of the |S| states, two actions
+were possible, each of which resulted in one of b next states, all equally likely, with a
+di↵erent random selection of b states for each state–action pair. The branching factor, b,
+was the same for all state–action pairs. In addition, on all transitions there was a 0.1
+probability of transition to the terminal state, ending the episode. The expected reward
+on each transition was selected from a Gaussian distribution with mean 0 and variance 1.
+b=10
+b=3
+b=1
+b=1
+i
+on-pol cy
+i
+on-pol cy
+uniform
+uniform
+ 
+0
+1
+2
+3
+Value of
+start state
+under
+greedy
+policy
+0
+5,000
+10,000
+15,000
+20,000
+Computation time, in full backups
+0
+1
+2
+3
+Value of
+start state
+under
+greedy
+policy
+0
+50,000
+100,000
+150,000
+200,000
+Computation time, in full backups
+uniform
+uniform
+on-policy
+on-policy
+expected updates
+expected updates
+1,000 STATES
+10,000 STATES
+Figure 8.8:
+Relative eﬃciency of updates dis-
+tributed uniformly across the state space versus
+focused on simulated on-policy trajectories, each
+starting in the same state. Results are for randomly
+generated tasks of two sizes and various branching
+factors, b.
+At any point in the planning process
+one can stop and exhaustively compute
+v˜⇡(s0), the true value of the start state
+under the greedy policy, ˜⇡, given the cur-
+rent action-value function Q, as an indi-
+cation of how well the agent would do on
+a new episode on which it acted greed-
+ily (all the while assuming the model is
+correct).
+The upper part of the ﬁgure to
+the right shows results averaged over
+200 sample tasks with 1000 states and
+branching factors of 1, 3, and 10. The
+quality of the policies found is plotted as
+a function of the number of expected up-
+dates completed. In all cases, sampling
+according to the on-policy distribution
+resulted in faster planning initially and
+retarded planning in the long run. The
+e↵ect was stronger, and the initial pe-
+riod of faster planning was longer, at
+smaller branching factors. In other ex-
+periments, we found that these e↵ects
+also became stronger as the number of
+states increased. For example, the lower
+part of the ﬁgure shows results for a
+branching factor of 1 for tasks with
+10,000 states. In this case the advan-
+tage of on-policy focusing is large and
+long-lasting.
+All of these results make sense. In the
+short term, sampling according to the
+on-policy distribution helps by focusing
+on states that are near descendants of
+
+--- Page 199 ---
+8.7. Real-time Dynamic Programming
+177
+the start state. If there are many states and a small branching factor, this e↵ect will be
+large and long-lasting. In the long run, focusing on the on-policy distribution may hurt
+because the commonly occurring states all already have their correct values. Sampling
+them is useless, whereas sampling other states may actually perform some useful work.
+This presumably is why the exhaustive, unfocused approach does better in the long run,
+at least for small problems. These results are not conclusive because they are only for
+problems generated in a particular, random way, but they do suggest that sampling
+according to the on-policy distribution can be a great advantage for large problems, in
+particular for problems in which a small subset of the state–action space is visited under
+the on-policy distribution.
+Exercise 8.7 Some of the graphs in Figure 8.8 seem to be scalloped in their early portions,
+particularly the upper graph for b = 1 and the uniform distribution. Why do you think
+this is? What aspects of the data shown support your hypothesis?
+⇤
+Exercise 8.8 (programming) Replicate the experiment whose results are shown in the
+lower part of Figure 8.8, then try the same experiment but with b = 3. Discuss the
+meaning of your results.
+⇤
+8.7
+Real-time Dynamic Programming
+Real-time dynamic programming, or RTDP, is an on-policy trajectory-sampling version of
+the value-iteration algorithm of dynamic programming (DP). Because it is closely related
+to conventional sweep-based policy iteration, RTDP illustrates in a particularly clear way
+some of the advantages that on-policy trajectory sampling can provide. RTDP updates
+the values of states visited in actual or simulated trajectories by means of expected
+tabular value-iteration updates as deﬁned by (4.10). It is basically the algorithm that
+produced the on-policy results shown in Figure 8.8.
+The close connection between RTDP and conventional DP makes it possible to derive
+some theoretical results by adapting existing theory. RTDP is an example of an asyn-
+chronous DP algorithm as described in Section 4.5. Asynchronous DP algorithms are
+not organized in terms of systematic sweeps of the state set; they update state values in
+any order whatsoever, using whatever values of other states happen to be available. In
+RTDP, the update order is dictated by the order states are visited in real or simulated
+trajectories.
+Start States
+Irrelevant States: 
+unreachable  from any start state
+under any optimal policy
+Relevant States
+reachable from some start state 
+under some optimal policy
+If trajectories can start only from a designated
+set of start states, and if you are interested in
+the prediction problem for a given policy, then on-
+policy trajectory sampling allows the algorithm to
+completely skip states that cannot be reached by
+the given policy from any of the start states: such
+states are irrelevant to the prediction problem.
+For a control problem, where the goal is to ﬁnd
+an optimal policy instead of evaluating a given
+policy, there might well be states that cannot be
+
+--- Page 200 ---
+178
+Chapter 8: Planning and Learning with Tabular Methods
+reached by any optimal policy from any of the start states, and there is no need to specify
+optimal actions for these irrelevant states. What is needed is an optimal partial policy,
+meaning a policy that is optimal for the relevant states but can specify arbitrary actions,
+or even be undeﬁned, for the irrelevant states.
+But ﬁnding such an optimal partial policy with an on-policy trajectory-sampling
+control method, such as Sarsa (Section 6.4), in general requires visiting all state–action
+pairs—even those that will turn out to be irrelevant—an inﬁnite number of times. This
+can be done, for example, by using exploring starts (Section 5.3). This is true for RTDP
+as well: for episodic tasks with exploring starts, RTDP is an asynchronous value-iteration
+algorithm that converges to optimal policies for discounted ﬁnite MDPs (and for the
+undiscounted case under certain conditions). Unlike the situation for a prediction problem,
+it is generally not possible to stop updating any state or state–action pair if convergence
+to an optimal policy is important.
+The most interesting result for RTDP is that for certain types of problems satisfying
+reasonable conditions, RTDP is guaranteed to ﬁnd a policy that is optimal on the relevant
+states without visiting every state inﬁnitely often, or even without visiting some states at
+all. Indeed, in some problems, only a small fraction of the states need to be visited. This
+can be a great advantage for problems with very large state sets, where even a single
+sweep may not be feasible.
+The tasks for which this result holds are undiscounted episodic tasks for MDPs with
+absorbing goal states that generate zero rewards, as described in Section 3.4. At every step
+of a real or simulated trajectory, RTDP selects a greedy action (breaking ties randomly)
+and applies the expected value-iteration update operation to the current state. It can
+also update the values of an arbitrary collection of other states at each step; for example,
+it can update the values of states visited in a limited-horizon look-ahead search from the
+current state.
+For these problems, with each episode beginning in a state randomly chosen from the
+set of start states and ending at a goal state, RTDP converges with probability one to a
+policy that is optimal for all the relevant states provided: (1) the initial value of every
+goal state is zero, (2) there exists at least one policy that guarantees that a goal state
+will be reached with probability one from any start state, (3) all rewards for transitions
+from non-goal states are strictly negative, and (4) all the initial values are equal to, or
+greater than, their optimal values (which can be satisﬁed by simply setting the initial
+values of all states to zero). This result was proved by Barto, Bradtke, and Singh (1995)
+by combining results for asynchronous DP with results about a heuristic search algorithm
+known as learning real-time A* due to Korf (1990).
+Tasks having these properties are examples of stochastic optimal path problems, which
+are usually stated in terms of cost minimization instead of as reward maximization as
+we do here. Maximizing the negative returns in our version is equivalent to minimizing
+the costs of paths from a start state to a goal state. Examples of this kind of task are
+minimum-time control tasks, where each time step required to reach a goal produces a
+reward of −1, or problems like the Golf example in Section 3.5, whose objective is to hit
+the hole with the fewest strokes.
+

@@ -1,0 +1,2820 @@
+--- Page 51 ---
+2.3. The 10-armed Testbed
+29
+were selected according to a normal (Gaussian) distribution with mean 0 and variance 1.
+Then, when a learning method applied to that problem selected action At at time step t,
+the actual reward, Rt, was selected from a normal distribution with mean q⇤(At) and
+variance 1. These distributions are shown in gray in Figure 2.1. We call this suite of test
+tasks the 10-armed testbed. For any learning method, we can measure its performance
+and behavior as it improves with experience over 1000 time steps when applied to one of
+the bandit problems. This makes up one run. Repeating this for 2000 independent runs,
+each with a di↵erent bandit problem, we obtained measures of the learning algorithm’s
+average behavior.
+Figure 2.2 compares a greedy method with two "-greedy methods ("=0.01 and "=0.1),
+as described above, on the 10-armed testbed. All the methods formed their action-value
+estimates using the sample-average technique (with an initial estimate of 0). The upper
+graph shows the increase in expected reward with experience.
+The greedy method
+improved slightly faster than the other methods at the very beginning, but then leveled
+o↵at a lower level. It achieved a reward-per-step of only about 1, compared with the best
+possible of about 1.54 on this testbed. The greedy method performed signiﬁcantly worse
+in the long run because it often got stuck performing suboptimal actions. The lower graph
+ (greedy)
+0
+0.5
+1
+1.5
+Average
+reward
+0
+250
+500
+750
+1000
+Steps
+0%
+20%
+40%
+60%
+80%
+100%
+%
+Optimal
+action
+0
+250
+500
+750
+1000
+Steps
+ 
+ 
+1
+1
+"=0.1
+"=0.01
+"=0.1
+"=0.01
+"=0
+ (greedy)
+"=0
+Figure 2.2: Average performance of "-greedy action-value methods on the 10-armed testbed.
+These data are averages over 2000 runs with di↵erent bandit problems. All methods used sample
+averages as their action-value estimates.
+
+--- Page 52 ---
+30
+Chapter 2: Multi-armed Bandits
+shows that the greedy method found the optimal action in only approximately one-third
+of the tasks. In the other two-thirds, its initial samples of the optimal action were
+disappointing, and it never returned to it. The "-greedy methods eventually performed
+better because they continued to explore and to improve their chances of recognizing
+the optimal action. The " = 0.1 method explored more, and usually found the optimal
+action earlier, but it never selected that action more than 91% of the time. The " = 0.01
+method improved more slowly, but eventually would perform better than the " = 0.1
+method on both performance measures shown in the ﬁgure. It is also possible to reduce "
+over time to try to get the best of both high and low values.
+The advantage of "-greedy over greedy methods depends on the task. For example,
+suppose the reward variance had been larger, say 10 instead of 1. With noisier rewards
+it takes more exploration to ﬁnd the optimal action, and "-greedy methods should fare
+even better relative to the greedy method. On the other hand, if the reward variances
+were zero, then the greedy method would know the true value of each action after trying
+it once. In this case the greedy method might actually perform best because it would
+soon ﬁnd the optimal action and then never explore. But even in the deterministic case
+there is a large advantage to exploring if we weaken some of the other assumptions. For
+example, suppose the bandit task were nonstationary, that is, the true values of the
+actions changed over time. In this case exploration is needed even in the deterministic
+case to make sure one of the nongreedy actions has not changed to become better than
+the greedy one. As we shall see in the next few chapters, nonstationarity is the case
+most commonly encountered in reinforcement learning. Even if the underlying task is
+stationary and deterministic, the learner faces a set of banditlike decision tasks each of
+which changes over time as learning proceeds and the agent’s decision-making policy
+changes. Reinforcement learning requires a balance between exploration and exploitation.
+Exercise 2.2: Bandit example
+Consider a k-armed bandit problem with k = 4 actions,
+denoted 1, 2, 3, and 4. Consider applying to this problem a bandit algorithm using
+"-greedy action selection, sample-average action-value estimates, and initial estimates
+of Q1(a) = 0, for all a. Suppose the initial sequence of actions and rewards is A1 = 1,
+R1 = −1, A2 = 2, R2 = 1, A3 = 2, R3 = −2, A4 = 2, R4 = 2, A5 = 3, R5 = 0. On some
+of these time steps the " case may have occurred, causing an action to be selected at
+random. On which time steps did this deﬁnitely occur? On which time steps could this
+possibly have occurred?
+⇤
+Exercise 2.3 In the comparison shown in Figure 2.2, which method will perform best in
+the long run in terms of cumulative reward and probability of selecting the best action?
+How much better will it be? Express your answer quantitatively.
+⇤
+2.4
+Incremental Implementation
+The action-value methods we have discussed so far all estimate action values as sample
+averages of observed rewards. We now turn to the question of how these averages can be
+computed in a computationally eﬃcient manner, in particular, with constant memory
+and constant per-time-step computation.
+
+--- Page 53 ---
+2.4. Incremental Implementation
+31
+To simplify notation we concentrate on a single action. Let Ri now denote the reward
+received after the ith selection of this action, and let Qn denote the estimate of its action
+value after it has been selected n −1 times, which we can now write simply as
+Qn .= R1 + R2 + · · · + Rn−1
+n −1
+.
+The obvious implementation would be to maintain a record of all the rewards and then
+perform this computation whenever the estimated value was needed. However, if this is
+done, then the memory and computational requirements would grow over time as more
+rewards are seen. Each additional reward would require additional memory to store it
+and additional computation to compute the sum in the numerator.
+As you might suspect, this is not really necessary. It is easy to devise incremental
+formulas for updating averages with small, constant computation required to process
+each new reward. Given Qn and the nth reward, Rn, the new average of all n rewards
+can be computed by
+Qn+1
+=
+1
+n
+n
+X
+i=1
+Ri
+=
+1
+n
+ 
+Rn +
+n−1
+X
+i=1
+Ri
+!
+=
+1
+n
+ 
+Rn + (n −1)
+1
+n −1
+n−1
+X
+i=1
+Ri
+!
+=
+1
+n
+⇣
+Rn + (n −1)Qn
+⌘
+=
+1
+n
+⇣
+Rn + nQn −Qn
+⌘
+=
+Qn + 1
+n
+h
+Rn −Qn
+i
+,
+(2.3)
+which holds even for n = 1, obtaining Q2 = R1 for arbitrary Q1. This implementation
+requires memory only for Qn and n, and only the small computation (2.3) for each new
+reward.
+This update rule (2.3) is of a form that occurs frequently throughout this book. The
+general form is
+NewEstimate  OldEstimate + StepSize
+h
+Target −OldEstimate
+i
+.
+(2.4)
+The expression
+⇥
+Target−OldEstimate
+⇤
+is an error in the estimate. It is reduced by taking
+a step toward the “Target.” The target is presumed to indicate a desirable direction in
+which to move, though it may be noisy. In the case above, for example, the target is the
+nth reward.
+Note that the step-size parameter (StepSize) used in the incremental method (2.3)
+changes from time step to time step. In processing the nth reward for action a, the
+
+--- Page 54 ---
+32
+Chapter 2: Multi-armed Bandits
+method uses the step-size parameter 1
+n. In this book we denote the step-size parameter
+by ↵or, more generally, by ↵t(a).
+Pseudocode for a complete bandit algorithm using incrementally computed sample
+averages and "-greedy action selection is shown in the box below. The function bandit(a)
+is assumed to take an action and return a corresponding reward.
+A simple bandit algorithm
+Initialize, for a = 1 to k:
+Q(a)  0
+N(a)  0
+Loop forever:
+A  
+⇢
+argmaxa Q(a)
+with probability 1 −"
+(breaking ties randomly)
+a random action
+with probability "
+R  bandit(A)
+N(A)  N(A) + 1
+Q(A)  Q(A) +
+1
+N(A)
+⇥
+R −Q(A)
+⇤
+2.5
+Tracking a Nonstationary Problem
+The averaging methods discussed so far are appropriate for stationary bandit problems,
+that is, for bandit problems in which the reward probabilities do not change over time.
+As noted earlier, we often encounter reinforcement learning problems that are e↵ectively
+nonstationary. In such cases it makes sense to give more weight to recent rewards than
+to long-past rewards. One of the most popular ways of doing this is to use a constant
+step-size parameter. For example, the incremental update rule (2.3) for updating an
+average Qn of the n −1 past rewards is modiﬁed to be
+Qn+1 .= Qn + ↵
+h
+Rn −Qn
+i
+,
+(2.5)
+where the step-size parameter ↵2 (0, 1] is constant. This results in Qn+1 being a weighted
+average of past rewards and the initial estimate Q1:
+Qn+1
+=
+Qn + ↵
+h
+Rn −Qn
+i
+=
+↵Rn + (1 −↵)Qn
+=
+↵Rn + (1 −↵) [↵Rn−1 + (1 −↵)Qn−1]
+=
+↵Rn + (1 −↵)↵Rn−1 + (1 −↵)2Qn−1
+=
+↵Rn + (1 −↵)↵Rn−1 + (1 −↵)2↵Rn−2 +
+· · · + (1 −↵)n−1↵R1 + (1 −↵)nQ1
+=
+(1 −↵)nQ1 +
+n
+X
+i=1
+↵(1 −↵)n−iRi.
+(2.6)
+
+--- Page 55 ---
+2.5. Tracking a Nonstationary Problem
+33
+We call this a weighted average because the sum of the weights is (1 −↵)n + Pn
+i=1 ↵(1 −
+↵)n−i = 1, as you can check for yourself. Note that the weight, ↵(1 −↵)n−i, given to the
+reward Ri depends on how many rewards ago, n −i, it was observed. The quantity 1 −↵
+is less than 1, and thus the weight given to Ri decreases as the number of intervening
+rewards increases. In fact, the weight decays exponentially according to the exponent
+on 1 −↵. (If 1 −↵= 0, then all the weight goes on the very last reward, Rn, because
+of the convention that 00 = 1.) Accordingly, this is sometimes called an exponential
+recency-weighted average.
+Sometimes it is convenient to vary the step-size parameter from step to step. Let ↵n(a)
+denote the step-size parameter used to process the reward received after the nth selection
+of action a. As we have noted, the choice ↵n(a) = 1
+n results in the sample-average method,
+which is guaranteed to converge to the true action values by the law of large numbers.
+But of course convergence is not guaranteed for all choices of the sequence {↵n(a)}. A
+well-known result in stochastic approximation theory gives us the conditions required to
+assure convergence with probability 1:
+1
+X
+n=1
+↵n(a) = 1
+and
+1
+X
+n=1
+↵2
+n(a) < 1.
+(2.7)
+The ﬁrst condition is required to guarantee that the steps are large enough to eventually
+overcome any initial conditions or random ﬂuctuations. The second condition guarantees
+that eventually the steps become small enough to assure convergence.
+Note that both convergence conditions are met for the sample-average case, ↵n(a) = 1
+n,
+but not for the case of constant step-size parameter, ↵n(a) = ↵. In the latter case, the
+second condition is not met, indicating that the estimates never completely converge but
+continue to vary in response to the most recently received rewards. As we mentioned
+above, this is actually desirable in a nonstationary environment, and problems that are
+e↵ectively nonstationary are the most common in reinforcement learning. In addition,
+sequences of step-size parameters that meet the conditions (2.7) often converge very slowly
+or need considerable tuning in order to obtain a satisfactory convergence rate. Although
+sequences of step-size parameters that meet these convergence conditions are often used
+in theoretical work, they are seldom used in applications and empirical research.
+Exercise 2.4 If the step-size parameters, ↵n, are not constant, then the estimate Qn is
+a weighted average of previously received rewards with a weighting di↵erent from that
+given by (2.6). What is the weighting on each prior reward for the general case, analogous
+to (2.6), in terms of the sequence of step-size parameters?
+⇤
+Exercise 2.5 (programming)
+Design and conduct an experiment to demonstrate the
+diﬃculties that sample-average methods have for nonstationary problems. Use a modiﬁed
+version of the 10-armed testbed in which all the q⇤(a) start out equal and then take
+independent random walks (say by adding a normally distributed increment with mean 0
+and standard deviation 0.01 to all the q⇤(a) on each step). Prepare plots like Figure 2.2
+for an action-value method using sample averages, incrementally computed, and another
+action-value method using a constant step-size parameter, ↵= 0.1. Use " = 0.1 and
+longer runs, say of 10,000 steps.
+⇤
+
+--- Page 56 ---
+34
+Chapter 2: Multi-armed Bandits
+2.6
+Optimistic Initial Values
+All the methods we have discussed so far are dependent to some extent on the initial
+action-value estimates, Q1(a). In the language of statistics, these methods are biased
+by their initial estimates. For the sample-average methods, the bias disappears once all
+actions have been selected at least once, but for methods with constant ↵, the bias is
+permanent, though decreasing over time as given by (2.6). In practice, this kind of bias
+is usually not a problem and can sometimes be very helpful. The downside is that the
+initial estimates become, in e↵ect, a set of parameters that must be picked by the user, if
+only to set them all to zero. The upside is that they provide an easy way to supply some
+prior knowledge about what level of rewards can be expected.
+Initial action values can also be used as a simple way to encourage exploration. Suppose
+that instead of setting the initial action values to zero, as we did in the 10-armed testbed,
+we set them all to +5. Recall that the q⇤(a) in this problem are selected from a normal
+distribution with mean 0 and variance 1. An initial estimate of +5 is thus wildly optimistic.
+But this optimism encourages action-value methods to explore. Whichever actions are
+initially selected, the reward is less than the starting estimates; the learner switches to
+other actions, being “disappointed” with the rewards it is receiving. The result is that all
+actions are tried several times before the value estimates converge. The system does a
+fair amount of exploration even if greedy actions are selected all the time.
+Figure 2.3 shows the performance on the 10-armed bandit testbed of a greedy method
+using Q1(a) = +5, for all a. For comparison, also shown is an "-greedy method with
+Q1(a) = 0. Initially, the optimistic method performs worse because it explores more,
+but eventually it performs better because its exploration decreases with time. We call
+this technique for encouraging exploration optimistic initial values. We regard it as
+a simple trick that can be quite e↵ective on stationary problems, but it is far from
+being a generally useful approach to encouraging exploration. For example, it is not
+well suited to nonstationary problems because its drive for exploration is inherently
+0%
+20%
+40%
+60%
+80%
+100%
+%
+Optimal
+action
+0
+200
+400
+600
+800
+1000
+Plays
+optimistic, greedy
+Q0 = 5,  = 0
+realistic, -greedy
+Q0 = 0,  = 0.1
+1
+1
+Steps
+1
+Optimistic, greedy
+Q1 =5, "=0
+Realistic,   -greedy
+"
+Q1 =0, "=0.1
+Figure 2.3: The e↵ect of optimistic initial action-value estimates on the 10-armed testbed.
+Both methods used a constant step-size parameter, ↵= 0.1.
+
+--- Page 57 ---
+2.7. Upper-Conﬁdence-Bound Action Selection
+35
+temporary. If the task changes, creating a renewed need for exploration, this method
+cannot help. Indeed, any method that focuses on the initial conditions in any special way
+is unlikely to help with the general nonstationary case. The beginning of time occurs
+only once, and thus we should not focus on it too much. This criticism applies as well to
+the sample-average methods, which also treat the beginning of time as a special event,
+averaging all subsequent rewards with equal weights. Nevertheless, all of these methods
+are very simple, and one of them—or some simple combination of them—is often adequate
+in practice. In the rest of this book we make frequent use of several of these simple
+exploration techniques.
+Exercise 2.6: Mysterious Spikes
+The results shown in Figure 2.3 should be quite reliable
+because they are averages over 2000 individual, randomly chosen 10-armed bandit tasks.
+Why, then, are there oscillations and spikes in the early part of the curve for the optimistic
+method? In other words, what might make this method perform particularly better or
+worse, on average, on particular early steps?
+⇤
+Exercise 2.7: Unbiased Constant-Step-Size Trick
+In most of this chapter we have used
+sample averages to estimate action values because sample averages do not produce the
+initial bias that constant step sizes do (see the analysis leading to (2.6)). However, sample
+averages are not a completely satisfactory solution because they may perform poorly
+on nonstationary problems. Is it possible to avoid the bias of constant step sizes while
+retaining their advantages on nonstationary problems? One way is to use a step size of
+βn .= ↵/¯on,
+(2.8)
+to process the nth reward for a particular action, where ↵> 0 is a conventional constant
+step size, and ¯on is a trace of one that starts at 0:
+¯on .= ¯on−1 + ↵(1 −¯on−1),
+for n > 0,
+with ¯o0 .= 0.
+(2.9)
+Carry out an analysis like that in (2.6) to show that Qn is an exponential recency-weighted
+average without initial bias.
+⇤
+2.7
+Upper-Conﬁdence-Bound Action Selection
+Exploration is needed because there is always uncertainty about the accuracy of the
+action-value estimates. The greedy actions are those that look best at present, but some of
+the other actions may actually be better. "-greedy action selection forces the non-greedy
+actions to be tried, but indiscriminately, with no preference for those that are nearly
+greedy or particularly uncertain. It would be better to select among the non-greedy
+actions according to their potential for actually being optimal, taking into account both
+how close their estimates are to being maximal and the uncertainties in those estimates.
+One e↵ective way of doing this is to select actions according to
+At .= argmax
+a
+"
+Qt(a) + c
+s
+ln t
+Nt(a)
+#
+,
+(2.10)
+where ln t denotes the natural logarithm of t (the number that e ⇡2.71828 would have
+to be raised to in order to equal t), Nt(a) denotes the number of times that action a has
+
+--- Page 58 ---
+36
+Chapter 2: Multi-armed Bandits
+been selected prior to time t (the denominator in (2.1)), and the number c > 0 controls
+the degree of exploration. If Nt(a) = 0, then a is considered to be a maximizing action.
+The idea of this upper conﬁdence bound (UCB) action selection is that the square-root
+term is a measure of the uncertainty or variance in the estimate of a’s value. The quantity
+being max’ed over is thus a sort of upper bound on the possible true value of action a, with
+c determining the conﬁdence level. Each time a is selected the uncertainty is presumably
+reduced: Nt(a) increments, and, as it appears in the denominator, the uncertainty term
+decreases. On the other hand, each time an action other than a is selected, t increases but
+Nt(a) does not; because t appears in the numerator, the uncertainty estimate increases.
+The use of the natural logarithm means that the increases get smaller over time, but are
+unbounded; all actions will eventually be selected, but actions with lower value estimates,
+or that have already been selected frequently, will be selected with decreasing frequency
+over time.
+Results with UCB on the 10-armed testbed are shown in Figure 2.4. UCB often
+performs well, as shown here, but is more diﬃcult than "-greedy to extend beyond bandits
+to the more general reinforcement learning settings considered in the rest of this book.
+One diﬃculty is in dealing with nonstationary problems; methods more complex than
+those presented in Section 2.5 would be needed. Another diﬃculty is dealing with large
+state spaces, particularly when using function approximation as developed in Part II of
+this book. In these more advanced settings the idea of UCB action selection is usually
+not practical.
+1
+250
+500
+750
+1000
+0
+0.5
+1
+1.5
+휀-greedy  휀 = 0.1
+UCB  c = 2
+Average
+reward
+Steps
+Figure 2.4: Average performance of UCB action selection on the 10-armed testbed. As shown,
+UCB generally performs better than "-greedy action selection, except in the ﬁrst k steps, when
+it selects randomly among the as-yet-untried actions.
+Exercise 2.8: UCB Spikes
+In Figure 2.4 the UCB algorithm shows a distinct spike
+in performance on the 11th step. Why is this? Note that for your answer to be fully
+satisfactory it must explain both why the reward increases on the 11th step and why it
+decreases on the subsequent steps. Hint: If c = 1, then the spike is less prominent.
+⇤
+
+--- Page 59 ---
+2.8. Gradient Bandit Algorithms
+37
+2.8
+Gradient Bandit Algorithms
+So far in this chapter we have considered methods that estimate action values and use
+those estimates to select actions. This is often a good approach, but it is not the only
+one possible. In this section we consider learning a numerical preference for each action
+a, which we denote Ht(a) 2 R. The larger the preference, the more often that action is
+taken, but the preference has no interpretation in terms of reward. Only the relative
+preference of one action over another is important; if we add 1000 to all the action
+preferences there is no e↵ect on the action probabilities, which are determined according
+to a soft-max distribution (i.e., Gibbs or Boltzmann distribution) as follows:
+Pr{At =a} .=
+eHt(a)
+Pk
+b=1 eHt(b)
+.= ⇡t(a),
+(2.11)
+where here we have also introduced a useful new notation, ⇡t(a), for the probability of
+taking action a at time t. Initially all action preferences are the same (e.g., H1(a) = 0,
+for all a) so that all actions have an equal probability of being selected.
+Exercise 2.9 Show that in the case of two actions, the soft-max distribution is the same
+as that given by the logistic, or sigmoid, function often used in statistics and artiﬁcial
+neural networks.
+⇤
+There is a natural learning algorithm for soft-max action preferences based on the idea
+of stochastic gradient ascent. On each step, after selecting action At and receiving the
+reward Rt, the action preferences are updated by:
+Ht+1(At) .= Ht(At) + ↵
+#
+Rt −¯Rt
+$#
+1 −⇡t(At)
+$
+,
+and
+Ht+1(a) .= Ht(a) −↵
+#
+Rt −¯Rt
+$
+⇡t(a),
+for all a 6= At,
+(2.12)
+where ↵> 0 is a step-size parameter, and ¯Rt 2 R is the average of the rewards up to but
+not including time t (with ¯R1 .= R1), which can be computed incrementally as described
+in Section 2.4 (or Section 2.5 if the problem is nonstationary).1 The ¯Rt term serves as a
+baseline with which the reward is compared. If the reward is higher than the baseline,
+then the probability of taking At in the future is increased, and if the reward is below
+baseline, then the probability is decreased. The non-selected actions move in the opposite
+direction.
+Figure 2.5 shows results with the gradient bandit algorithm on a variant of the 10-
+armed testbed in which the true expected rewards were selected according to a normal
+distribution with a mean of +4 instead of zero (and with unit variance as before). This
+shifting up of all the rewards has absolutely no e↵ect on the gradient bandit algorithm
+because of the reward baseline term, which instantaneously adapts to the new level. But
+if the baseline were omitted (that is, if ¯Rt was taken to be constant zero in (2.12)), then
+performance would be signiﬁcantly degraded, as shown in the ﬁgure.
+1In the empirical results in this chapter, the baseline ¯Rt also included Rt.
+
+--- Page 60 ---
+38
+Chapter 2: Multi-armed Bandits
+%
+Optimal
+action
+Steps
+α = 0.1
+100%
+80%
+60%
+40%
+20%
+0%
+α = 0.4
+α = 0.1
+α = 0.4
+without baseline
+with baseline
+1
+250
+500
+750
+1000
+Figure 2.5: Average performance of the gradient bandit algorithm with and without a reward
+baseline on the 10-armed testbed when the q⇤(a) are chosen to be near +4 rather than near zero.
+The Bandit Gradient Algorithm as Stochastic Gradient Ascent
+One can gain a deeper insight into the gradient bandit algorithm by understanding
+it as a stochastic approximation to gradient ascent. In exact gradient ascent, each
+action preference Ht(a) would be incremented in proportion to the increment’s
+e↵ect on performance:
+Ht+1(a) .= Ht(a) + ↵@E[Rt]
+@Ht(a) ,
+(2.13)
+where the measure of performance here is the expected reward:
+E[Rt] =
+X
+x
+⇡t(x)q⇤(x),
+and the measure of the increment’s e↵ect is the partial derivative of this performance
+measure with respect to the action preference. Of course, it is not possible to
+implement gradient ascent exactly in our case because by assumption we do not
+know the q⇤(x), but in fact the updates of our algorithm (2.12) are equal to (2.13)
+in expected value, making the algorithm an instance of stochastic gradient ascent.
+The calculations showing this require only beginning calculus, but take several
+
+--- Page 61 ---
+2.8. Gradient Bandit Algorithms
+39
+steps. First we take a closer look at the exact performance gradient:
+@E[Rt]
+@Ht(a) =
+@
+@Ht(a)
+"X
+x
+⇡t(x)q⇤(x)
+#
+=
+X
+x
+q⇤(x) @⇡t(x)
+@Ht(a)
+=
+X
+x
+#
+q⇤(x) −Bt
+$ @⇡t(x)
+@Ht(a),
+where Bt, called the baseline, can be any scalar that does not depend on x. We can
+include a baseline here without changing the equality because the gradient sums
+to zero over all the actions, P
+x
+@ ⇡t(x)
+@Ht(a) = 0. As Ht(a) is changed, some actions’
+probabilities go up and some go down, but the sum of the changes must be zero
+because the sum of the probabilities is always one.
+Next we multiply each term of the sum by ⇡t(x)/⇡t(x):
+@E[Rt]
+@Ht(a) =
+X
+x
+⇡t(x)
+#
+q⇤(x) −Bt
+$ @⇡t(x)
+@Ht(a)/⇡t(x).
+The equation is now in the form of an expectation, summing over all possible values
+x of the random variable At, then multiplying by the probability of taking those
+values. Thus:
+= E
+#
+q⇤(At) −Bt
+$@⇡t(At)
+@Ht(a) /⇡t(At)
+3
+= E
+#
+Rt −¯Rt
+$@⇡t(At)
+@Ht(a) /⇡t(At)
+3
+,
+where here we have chosen the baseline Bt = ¯Rt and substituted Rt for q⇤(At),
+which is permitted because E[Rt|At] = q⇤(At). Shortly we will establish that
+@ ⇡t(x)
+@Ht(a) = ⇡t(x)
+#
+a=x −⇡t(a)
+$
+, where
+a=x is deﬁned to be 1 if a = x, else 0.
+Assuming that for now, we have
+= E
+⇥#
+Rt −¯Rt
+$
+⇡t(At)
+#
+a=At −⇡t(a)
+$
+/⇡t(At)
+⇤
+= E
+⇥#
+Rt −¯Rt
+$#
+a=At −⇡t(a)
+$⇤
+.
+Recall that our plan has been to write the performance gradient as an expectation
+of something that we can sample on each step, as we have just done, and then
+update on each step in proportion to the sample. Substituting a sample of the
+expectation above for the performance gradient in (2.13) yields:
+Ht+1(a) = Ht(a) + ↵
+#
+Rt −¯Rt
+$#
+a=At −⇡t(a)
+$
+,
+for all a,
+which you may recognize as being equivalent to our original algorithm (2.12).
+
+--- Page 62 ---
+40
+Chapter 2: Multi-armed Bandits
+Thus it remains only to show that @ ⇡t(x)
+@Ht(a) = ⇡t(x)
+#
+a=x −⇡t(a)
+$
+, as we assumed.
+Recall the standard quotient rule for derivatives:
+@
+@x
+f(x)
+g(x)
+3
+=
+@f(x)
+@x g(x) −f(x) @g(x)
+@x
+g(x)2
+.
+Using this, we can write
+@⇡t(x)
+@Ht(a) =
+@
+@Ht(a) ⇡t(x)
+=
+@
+@Ht(a)
+"
+eHt(x)
+Pk
+y=1 eHt(y)
+#
+=
+@eHt(x)
+@Ht(a)
+Pk
+y=1 eHt(y) −eHt(x) @ Pk
+y=1 eHt(y)
+@Ht(a)
+⇣Pk
+y=1 eHt(y)
+⌘2
+(by the quotient rule)
+=
+a=xeHt(x) Pk
+y=1 eHt(y) −eHt(x)eHt(a)
+⇣Pk
+y=1 eHt(y)
+⌘2
+(because @ex
+@x = ex)
+=
+a=xeHt(x)
+Pk
+y=1 eHt(y) −
+eHt(x)eHt(a)
+⇣Pk
+y=1 eHt(y)
+⌘2
+=
+a=x⇡t(x) −⇡t(x)⇡t(a)
+= ⇡t(x)
+#
+a=x −⇡t(a)
+$
+.
+Q.E.D.
+We have just shown that the expected update of the gradient bandit algorithm
+is equal to the gradient of expected reward, and thus that the algorithm is an
+instance of stochastic gradient ascent. This assures us that the algorithm has robust
+convergence properties.
+Note that we did not require any properties of the reward baseline other than
+that it does not depend on the selected action. For example, we could have set
+it to zero, or to 1000, and the algorithm would still be an instance of stochastic
+gradient ascent. The choice of the baseline does not a↵ect the expected update
+of the algorithm, but it does a↵ect the variance of the update and thus the rate of
+convergence (as shown, for example, in Figure 2.5). Choosing it as the average of
+the rewards may not be the very best, but it is simple and works well in practice.
+
+--- Page 63 ---
+2.9. Associative Search (Contextual Bandits)
+41
+2.9
+Associative Search (Contextual Bandits)
+So far in this chapter we have considered only nonassociative tasks, that is, tasks in which
+there is no need to associate di↵erent actions with di↵erent situations. In these tasks
+the learner either tries to ﬁnd a single best action when the task is stationary, or tries to
+track the best action as it changes over time when the task is nonstationary. However,
+in a general reinforcement learning task there is more than one situation, and the goal
+is to learn a policy: a mapping from situations to the actions that are best in those
+situations. To set the stage for the full problem, we brieﬂy discuss the simplest way in
+which nonassociative tasks extend to the associative setting.
+As an example, suppose there are several di↵erent k-armed bandit tasks, and that on
+each step you confront one of these chosen at random. Thus, the bandit task changes
+randomly from step to step. If the probabilities with which each task is selected for you
+do not change over time, this would appear as a single stationary k-armed bandit task,
+and you could use one of the methods described in this chapter. Now suppose, however,
+that when a bandit task is selected for you, you are given some distinctive clue about its
+identity (but not its action values). Maybe you are facing an actual slot machine that
+changes the color of its display as it changes its action values. Now you can learn a policy
+associating each task, signaled by the color you see, with the best action to take when
+facing that task—for instance, if red, select arm 1; if green, select arm 2. With the right
+policy you can usually do much better than you could in the absence of any information
+distinguishing one bandit task from another.
+This is an example of an associative search task, so called because it involves both
+trial-and-error learning to search for the best actions, and association of these actions
+with the situations in which they are best. Associative search tasks are often now called
+contextual bandits in the literature. Associative search tasks are intermediate between
+the k-armed bandit problem and the full reinforcement learning problem. They are like
+the full reinforcement learning problem in that they involve learning a policy, but they
+are also like our version of the k-armed bandit problem in that each action a↵ects only
+the immediate reward. If actions are allowed to a↵ect the next situation as well as the
+reward, then we have the full reinforcement learning problem. We present this problem
+in the next chapter and consider its ramiﬁcations throughout the rest of the book.
+Exercise 2.10 Suppose you face a 2-armed bandit task whose true action values change
+randomly from time step to time step. Speciﬁcally, suppose that, for any time step,
+the true values of actions 1 and 2 are respectively 10 and 20 with probability 0.5 (case
+A), and 90 and 80 with probability 0.5 (case B). If you are not able to tell which case
+you face at any step, what is the best expected reward you can achieve and how should
+you behave to achieve it? Now suppose that on each step you are told whether you are
+facing case A or case B (although you still don’t know the true action values). This is an
+associative search task. What is the best expected reward you can achieve in this task,
+and how should you behave to achieve it?
+⇤
+
+--- Page 64 ---
+42
+Chapter 2: Multi-armed Bandits
+2.10
+Summary
+We have presented in this chapter several simple ways of balancing exploration and
+exploitation. The "-greedy methods choose randomly a small fraction of the time, whereas
+UCB methods choose deterministically but achieve exploration by subtly favoring at each
+step the actions that have so far received fewer samples. Gradient bandit algorithms
+estimate not action values, but action preferences, and favor the more preferred actions
+in a graded, probabilistic manner using a soft-max distribution. The simple expedient of
+initializing estimates optimistically causes even greedy methods to explore signiﬁcantly.
+It is natural to ask which of these methods is best. Although this is a diﬃcult question
+to answer in general, we can certainly run them all on the 10-armed testbed that we
+have used throughout this chapter and compare their performances. A complication is
+that they all have a parameter; to get a meaningful comparison we have to consider
+their performance as a function of their parameter. Our graphs so far have shown the
+course of learning over time for each algorithm and parameter setting, to produce a
+learning curve for that algorithm and parameter setting. If we plotted learning curves
+for all algorithms and all parameter settings, then the graph would be too complex and
+crowded to make clear comparisons. Instead we summarize a complete learning curve
+by its average value over the 1000 steps; this value is proportional to the area under the
+learning curve. Figure 2.6 shows this measure for the various bandit algorithms from
+this chapter, each as a function of its own parameter shown on a single scale on the
+x-axis. This kind of graph is called a parameter study. Note that the parameter values
+are varied by factors of two and presented on a log scale. Note also the characteristic
+inverted-U shapes of each algorithm’s performance; all the algorithms perform best at
+an intermediate value of their parameter, neither too large nor too small. In assessing
+Average
+reward
+over ﬁrst 
+1000 steps
+1.5
+1.4
+1.3
+1.2
+1.1
+1
+휀-greedy
+UCB
+gradient
+bandit
+greedy with
+optimistic
+initialization
+α = 0.1
+1
+2
+4
+1/2
+1/4
+1/8
+1/16
+1/32
+1/64
+1/128
+" ↵c Q0
+Figure 2.6: A parameter study of the various bandit algorithms presented in this chapter.
+Each point is the average reward obtained over 1000 steps with a particular algorithm at a
+particular setting of its parameter.
+
+--- Page 65 ---
+2.10. Summary
+43
+a method, we should attend not just to how well it does at its best parameter setting,
+but also to how sensitive it is to its parameter value. All of these algorithms are fairly
+insensitive, performing well over a range of parameter values varying by about an order
+of magnitude. Overall, on this problem, UCB seems to perform best.
+Despite their simplicity, in our opinion the methods presented in this chapter can
+fairly be considered the state of the art. There are more sophisticated methods, but their
+complexity and assumptions make them impractical for the full reinforcement learning
+problem that is our real focus. Starting in Chapter 5 we present learning methods for
+solving the full reinforcement learning problem that use in part the simple methods
+explored in this chapter.
+Although the simple methods explored in this chapter may be the best we can do
+at present, they are far from a fully satisfactory solution to the problem of balancing
+exploration and exploitation.
+One well-studied approach to balancing exploration and exploitation in k-armed bandit
+problems is to compute a special kind of action value called a Gittins index. In certain
+important special cases, this computation is tractable and leads directly to optimal
+solutions, although it does require complete knowledge of the prior distribution of possible
+problems, which we generally assume is not available. In addition, neither the theory
+nor the computational tractability of this approach appear to generalize to the full
+reinforcement learning problem that we consider in the rest of the book.
+The Gittins-index approach is an instance of Bayesian methods, which assume a known
+initial distribution over the action values and then update the distribution exactly after
+each step (assuming that the true action values are stationary). In general, the update
+computations can be very complex, but for certain special distributions (called conjugate
+priors) they are easy. One possibility is to then select actions at each step according
+to their posterior probability of being the best action. This method, sometimes called
+posterior sampling or Thompson sampling, often performs similarly to the best of the
+distribution-free methods we have presented in this chapter.
+In the Bayesian setting it is even conceivable to compute the optimal balance between
+exploration and exploitation. One can compute for any possible action the probability
+of each possible immediate reward and the resultant posterior distributions over action
+values. This evolving distribution becomes the information state of the problem. Given
+a horizon, say of 1000 steps, one can consider all possible actions, all possible resulting
+rewards, all possible next actions, all next rewards, and so on for all 1000 steps. Given
+the assumptions, the rewards and probabilities of each possible chain of events can be
+determined; one need only pick the best. But the tree of possibilities grows extremely
+rapidly; even if there were only two actions and two rewards, the tree would have 22000
+leaves. It is generally not feasible to perform this immense computation exactly, but
+perhaps it could be approximated eﬃciently. This approach would e↵ectively turn the
+bandit problem into an instance of the full reinforcement learning problem. In the end, we
+may be able to use approximate reinforcement learning methods such as those presented
+in Part II of this book to approach this optimal solution. But that is a topic for research
+and beyond the scope of this introductory book.
+
+--- Page 66 ---
+44
+Chapter 2: Multi-armed Bandits
+Exercise 2.11 (programming) Make a ﬁgure analogous to Figure 2.6 for the nonstationary
+case outlined in Exercise 2.5. Include the constant-step-size "-greedy algorithm with
+↵=0.1. Use runs of 200,000 steps and, as a performance measure for each algorithm and
+parameter setting, use the average reward over the last 100,000 steps.
+⇤
+Bibliographical and Historical Remarks
+2.1
+Bandit problems have been studied in statistics, engineering, and psychology. In
+statistics, bandit problems fall under the heading “sequential design of experi-
+ments,” introduced by Thompson (1933, 1934) and Robbins (1952), and studied
+by Bellman (1956). Berry and Fristedt (1985) provide an extensive treatment of
+bandit problems from the perspective of statistics. Narendra and Thathachar
+(1989) treat bandit problems from the engineering perspective, providing a good
+discussion of the various theoretical traditions that have focused on them. In
+psychology, bandit problems have played roles in statistical learning theory (e.g.,
+Bush and Mosteller, 1955; Estes, 1950).
+The term greedy is often used in the heuristic search literature (e.g., Pearl, 1984).
+The conﬂict between exploration and exploitation is known in control engineering
+as the conﬂict between identiﬁcation (or estimation) and control (e.g., Witten,
+1976b). Feldbaum (1965) called it the dual control problem, referring to the
+need to solve the two problems of identiﬁcation and control simultaneously when
+trying to control a system under uncertainty. In discussing aspects of genetic
+algorithms, Holland (1975) emphasized the importance of this conﬂict, referring
+to it as the conﬂict between the need to exploit and the need for new information.
+2.2
+Action-value methods for our k-armed bandit problem were ﬁrst proposed by
+Thathachar and Sastry (1985). These are often called estimator algorithms in the
+learning automata literature. The term action value is due to Watkins (1989).
+The ﬁrst to use "-greedy methods may also have been Watkins (1989, p. 187),
+but the idea is so simple that some earlier use seems likely.
+2.4–5
+This material falls under the general heading of stochastic iterative algorithms,
+which is well covered by Bertsekas and Tsitsiklis (1996).
+2.6
+Optimistic initialization was used in reinforcement learning by Sutton (1996).
+2.7
+Early work on using estimates of the upper conﬁdence bound to select actions
+was done by Lai and Robbins (1985), Kaelbling (1993b), and Agrawal (1995).
+The UCB algorithm we present here is called UCB1 in the literature and was
+ﬁrst developed by Auer, Cesa-Bianchi and Fischer (2002).
+2.8
+Gradient bandit algorithms are a special case of the gradient-based reinforcement
+learning algorithms introduced by Williams (1992) that later developed into the
+actor–critic and policy-gradient algorithms that we treat later in this book. Our
+development here was inﬂuenced by that by Balaraman Ravindran (personal
+
+--- Page 67 ---
+2.10. Summary
+45
+communication). Further discussion of the choice of baseline is provided by
+Greensmith, Bartlett, and Baxter (2002, 2004) and by Dick (2015).
+Early
+systematic studies of algorithms like this were done by Sutton (1984).
+The term soft-max for the action selection rule (2.11) is due to Bridle (1990).
+This rule appears to have been ﬁrst proposed by Luce (1959).
+2.9
+The term associative search and the corresponding problem were introduced by
+Barto, Sutton, and Brouwer (1981). The term associative reinforcement learning
+has also been used for associative search (Barto and Anandan, 1985), but we
+prefer to reserve that term as a synonym for the full reinforcement learning
+problem (as in Sutton, 1984). (And, as we noted, the modern literature also
+uses the term “contextual bandits” for this problem.) We note that Thorndike’s
+Law of E↵ect (quoted in Chapter 1) describes associative search by referring
+to the formation of associative links between situations (states) and actions.
+According to the terminology of operant, or instrumental, conditioning (e.g.,
+Skinner, 1938), a discriminative stimulus is a stimulus that signals the presence
+of a particular reinforcement contingency. In our terms, di↵erent discriminative
+stimuli correspond to di↵erent states.
+2.10
+Bellman (1956) was the ﬁrst to show how dynamic programming could be used
+to compute the optimal balance between exploration and exploitation within a
+Bayesian formulation of the problem. The Gittins index approach is due to Gittins
+and Jones (1974). Du↵(1995) showed how it is possible to learn Gittins indices
+for bandit problems through reinforcement learning. The survey by Kumar (1985)
+provides a good discussion of Bayesian and non-Bayesian approaches to these
+problems. The term information state comes from the literature on partially
+observable MDPs; see, for example, Lovejoy (1991).
+Other theoretical research focuses on the eﬃciency of exploration, usually ex-
+pressed as how quickly an algorithm can approach an optimal decision-making
+policy. One way to formalize exploration eﬃciency is by adapting to reinforcement
+learning the notion of sample complexity for a supervised learning algorithm,
+which is the number of training examples the algorithm needs to attain a desired
+degree of accuracy in learning the target function. A deﬁnition of the sample
+complexity of exploration for a reinforcement learning algorithm is the number of
+time steps in which the algorithm does not select near-optimal actions (Kakade,
+2003). Li (2012) discusses this and several other approaches in a survey of theo-
+retical approaches to exploration eﬃciency in reinforcement learning. A thorough
+modern treatment of Thompson sampling is provided by Russo et al. (2018).
+
+--- Page 68 ---
+
+
+--- Page 69 ---
+Chapter 3
+Finite Markov Decision
+Processes
+In this chapter we introduce the formal problem of ﬁnite Markov decision processes, or
+ﬁnite MDPs, which we try to solve in the rest of the book. This problem involves evaluative
+feedback, as in bandits, but also an associative aspect—choosing di↵erent actions in
+di↵erent situations. MDPs are a classical formalization of sequential decision making,
+where actions inﬂuence not just immediate rewards, but also subsequent situations,
+or states, and through those future rewards. Thus MDPs involve delayed reward and
+the need to trade o↵immediate and delayed reward. Whereas in bandit problems we
+estimated the value q⇤(a) of each action a, in MDPs we estimate the value q⇤(s, a) of
+each action a in each state s, or we estimate the value v⇤(s) of each state given optimal
+action selections. These state-dependent quantities are essential to accurately assigning
+credit for long-term consequences to individual action selections.
+MDPs are a mathematically idealized form of the reinforcement learning problem
+for which precise theoretical statements can be made. We introduce key elements of
+the problem’s mathematical structure, such as returns, value functions, and Bellman
+equations. We try to convey the wide range of applications that can be formulated as
+ﬁnite MDPs. As in all of artiﬁcial intelligence, there is a tension between breadth of
+applicability and mathematical tractability. In this chapter we introduce this tension
+and discuss some of the trade-o↵s and challenges that it implies. Some ways in which
+reinforcement learning can be taken beyond MDPs are treated in Chapter 17.
+3.1
+The Agent–Environment Interface
+MDPs are meant to be a straightforward framing of the problem of learning from
+interaction to achieve a goal. The learner and decision maker is called the agent. The
+thing it interacts with, comprising everything outside the agent, is called the environment.
+These interact continually, the agent selecting actions and the environment responding to
+
+--- Page 70 ---
+48
+Chapter 3: Finite Markov Decision Processes
+these actions and presenting new situations to the agent.1 The environment also gives
+rise to rewards, special numerical values that the agent seeks to maximize over time
+through its choice of actions.
+Agent
+Environment
+action
+At
+reward
+Rt
+state
+St
+Rt+1
+St+1
+Figure 3.1: The agent–environment interaction in a Markov decision process.
+More speciﬁcally, the agent and environment interact at each of a sequence of discrete
+time steps, t = 0, 1, 2, 3, . . ..2 At each time step t, the agent receives some representation
+of the environment’s state, St 2 S, and on that basis selects an action, At 2 A(s).3 One
+time step later, in part as a consequence of its action, the agent receives a numerical
+reward, Rt+1 2 R ⇢R, and ﬁnds itself in a new state, St+1.4 The MDP and agent
+together thereby give rise to a sequence or trajectory that begins like this:
+S0, A0, R1, S1, A1, R2, S2, A2, R3, . . .
+(3.1)
+In a ﬁnite MDP, the sets of states, actions, and rewards (S, A, and R) all have a ﬁnite
+number of elements. In this case, the random variables Rt and St have well deﬁned
+discrete probability distributions dependent only on the preceding state and action. That
+is, for particular values of these random variables, s0 2 S and r 2 R, there is a probability
+of those values occurring at time t, given particular values of the preceding state and
+action:
+p(s0, r|s, a)
+.= Pr{St =s0, Rt =r | St−1 =s, At−1 =a},
+(3.2)
+for all s0, s 2 S, r 2 R, and a 2 A(s). The function p deﬁnes the dynamics of the MDP.
+The dot over the equals sign in the equation reminds us that it is a deﬁnition (in this
+case of the function p) rather than a fact that follows from previous deﬁnitions. The
+dynamics function p : S ⇥R ⇥S ⇥A ! [0, 1] is an ordinary deterministic function of four
+arguments. The ‘|’ in the middle of it comes from the notation for conditional probability,
+1We use the terms agent, environment, and action instead of the engineers’ terms controller, controlled
+system (or plant), and control signal because they are meaningful to a wider audience.
+2We restrict attention to discrete time to keep things as simple as possible, even though many of the
+ideas can be extended to the continuous-time case (e.g., see Bertsekas and Tsitsiklis, 1996; Doya, 1996).
+3To simplify notation, we sometimes assume the special case in which the action set is the same in all
+states and write it simply as A.
+4We use Rt+1 instead of Rt to denote the reward due to At because it emphasizes that the next
+reward and next state, Rt+1 and St+1, are jointly determined. Unfortunately, both conventions are
+widely used in the literature.
+
+--- Page 71 ---
+3.1. The Agent–Environment Interface
+49
+but here it just reminds us that p speciﬁes a probability distribution for each choice of s
+and a, that is, that
+X
+s02S
+X
+r2R
+p(s0, r|s, a) = 1, for all s 2 S, a 2 A(s).
+(3.3)
+In a Markov decision process, the probabilities given by p completely characterize the
+environment’s dynamics. That is, the probability of each possible value for St and Rt
+depends on the immediately preceding state and action, St−1 and At−1, and, given them,
+not at all on earlier states and actions. This is best viewed as a restriction not on the
+decision process, but on the state. The state must include information about all aspects
+of the past agent–environment interaction that make a di↵erence for the future. If it
+does, then the state is said to have the Markov property. We will assume the Markov
+property throughout this book, though starting in Part II we will consider approximation
+methods that do not rely on it, and in Chapter 17 we consider how a Markov state can
+be eﬃciently learned and constructed from non-Markov observations.
+From the four-argument dynamics function, p, one can compute anything else one might
+want to know about the environment, such as the state-transition probabilities (which we
+denote, with a slight abuse of notation, as a three-argument function p : S⇥S⇥A ! [0, 1]),
+p(s0|s, a)
+.= Pr{St =s0 | St−1 =s, At−1 =a} =
+X
+r2R
+p(s0, r|s, a).
+(3.4)
+We can also compute the expected rewards for state–action pairs as a two-argument
+function r : S ⇥A ! R:
+r(s, a)
+.= E[Rt | St−1 =s, At−1 =a] =
+X
+r2R
+r
+X
+s02S
+p(s0, r|s, a),
+(3.5)
+and the expected rewards for state–action–next-state triples as a three-argument function
+r : S ⇥A ⇥S ! R,
+r(s, a, s0)
+.= E[Rt | St−1 =s, At−1 =a, St = s0] =
+X
+r2R
+r p(s0, r|s, a)
+p(s0|s, a) .
+(3.6)
+In this book, we usually use the four-argument p function (3.2), but each of these other
+notations are also occasionally convenient.
+The MDP framework is abstract and ﬂexible and can be applied to many di↵erent
+problems in many di↵erent ways. For example, the time steps need not refer to ﬁxed
+intervals of real time; they can refer to arbitrary successive stages of decision making
+and acting. The actions can be low-level controls, such as the voltages applied to the
+motors of a robot arm, or high-level decisions, such as whether or not to have lunch or
+to go to graduate school. Similarly, the states can take a wide variety of forms. They
+can be completely determined by low-level sensations, such as direct sensor readings, or
+they can be more high-level and abstract, such as symbolic descriptions of objects in a
+room. Some of what makes up a state could be based on memory of past sensations or
+
+--- Page 72 ---
+50
+Chapter 3: Finite Markov Decision Processes
+even be entirely mental or subjective. For example, an agent could be in the state of not
+being sure where an object is, or of having just been surprised in some clearly deﬁned
+sense. Similarly, some actions might be totally mental or computational. For example,
+some actions might control what an agent chooses to think about, or where it focuses its
+attention. In general, actions can be any decisions we want to learn how to make, and
+states can be anything we can know that might be useful in making them.
+In particular, the boundary between agent and environment is typically not the same
+as the physical boundary of a robot’s or an animal’s body. Usually, the boundary is
+drawn closer to the agent than that. For example, the motors and mechanical linkages of
+a robot and its sensing hardware should usually be considered parts of the environment
+rather than parts of the agent. Similarly, if we apply the MDP framework to a person
+or animal, the muscles, skeleton, and sensory organs should be considered part of the
+environment. Rewards, too, presumably are computed inside the physical bodies of
+natural and artiﬁcial learning systems, but are considered external to the agent.
+The general rule we follow is that anything that cannot be changed arbitrarily by
+the agent is considered to be outside of it and thus part of its environment. We do
+not assume that everything in the environment is unknown to the agent. For example,
+the agent often knows quite a bit about how its rewards are computed as a function of
+its actions and the states in which they are taken. But we always consider the reward
+computation to be external to the agent because it deﬁnes the task facing the agent and
+thus must be beyond its ability to change arbitrarily. In fact, in some cases the agent may
+know everything about how its environment works and still face a diﬃcult reinforcement
+learning task, just as we may know exactly how a puzzle like Rubik’s cube works, but
+still be unable to solve it. The agent–environment boundary represents the limit of the
+agent’s absolute control, not of its knowledge.
+The agent–environment boundary can be located at di↵erent places for di↵erent
+purposes. In a complicated robot, many di↵erent agents may be operating at once, each
+with its own boundary. For example, one agent may make high-level decisions which form
+part of the states faced by a lower-level agent that implements the high-level decisions. In
+practice, the agent–environment boundary is determined once one has selected particular
+states, actions, and rewards, and thus has identiﬁed a speciﬁc decision-making task of
+interest.
+The MDP framework is a considerable abstraction of the problem of goal-directed
+learning from interaction. It proposes that whatever the details of the sensory, memory,
+and control apparatus, and whatever objective one is trying to achieve, any problem of
+learning goal-directed behavior can be reduced to three signals passing back and forth
+between an agent and its environment: one signal to represent the choices made by the
+agent (the actions), one signal to represent the basis on which the choices are made (the
+states), and one signal to deﬁne the agent’s goal (the rewards). This framework may not
+be suﬃcient to represent all decision-learning problems usefully, but it has proved to be
+widely useful and applicable.
+Of course, the particular states and actions vary greatly from task to task, and how
+they are represented can strongly a↵ect performance. In reinforcement learning, as in
+other kinds of learning, such representational choices are at present more art than science.
+
+--- Page 73 ---
+3.1. The Agent–Environment Interface
+51
+In this book we o↵er some advice and examples regarding good ways of representing
+states and actions, but our primary focus is on general principles for learning how to
+behave once the representations have been selected.
+Example 3.1: Bioreactor Suppose reinforcement learning is being applied to determine
+moment-by-moment temperatures and stirring rates for a bioreactor (a large vat of
+nutrients and bacteria used to produce useful chemicals).
+The actions in such an
+application might be target temperatures and target stirring rates that are passed to
+lower-level control systems that, in turn, directly activate heating elements and motors to
+attain the targets. The states are likely to be thermocouple and other sensory readings,
+perhaps ﬁltered and delayed, plus symbolic inputs representing the ingredients in the
+vat and the target chemical. The rewards might be moment-by-moment measures of the
+rate at which the useful chemical is produced by the bioreactor. Notice that here each
+state is a list, or vector, of sensor readings and symbolic inputs, and each action is a
+vector consisting of a target temperature and a stirring rate. It is typical of reinforcement
+learning tasks to have states and actions with such structured representations. Rewards,
+on the other hand, are always single numbers.
+Example 3.2: Pick-and-Place Robot
+Consider using reinforcement learning to
+control the motion of a robot arm in a repetitive pick-and-place task. If we want to learn
+movements that are fast and smooth, the learning agent will have to control the motors
+directly and have low-latency information about the current positions and velocities
+of the mechanical linkages. The actions in this case might be the voltages applied to
+each motor at each joint, and the states might be the latest readings of joint angles and
+velocities. The reward might be +1 for each object successfully picked up and placed. To
+encourage smooth movements, on each time step a small, negative reward could be given
+as a function of the moment-to-moment jerkiness of the motion.
+Exercise 3.1 Devise three example tasks of your own that ﬁt into the MDP framework,
+identifying for each its states, actions, and rewards. Make the three examples as di↵erent
+from each other as possible. The framework is abstract and ﬂexible and can be applied in
+many di↵erent ways. Stretch its limits in some way in at least one of your examples. ⇤
+Exercise 3.2 Is the MDP framework adequate to usefully represent all goal-directed
+learning tasks? Can you think of any clear exceptions?
+⇤
+Exercise 3.3 Consider the problem of driving. You could deﬁne the actions in terms of
+the accelerator, steering wheel, and brake, that is, where your body meets the machine.
+Or you could deﬁne them farther out—say, where the rubber meets the road, considering
+your actions to be tire torques. Or you could deﬁne them farther in—say, where your
+brain meets your body, the actions being muscle twitches to control your limbs. Or you
+could go to a really high level and say that your actions are your choices of where to drive.
+What is the right level, the right place to draw the line between agent and environment?
+On what basis is one location of the line to be preferred over another? Is there any
+fundamental reason for preferring one location over another, or is it a free choice?
+⇤
+
+--- Page 74 ---
+52
+Chapter 3: Finite Markov Decision Processes
+Example 3.3
+Recycling Robot
+A mobile robot has the job of collecting empty soda cans in an oﬃce environment. It
+has sensors for detecting cans, and an arm and gripper that can pick them up and place
+them in an onboard bin; it runs on a rechargeable battery. The robot’s control system
+has components for interpreting sensory information, for navigating, and for controlling
+the arm and gripper. High-level decisions about how to search for cans are made by a
+reinforcement learning agent based on the current charge level of the battery. To make a
+simple example, we assume that only two charge levels can be distinguished, comprising
+a small state set S = {high, low}. In each state, the agent can decide whether to (1)
+actively search for a can for a certain period of time, (2) remain stationary and wait
+for someone to bring it a can, or (3) head back to its home base to recharge its battery.
+When the energy level is high, recharging would always be foolish, so we do not include it
+in the action set for this state. The action sets are then A(high) = {search, wait} and
+A(low) = {search, wait, recharge}.
+The rewards are zero most of the time, but become positive when the robot secures an
+empty can, or large and negative if the battery runs all the way down. The best way to
+ﬁnd cans is to actively search for them, but this runs down the robot’s battery, whereas
+waiting does not. Whenever the robot is searching, the possibility exists that its battery
+will become depleted. In this case the robot must shut down and wait to be rescued
+(producing a low reward). If the energy level is high, then a period of active search can
+always be completed without risk of depleting the battery. A period of searching that
+begins with a high energy level leaves the energy level high with probability ↵and reduces
+it to low with probability 1 −↵. On the other hand, a period of searching undertaken
+when the energy level is low leaves it low with probability β and depletes the battery with
+probability 1 −β. In the latter case, the robot must be rescued, and the battery is then
+recharged back to high. Each can collected by the robot counts as a unit reward, whereas
+a reward of −3 results whenever the robot has to be rescued. Let rsearch and rwait, with
+rsearch > rwait, denote the expected number of cans the robot will collect (and hence the
+expected reward) while searching and while waiting respectively. Finally, suppose that no
+cans can be collected during a run home for recharging, and that no cans can be collected
+on a step in which the battery is depleted. This system is then a ﬁnite MDP, and we
+can write down the transition probabilities and the expected rewards, with dynamics as
+indicated in the table on the left:
+s
+a
+s0
+p(s0 |s, a)
+r(s, a, s0)
+high
+search
+high
+↵
+rsearch
+high
+search
+low
+1 −↵
+rsearch
+low
+search
+high
+1 −β
+−3
+low
+search
+low
+β
+rsearch
+high
+wait
+high
+1
+rwait
+high
+wait
+low
+0
+-
+low
+wait
+high
+0
+-
+low
+wait
+low
+1
+rwait
+low
+recharge
+high
+1
+0
+low
+recharge
+low
+0
+-
+search
+high
+low
+1,  0
+search
+recharge
+wait
+wait
+β, rsearch
+↵, rsearch
+1−↵, rsearch
+1−β, −3
+1, rwait
+1, rwait
+Note that there is a row in the table for each possible combination of current state, s,
+action, a 2 A(s), and next state, s0. Some transitions have zero probability of occurring,
+so no expected reward is speciﬁed for them. Shown on the right is another useful way of
+
+--- Page 75 ---
+3.2. Goals and Rewards
+53
+summarizing the dynamics of a ﬁnite MDP, as a transition graph. There are two kinds of
+nodes: state nodes and action nodes. There is a state node for each possible state (a large
+open circle labeled by the name of the state), and an action node for each state–action
+pair (a small solid circle labeled by the name of the action and connected by a line to the
+state node). Starting in state s and taking action a moves you along the line from state
+node s to action node (s, a). Then the environment responds with a transition to the next
+state’s node via one of the arrows leaving action node (s, a). Each arrow corresponds to
+a triple (s, s0, a), where s0 is the next state, and we label the arrow with the transition
+probability, p(s0|s, a), and the expected reward for that transition, r(s, a, s0). Note that
+the transition probabilities labeling the arrows leaving an action node always sum to 1.
+Exercise 3.4
+Give a table analogous to that in Example 3.3, but for p(s0, r|s, a). It
+should have columns for s, a, s0, r, and p(s0, r|s, a), and a row for every 4-tuple for which
+p(s0, r|s, a) > 0.
+⇤
+3.2
+Goals and Rewards
+In reinforcement learning, the purpose or goal of the agent is formalized in terms of a
+special signal, called the reward, passing from the environment to the agent. At each time
+step, the reward is a simple number, Rt 2 R. Informally, the agent’s goal is to maximize
+the total amount of reward it receives. This means maximizing not immediate reward,
+but cumulative reward in the long run. We can clearly state this informal idea as the
+reward hypothesis:
+That all of what we mean by goals and purposes can be well thought of as
+the maximization of the expected value of the cumulative sum of a received
+scalar signal (called reward).
+The use of a reward signal to formalize the idea of a goal is one of the most distinctive
+features of reinforcement learning.
+Although formulating goals in terms of reward signals might at ﬁrst appear limiting,
+in practice it has proved to be ﬂexible and widely applicable. The best way to see this is
+to consider examples of how it has been, or could be, used. For example, to make a robot
+learn to walk, researchers have provided reward on each time step proportional to the
+robot’s forward motion. In making a robot learn how to escape from a maze, the reward
+is often −1 for every time step that passes prior to escape; this encourages the agent to
+escape as quickly as possible. To make a robot learn to ﬁnd and collect empty soda cans
+for recycling, one might give it a reward of zero most of the time, and then a reward of
++1 for each can collected. One might also want to give the robot negative rewards when
+it bumps into things or when somebody yells at it. For an agent to learn to play checkers
+or chess, the natural rewards are +1 for winning, −1 for losing, and 0 for drawing and
+for all nonterminal positions.
+You can see what is happening in all of these examples. The agent always learns to
+maximize its reward. If we want it to do something for us, we must provide rewards
+to it in such a way that in maximizing them the agent will also achieve our goals. It
+
+--- Page 76 ---
+54
+Chapter 3: Finite Markov Decision Processes
+is thus critical that the rewards we set up truly indicate what we want accomplished.
+In particular, the reward signal is not the place to impart to the agent prior knowledge
+about how to achieve what we want it to do.5 For example, a chess-playing agent should
+be rewarded only for actually winning, not for achieving subgoals such as taking its
+opponent’s pieces or aining control of the center of the board. If achieving these sorts
+of subgoals were rewarded, then the agent might ﬁnd a way to achieve them without
+achieving the real goal. For example, it might ﬁnd a way to take the opponent’s pieces
+even at the cost of losing the game.
+The reward signal is your way of communicating to
+the agent what you want achieved, not how you want it achieved.6
+3.3
+Returns and Episodes
+So far we have discussed informally the objective of learning. We have said that the
+agent’s goal is to maximize the cumulative reward it receives in the long run. How might
+this be deﬁned formally? If the sequence of rewards received after time step t is denoted
+Rt+1, Rt+2, Rt+3, . . ., then what precise aspect of this sequence do we wish to maximize?
+In general, we seek to maximize the expected return, where the return, denoted Gt, is
+deﬁned as some speciﬁc function of the reward sequence. In the simplest case the return
+is the sum of the rewards:
+Gt .= Rt+1 + Rt+2 + Rt+3 + · · · + RT ,
+(3.7)
+where T is a ﬁnal time step. This approach makes sense in applications in which there
+is a natural notion of ﬁnal time step, that is, when the agent–environment interaction
+breaks naturally into subsequences, which we call episodes,7 such as plays of a game,
+trips through a maze, or any sort of repeated interaction. Each episode ends in a special
+state called the terminal state, followed by a reset to a standard starting state or to a
+sample from a standard distribution of starting states. Even if you think of episodes as
+ending in di↵erent ways, such as winning and losing a game, the next episode begins
+independently of how the previous one ended. Thus the episodes can all be considered to
+end in the same terminal state, with di↵erent rewards for the di↵erent outcomes. Tasks
+with episodes of this kind are called episodic tasks. In episodic tasks we sometimes need
+to distinguish the set of all nonterminal states, denoted S, from the set of all states plus
+the terminal state, denoted S+. The time of termination, T, is a random variable that
+normally varies from episode to episode.
+On the other hand, in many cases the agent–environment interaction does not break
+naturally into identiﬁable episodes, but goes on continually without limit. For example,
+this would be the natural way to formulate an on-going process-control task, or an
+application to a robot with a long life span. We call these continuing tasks. The return
+formulation (3.7) is problematic for continuing tasks because the ﬁnal time step would be
+T = 1, and the return, which is what we are trying to maximize, could easily be inﬁnite.
+5Better places for imparting this kind of prior knowledge are the initial policy or initial value function.
+6Section 17.4 delves further into the issue of designing e↵ective reward signals.
+7Episodes are sometimes called “trials” in the literature.
+
+--- Page 77 ---
+3.3. Returns and Episodes
+55
+(For example, suppose the agent receives a reward of +1 at each time step.) Thus, in this
+book we usually use a deﬁnition of return that is slightly more complex conceptually but
+much simpler mathematically.
+The additional concept that we need is that of discounting. According to this approach,
+the agent tries to select actions so that the sum of the discounted rewards it receives over
+the future is maximized. In particular, it chooses At to maximize the expected discounted
+return:
+Gt
+.= Rt+1 + γRt+2 + γ2Rt+3 + · · · =
+1
+X
+k=0
+γkRt+k+1,
+(3.8)
+where γ is a parameter, 0 γ 1, called the discount rate.
+The discount rate determines the present value of future rewards: a reward received
+k time steps in the future is worth only γk−1 times what it would be worth if it were
+received immediately. If γ < 1, the inﬁnite sum in (3.8) has a ﬁnite value as long as the
+reward sequence {Rk} is bounded. If γ = 0, the agent is “myopic” in being concerned
+only with maximizing immediate rewards: its objective in this case is to learn how to
+choose At so as to maximize only Rt+1. If each of the agent’s actions happened to
+inﬂuence only the immediate reward, not future rewards as well, then a myopic agent
+could maximize (3.8) by separately maximizing each immediate reward. But in general,
+acting to maximize immediate reward can reduce access to future rewards so that the
+return is reduced. As γ approaches 1, the return objective takes future rewards into
+account more strongly; the agent becomes more farsighted.
+Returns at successive time steps are related to each other in a way that is important
+for the theory and algorithms of reinforcement learning:
+Gt .= Rt+1 + γRt+2 + γ2Rt+3 + γ3Rt+4 + · · ·
+= Rt+1 + γ
+#
+Rt+2 + γRt+3 + γ2Rt+4 + · · ·
+$
+= Rt+1 + γGt+1
+(3.9)
+Note that this works for all time steps t < T, even if termination occurs at t + 1, provided
+we deﬁne GT = 0. This often makes it easy to compute returns from reward sequences.
+Note that although the return (3.8) is a sum of an inﬁnite number of terms, it is still
+ﬁnite if the reward is nonzero and constant—if γ < 1. For example, if the reward is a
+constant +1, then the return is
+Gt =
+1
+X
+k=0
+γk =
+1
+1 −γ .
+(3.10)
+Exercise 3.5 The equations in Section 3.1 are for the continuing case and need to be
+modiﬁed (very slightly) to apply to episodic tasks. Show that you know the modiﬁcations
+needed by giving the modiﬁed version of (3.3).
+⇤
+
+--- Page 78 ---
+56
+Chapter 3: Finite Markov Decision Processes
+Example 3.4: Pole-Balancing
+The objective in this task is to apply
+forces to a cart moving along a track
+so as to keep a pole hinged to the cart
+from falling over: A failure is said to
+occur if the pole falls past a given angle
+from vertical or if the cart runs o↵the
+track.
+The pole is reset to vertical
+after each failure. This task could be
+treated as episodic, where the natural
+episodes are the repeated attempts to balance the pole. The reward in this case could be
++1 for every time step on which failure did not occur, so that the return at each time
+would be the number of steps until failure. In this case, successful balancing forever would
+mean a return of inﬁnity. Alternatively, we could treat pole-balancing as a continuing
+task, using discounting. In this case the reward would be −1 on each failure and zero at
+all other times. The return at each time would then be related to −γK−1, where K is
+the number of time steps before failure (as well as to the times of later failures). In either
+case, the return is maximized by keeping the pole balanced for as long as possible.
+Exercise 3.6
+Suppose you treated pole-balancing as an episodic task but also used
+discounting, with all rewards zero except for −1 upon failure. What then would the
+return be at each time? How does this return di↵er from that in the discounted, continuing
+formulation of this task?
+⇤
+Exercise 3.7 Imagine that you are designing a robot to run a maze. You decide to give it a
+reward of +1 for escaping from the maze and a reward of zero at all other times. The task
+seems to break down naturally into episodes—the successive runs through the maze—so
+you decide to treat it as an episodic task, where the goal is to maximize expected total
+reward (3.7). After running the learning agent for a while, you ﬁnd that it is showing
+no improvement in escaping from the maze. What is going wrong? Have you e↵ectively
+communicated to the agent what you want it to achieve?
+⇤
+Exercise 3.8 Suppose γ = 0.5 and the following sequence of rewards is received R1 = −1,
+R2 = 2, R3 = 6, R4 = 3, and R5 = 2, with T = 5. What are G0, G1, . . ., G5? Hint:
+Work backwards.
+⇤
+Exercise 3.9 Suppose γ = 0.9 and the reward sequence is R1 = 2 followed by an inﬁnite
+sequence of 7s. What are G1 and G0?
+⇤
+Exercise 3.10 Prove the second equality in (3.10).
+⇤
+
+--- Page 79 ---
+3.4. Uniﬁed Notation for Episodic and Continuing Tasks
+57
+3.4
+Uniﬁed Notation for Episodic and Continuing Tasks
+In the preceding section we described two kinds of reinforcement learning tasks, one
+in which the agent–environment interaction naturally breaks down into a sequence of
+separate episodes (episodic tasks), and one in which it does not (continuing tasks). The
+former case is mathematically easier because each action a↵ects only the ﬁnite number of
+rewards subsequently received during the episode. In this book we consider sometimes
+one kind of problem and sometimes the other, but often both. It is therefore useful to
+establish one notation that enables us to talk precisely about both cases simultaneously.
+To be precise about episodic tasks requires some additional notation. Rather than one
+long sequence of time steps, we need to consider a series of episodes, each of which consists
+of a ﬁnite sequence of time steps. We number the time steps of each episode starting
+anew from zero. Therefore, we have to refer not just to St, the state representation at
+time t, but to St,i, the state representation at time t of episode i (and similarly for At,i,
+Rt,i, ⇡t,i, Ti, etc.). However, it turns out that when we discuss episodic tasks we almost
+never have to distinguish between di↵erent episodes. We are almost always considering
+a particular episode, or stating something that is true for all episodes. Accordingly, in
+practice we almost always abuse notation slightly by dropping the explicit reference to
+episode number. That is, we write St to refer to St,i, and so on.
+We need one other convention to obtain a single notation that covers both episodic
+and continuing tasks. We have deﬁned the return as a sum over a ﬁnite number of terms
+in one case (3.7) and as a sum over an inﬁnite number of terms in the other (3.8). These
+two can be uniﬁed by considering episode termination to be the entering of a special
+absorbing state that transitions only to itself and that generates only rewards of zero. For
+example, consider the state transition diagram:
+R1 = +1
+S0
+S1
+R2 = +1
+S2
+R3 = +1
+R4 = 0
+R5 = 0
+. . .
+Here the solid square represents the special absorbing state corresponding to the end of an
+episode. Starting from S0, we get the reward sequence +1, +1, +1, 0, 0, 0, . . .. Summing
+these, we get the same return whether we sum over the ﬁrst T rewards (here T = 3) or
+over the full inﬁnite sequence. This remains true even if we introduce discounting. Thus,
+we can deﬁne the return, in general, according to (3.8), using the convention of omitting
+episode numbers when they are not needed, and including the possibility that γ = 1 if the
+sum remains deﬁned (e.g., because all episodes terminate). Alternatively, we can write
+Gt .=
+T
+X
+k=t+1
+γk−t−1Rk,
+(3.11)
+including the possibility that T = 1 or γ = 1 (but not both). We use these conventions
+throughout the rest of the book to simplify notation and to express the close parallels
+
+--- Page 80 ---
+58
+Chapter 3: Finite Markov Decision Processes
+between episodic and continuing tasks.
+(Later, in Chapter 10, we will introduce a
+formulation that is both continuing and undiscounted.)
+3.5
+Policies and Value Functions
+Almost all reinforcement learning algorithms involve estimating value functions—functions
+of states (or of state–action pairs) that estimate how good it is for the agent to be in a
+given state (or how good it is to perform a given action in a given state). The notion
+of “how good” here is deﬁned in terms of future rewards that can be expected, or, to
+be precise, in terms of expected return. Of course the rewards the agent can expect to
+receive in the future depend on what actions it will take. Accordingly, value functions
+are deﬁned with respect to particular ways of acting, called policies.
+Formally, a policy is a mapping from states to probabilities of selecting each possible
+action. If the agent is following policy ⇡at time t, then ⇡(a|s) is the probability that
+At = a if St = s. Like p, ⇡is an ordinary function; the “|” in the middle of ⇡(a|s)
+merely reminds us that it deﬁnes a probability distribution over a 2 A(s) for each s 2 S.
+Reinforcement learning methods specify how the agent’s policy is changed as a result of
+its experience.
+Exercise 3.11 If the current state is St, and actions are selected according to a stochastic
+policy ⇡, then what is the expectation of Rt+1 in terms of ⇡and the four-argument
+function p (3.2)?
+⇤
+The value function of a state s under a policy ⇡, denoted v⇡(s), is the expected return
+when starting in s and following ⇡thereafter. For MDPs, we can deﬁne v⇡formally by
+v⇡(s)
+.= E⇡[Gt | St =s] = E⇡
+" 1
+X
+k=0
+γkRt+k+1
+44444 St =s
+#
+, for all s 2 S,
+(3.12)
+where E⇡[·] denotes the expected value of a random variable given that the agent follows
+policy ⇡, and t is any time step. Note that the value of the terminal state, if any, is
+always zero. We call the function v⇡the state-value function for policy ⇡.
+Similarly, we deﬁne the value of taking action a in state s under a policy ⇡, denoted
+q⇡(s, a), as the expected return starting from s, taking the action a, and thereafter
+following policy ⇡:
+q⇡(s, a)
+.= E⇡[Gt | St =s, At = a] = E⇡
+" 1
+X
+k=0
+γkRt+k+1
+44444 St =s, At =a
+#
+.
+(3.13)
+We call q⇡the action-value function for policy ⇡.
+Exercise 3.12 Give an equation for v⇡in terms of q⇡and ⇡.
+⇤
+Exercise 3.13 Give an equation for q⇡in terms of v⇡and the four-argument p.
+⇤
+The value functions v⇡and q⇡can be estimated from experience. For example, if an
+agent follows policy ⇡and maintains an average, for each state encountered, of the actual
+returns that have followed that state, then the average will converge to the state’s value,
+v⇡(s), as the number of times that state is encountered approaches inﬁnity. If separate
+
+--- Page 81 ---
+3.5. Policies and Value Functions
+59
+averages are kept for each action taken in each state, then these averages will similarly
+converge to the action values, q⇡(s, a). We call estimation methods of this kind Monte
+Carlo methods because they involve averaging over many random samples of actual returns.
+These kinds of methods are presented in Chapter 5. Of course, if there are very many
+states, then it may not be practical to keep separate averages for each state individually.
+Instead, the agent would have to maintain v⇡and q⇡as parameterized functions (with
+fewer parameters than states) and adjust the parameters to better match the observed
+returns. This can also produce accurate estimates, although much depends on the nature
+of the parameterized function approximator. These possibilities are discussed in Part II
+of the book.
+A fundamental property of value functions used throughout reinforcement learning and
+dynamic programming is that they satisfy recursive relationships similar to that which
+we have already established for the return (3.9). For any policy ⇡and any state s, the
+following consistency condition holds between the value of s and the value of its possible
+successor states:
+v⇡(s) .= E⇡[Gt | St =s]
+= E⇡[Rt+1 + γGt+1 | St =s]
+(by (3.9))
+=
+X
+a
+⇡(a|s)
+X
+s0
+X
+r
+p(s0, r|s, a)
+h
+r + γE⇡[Gt+1|St+1 =s0]
+i
+=
+X
+a
+⇡(a|s)
+X
+s0,r
+p(s0, r|s, a)
+h
+r + γv⇡(s0)
+i
+,
+for all s 2 S,
+(3.14)
+where it is implicit that the actions, a, are taken from the set A(s), that the next states,
+s0, are taken from the set S (or from S+ in the case of an episodic problem), and that
+the rewards, r, are taken from the set R. Note also how in the last equation we have
+merged the two sums, one over all the values of s0 and the other over all the values of r,
+into one sum over all the possible values of both. We use this kind of merged sum often
+to simplify formulas. Note how the ﬁnal expression can be read easily as an expected
+value. It is really a sum over all values of the three variables, a, s0, and r. For each triple,
+we compute its probability, ⇡(a|s)p(s0, r|s, a), weight the quantity in brackets by that
+probability, then sum over all possibilities to get an expected value.
+⇡
+s
+s0
+⇡
+r
+p
+a
+Backup diagram for v⇡
+Equation (3.14) is the Bellman equation for v⇡. It expresses
+a relationship between the value of a state and the values of
+its successor states. Think of looking ahead from a state to its
+possible successor states, as suggested by the diagram to the
+right. Each open circle represents a state and each solid circle
+represents a state–action pair. Starting from state s, the root
+node at the top, the agent could take any of some set of actions—
+three are shown in the diagram—based on its policy ⇡. From
+each of these, the environment could respond with one of several next states, s0 (two are
+shown in the ﬁgure), along with a reward, r, depending on its dynamics given by the
+function p. The Bellman equation (3.14) averages over all the possibilities, weighting each
+by its probability of occurring. It states that the value of the start state must equal the
+(discounted) value of the expected next state, plus the reward expected along the way.
+
+--- Page 82 ---
+60
+Chapter 3: Finite Markov Decision Processes
+The value function v⇡is the unique solution to its Bellman equation. We show in
+subsequent chapters how this Bellman equation forms the basis of a number of ways to
+compute, approximate, and learn v⇡. We call diagrams like that above backup diagrams
+because they diagram relationships that form the basis of the update or backup operations
+that are at the heart of reinforcement learning methods. These operations transfer
+value information back to a state (or a state–action pair) from its successor states (or
+state–action pairs). We use backup diagrams throughout the book to provide graphical
+summaries of the algorithms we discuss. (Note that, unlike transition graphs, the state
+nodes of backup diagrams do not necessarily represent distinct states; for example, a
+state might be its own successor.)
+Example 3.5: Gridworld Figure 3.2 (left) shows a rectangular gridworld representation
+of a simple ﬁnite MDP. The cells of the grid correspond to the states of the environment. At
+each cell, four actions are possible: north, south, east, and west, which deterministically
+cause the agent to move one cell in the respective direction on the grid. Actions that
+would take the agent o↵the grid leave its location unchanged, but also result in a reward
+of −1. Other actions result in a reward of 0, except those that move the agent out of the
+special states A and B. From state A, all four actions yield a reward of +10 and take the
+agent to A0. From state B, all actions yield a reward of +5 and take the agent to B0.
+3.3 8.8 4.4 5.3 1.5
+1.5 3.0 2.3 1.9 0.5
+0.1 0.7 0.7 0.4 -0.4
+-1.0 -0.4 -0.4 -0.6 -1.2
+-1.9 -1.3 -1.2 -1.4 -2.0
+A
+B
+A'
+B'
++10
++5
+Actions
+Figure 3.2: Gridworld example: exceptional reward dynamics (left) and state-value function
+for the equiprobable random policy (right).
+Suppose the agent selects all four actions with equal probability in all states. Figure 3.2
+(right) shows the value function, v⇡, for this policy, for the discounted reward case with
+γ = 0.9. This value function was computed by solving the system of linear equations
+(3.14). Notice the negative values near the lower edge; these are the result of the high
+probability of hitting the edge of the grid there under the random policy. State A is
+the best state to be in under this policy. Note that A’s expected return is less than its
+immediate reward of 10, because from A the agent is taken to state A0 from which it is
+likely to run into the edge of the grid. State B, on the other hand, is valued more than
+its immediate reward of 5, because from B the agent is taken to B0 which has a positive
+value. From B0 the expected penalty (negative reward) for possibly running into an edge
+is more than compensated for by the expected gain for possibly stumbling onto A or B.
+Exercise 3.14 The Bellman equation (3.14) must hold for each state for the value function
+v⇡shown in Figure 3.2 (right) of Example 3.5. Show numerically that this equation holds
+for the center state, valued at +0.7, with respect to its four neighboring states, valued at
++2.3, +0.4, −0.4, and +0.7. (These numbers are accurate only to one decimal place.) ⇤
+
+--- Page 83 ---
+3.5. Policies and Value Functions
+61
+Exercise 3.15
+In the gridworld example, rewards are positive for goals, negative for
+running into the edge of the world, and zero the rest of the time. Are the signs of these
+rewards important, or only the intervals between them? Prove, using (3.8), that adding a
+constant c to all the rewards adds a constant, vc, to the values of all states, and thus
+does not a↵ect the relative values of any states under any policies. What is vc in terms
+of c and γ?
+⇤
+Exercise 3.16 Now consider adding a constant c to all the rewards in an episodic task,
+such as maze running. Would this have any e↵ect, or would it leave the task unchanged
+as in the continuing task above? Why or why not? Give an example.
+⇤
+Example 3.6: Golf
+To formulate playing a hole of golf as a reinforcement learning
+task, we count a penalty (negative reward) of −1 for each stroke until we hit the ball
+into the hole. The state is the location of the ball. The value of a state is the negative of
+the number of strokes to the hole from that location. Our actions are how we aim and
+swing at the ball, of course, and which club we select. Let us take the former as given
+and consider just the choice of club, which we assume is either a putter or a driver. The
+upper part of Figure 3.3 shows a possible state-value function, vputt(s), for the policy that
+Q*(s,driver)
+V
+putt
+sand
+green
+!1
+s a
+n
+d
+!2
+!2
+!3
+!4
+!1
+!5
+!6
+!4
+!3
+!3
+!2
+!4
+sand
+green
+!1
+s a
+n
+d
+!2
+!3
+!2
+0
+0
+!"
+!"
+vputt
+q⇤(s, driver)
+Figure 3.3: A golf example: the state-value func-
+tion for putting (upper) and the optimal action-
+value function for using the driver (lower).
+always uses the putter.
+The terminal
+state in-the-hole has a value of 0. From
+anywhere on the green we assume we can
+make a putt; these states have value −1.
+O↵the green we cannot reach the hole by
+putting, and the value is lower. If we can
+reach the green from a state by putting,
+then that state must have value one less
+than the green’s value, that is, −2. For
+simplicity, let us assume we can putt very
+precisely and deterministically, but with
+a limited range. This gives us the sharp
+contour line labeled −2 in the ﬁgure; all
+locations between that line and the green
+require exactly two strokes to complete
+the hole. Similarly, any location within
+putting range of the −2 contour line must
+have a value of −3, and so on to get all the
+contour lines shown in the ﬁgure. Putting
+doesn’t get us out of sand traps, so they
+have a value of −1. Overall, it takes us
+six strokes to get from the tee to the hole
+by putting.
+r
+s0
+s, a
+a0
+⇡
+p
+q⇡backup diagram
+Exercise 3.17 What is the Bellman equation for action values, that
+is, for q⇡? It must give the action value q⇡(s, a) in terms of the action
+values, q⇡(s0, a0), of possible successors to the state–action pair (s, a).
+Hint: The backup diagram to the right corresponds to this equation.
+Show the sequence of equations analogous to (3.14), but for action
+values.
+⇤
+
+--- Page 84 ---
+62
+Chapter 3: Finite Markov Decision Processes
+Exercise 3.18 The value of a state depends on the values of the actions possible in that
+state and on how likely each action is to be taken under the current policy. We can
+think of this in terms of a small backup diagram rooted at the state and considering each
+possible action:
+s
+taken with
+probability ⇡(a|s)
+v⇡(s)
+q⇡(s, a)
+a1
+a2
+a3
+Give the equation corresponding to this intuition and diagram for the value at the root
+node, v⇡(s), in terms of the value at the expected leaf node, q⇡(s, a), given St = s. This
+equation should include an expectation conditioned on following the policy, ⇡. Then give
+a second equation in which the expected value is written out explicitly in terms of ⇡(a|s)
+such that no expected value notation appears in the equation.
+⇤
+Exercise 3.19 The value of an action, q⇡(s, a), depends on the expected next reward and
+the expected sum of the remaining rewards. Again we can think of this in terms of a
+small backup diagram, this one rooted at an action (state–action pair) and branching to
+the possible next states:
+s, a
+q⇡(s, a)
+s0
+3
+s0
+2
+s0
+1
+r1
+r2
+r3
+v⇡(s0)
+expected
+rewards
+Give the equation corresponding to this intuition and diagram for the action value,
+q⇡(s, a), in terms of the expected next reward, Rt+1, and the expected next state value,
+v⇡(St+1), given that St =s and At =a. This equation should include an expectation but
+not one conditioned on following the policy. Then give a second equation, writing out the
+expected value explicitly in terms of p(s0, r|s, a) deﬁned by (3.2), such that no expected
+value notation appears in the equation.
+⇤
+3.6
+Optimal Policies and Optimal Value Functions
+Solving a reinforcement learning task means, roughly, ﬁnding a policy that achieves a lot
+of reward over the long run. For ﬁnite MDPs, we can precisely deﬁne an optimal policy
+in the following way. Value functions deﬁne a partial ordering over policies. A policy ⇡is
+deﬁned to be better than or equal to a policy ⇡0 if its expected return is greater than
+or equal to that of ⇡0 for all states. In other words, ⇡≥⇡0 if and only if v⇡(s) ≥v⇡0(s)
+for all s 2 S. There is always at least one policy that is better than or equal to all other
+policies. This is an optimal policy. Although there may be more than one, we denote all
+the optimal policies by ⇡⇤. They share the same state-value function, called the optimal
+state-value function, denoted v⇤, and deﬁned as
+v⇤(s) .= max
+⇡
+v⇡(s),
+(3.15)
+for all s 2 S.
+
+--- Page 85 ---
+3.6. Optimal Policies and Optimal Value Functions
+63
+Optimal policies also share the same optimal action-value function, denoted q⇤, and
+deﬁned as
+q⇤(s, a) .= max
+⇡
+q⇡(s, a),
+(3.16)
+for all s 2 S and a 2 A(s). For the state–action pair (s, a), this function gives the
+expected return for taking action a in state s and thereafter following an optimal policy.
+Thus, we can write q⇤in terms of v⇤as follows:
+q⇤(s, a) = E[Rt+1 + γv⇤(St+1) | St =s, At =a] .
+(3.17)
+Example 3.7: Optimal Value Functions for Golf
+The lower part of Figure 3.3
+shows the contours of a possible optimal action-value function q⇤(s, driver). These are
+the values of each state if we ﬁrst play a stroke with the driver and afterward select either
+the driver or the putter, whichever is better. The driver enables us to hit the ball farther,
+but with less accuracy. We can reach the hole in one shot using the driver only if we
+are already very close; thus the −1 contour for q⇤(s, driver) covers only a small portion
+of the green. If we have two strokes, however, then we can reach the hole from much
+farther away, as shown by the −2 contour. In this case we don’t have to drive all the way
+to within the small −1 contour, but only to anywhere on the green; from there we can
+use the putter. The optimal action-value function gives the values after committing to a
+particular ﬁrst action, in this case, to the driver, but afterward using whichever actions
+are best. The −3 contour is still farther out and includes the starting tee. From the tee,
+the best sequence of actions is two drives and one putt, sinking the ball in three strokes.
+Because v⇤is the value function for a policy, it must satisfy the self-consistency
+condition given by the Bellman equation for state values (3.14). Because it is the optimal
+value function, however, v⇤’s consistency condition can be written in a special form
+without reference to any speciﬁc policy. This is the Bellman equation for v⇤, or the
+Bellman optimality equation. Intuitively, the Bellman optimality equation expresses the
+fact that the value of a state under an optimal policy must equal the expected return for
+the best action from that state:
+v⇤(s) = max
+a2A(s) q⇡⇤(s, a)
+= max
+a
+E⇡⇤[Gt | St =s, At =a]
+= max
+a
+E⇡⇤[Rt+1 + γGt+1 | St =s, At =a]
+(by (3.9))
+= max
+a
+E[Rt+1 + γv⇤(St+1) | St =s, At =a]
+(3.18)
+= max
+a
+X
+s0,r
+p(s0, r|s, a)
+⇥
+r + γv⇤(s0)
+⇤
+.
+(3.19)
+
+--- Page 86 ---
+64
+Chapter 3: Finite Markov Decision Processes
+The last two equations are two forms of the Bellman optimality equation for v⇤. The
+Bellman optimality equation for q⇤is
+q⇤(s, a)
+=
+E
+h
+Rt+1 + γ max
+a0 q⇤(St+1, a0)
+444 St = s, At = a
+i
+=
+X
+s0,r
+p(s0, r|s, a)
+h
+r + γ max
+a0 q⇤(s0, a0)
+i
+.
+(3.20)
+The backup diagrams in the ﬁgure below show graphically the spans of future states
+and actions considered in the Bellman optimality equations for v⇤and q⇤. These are the
+same as the backup diagrams for v⇡and q⇡presented earlier except that arcs have been
+added at the agent’s choice points to represent that the maximum over that choice is
+taken rather than the expected value given some policy. The backup diagram on the left
+graphically represents the Bellman optimality equation (3.19) and the backup diagram
+on the right graphically represents (3.20).
+s
+s0
+a
+r
+r
+s0
+s, a
+a0
+max
+max
+(v⇤)
+(q⇤)
+Figure 3.4: Backup diagrams for v⇤and q⇤
+For ﬁnite MDPs, the Bellman optimality equation for v⇤(3.19) has a unique solution.
+The Bellman optimality equation is actually a system of equations, one for each state, so
+if there are n states, then there are n equations in n unknowns. If the dynamics p of the
+environment are known, then in principle one can solve this system of equations for v⇤
+using any one of a variety of methods for solving systems of nonlinear equations. One
+can solve a related set of equations for q⇤.
+Once one has v⇤, it is relatively easy to determine an optimal policy. For each state
+s, there will be one or more actions at which the maximum is obtained in the Bellman
+optimality equation. Any policy that assigns nonzero probability only to these actions is
+an optimal policy. You can think of this as a one-step search. If you have the optimal
+value function, v⇤, then the actions that appear best after a one-step search will be optimal
+actions. Another way of saying this is that any policy that is greedy with respect to the
+optimal evaluation function v⇤is an optimal policy. The term greedy is used in computer
+science to describe any search or decision procedure that selects alternatives based only
+on local or immediate considerations, without considering the possibility that such a
+selection may prevent future access to even better alternatives. Consequently, it describes
+policies that select actions based only on their short-term consequences. The beauty of v⇤
+is that if one uses it to evaluate the short-term consequences of actions—speciﬁcally, the
+one-step consequences—then a greedy policy is actually optimal in the long-term sense in
+which we are interested because v⇤already takes into account the reward consequences of
+all possible future behavior. By means of v⇤, the optimal expected long-term return is
+
+--- Page 87 ---
+3.6. Optimal Policies and Optimal Value Functions
+65
+turned into a quantity that is locally and immediately available for each state. Hence, a
+one-step-ahead search yields the long-term optimal actions.
+Having q⇤makes choosing optimal actions even easier. With q⇤, the agent does not
+even have to do a one-step-ahead search: for any state s, it can simply ﬁnd any action
+that maximizes q⇤(s, a). The action-value function e↵ectively caches the results of all
+one-step-ahead searches. It provides the optimal expected long-term return as a value
+that is locally and immediately available for each state–action pair. Hence, at the cost of
+representing a function of state–action pairs, instead of just of states, the optimal action-
+value function allows optimal actions to be selected without having to know anything
+about possible successor states and their values, that is, without having to know anything
+about the environment’s dynamics.
+Example 3.8: Solving the Gridworld Suppose we solve the Bellman equation for v⇤
+for the simple grid task introduced in Example 3.5 and shown again in Figure 3.5 (left).
+Recall that state A is followed by a reward of +10 and transition to state A0, while state
+B is followed by a reward of +5 and transition to state B0. Figure 3.5 (middle) shows the
+optimal value function, and Figure 3.5 (right) shows the corresponding optimal policies.
+Where there are multiple arrows in a cell, all of the corresponding actions are optimal.
+a) gridworld
+b) V*
+c) !*
+22.0 24.4 22.0 19.4 17.5
+19.8 22.0 19.8 17.8 16.0
+17.8 19.8 17.8 16.0 14.4
+16.0 17.8 16.0 14.4 13.0
+14.4 16.0 14.4 13.0 11.7
+A
+B
+A'
+B'
++10
++5
+v*
+π*
+Gridworld
+v⇤
+⇡⇤
+Figure 3.5: Optimal solutions to the gridworld example.
+Example 3.9: Bellman Optimality Equations for the Recycling Robot
+Using
+(3.19), we can explicitly give the Bellman optimality equation for the recycling robot
+example. To make things more compact, we abbreviate the states high and low, and the
+actions search, wait, and recharge respectively by h, l, s, w, and re. Because there are
+only two states, the Bellman optimality equation consists of two equations. The equation
+for v⇤(h) can be written as follows:
+v⇤(h)
+=
+max
+⇢p(h|h, s)[r(h, s, h) + γv⇤(h)] + p(l|h, s)[r(h, s, l) + γv⇤(l)],
+p(h|h, w)[r(h, w, h) + γv⇤(h)] + p(l|h, w)[r(h, w, l) + γv⇤(l)]
+5
+=
+max
+⇢↵[rs + γv⇤(h)] + (1 −↵)[rs + γv⇤(l)],
+1[rw + γv⇤(h)] + 0[rw + γv⇤(l)]
+5
+=
+max
+⇢rs + γ[↵v⇤(h) + (1 −↵)v⇤(l)],
+rw + γv⇤(h)
+5
+.
+
+--- Page 88 ---
+66
+Chapter 3: Finite Markov Decision Processes
+Following the same procedure for v⇤(l) yields the equation
+v⇤(l) = max
+8
+<
+:
+βrs −3(1 −β) + γ[(1 −β)v⇤(h) + βv⇤(l)],
+rw + γv⇤(l),
+γv⇤(h)
+9
+=
+; .
+For any choice of rs, rw, ↵, β, and γ, with 0 γ < 1, 0 ↵, β 1, there is exactly
+one pair of numbers, v⇤(h) and v⇤(l), that simultaneously satisfy these two nonlinear
+equations.
+Explicitly solving the Bellman optimality equation provides one route to ﬁnding an
+optimal policy, and thus to solving the reinforcement learning problem. However, this
+solution is rarely directly useful. It is akin to an exhaustive search, looking ahead at
+all possibilities, computing their probabilities of occurrence and their desirabilities in
+terms of expected rewards. This solution relies on at least three assumptions that are
+rarely true in practice: (1) the dynamics of the environment are accurately known; (2)
+computational resources are suﬃcient to complete the calculation; and (3) the states
+have the Markov property. For the kinds of tasks in which we are interested, one is
+generally not able to implement this solution exactly because various combinations of
+these assumptions are violated. For example, although the ﬁrst and third assumptions
+present no problems for the game of backgammon, the second is a major impediment.
+Because the game has about 1020 states, it would take thousands of years on today’s
+fastest computers to solve the Bellman equation for v⇤, and the same is true for ﬁnding
+q⇤. In reinforcement learning one typically has to settle for approximate solutions.
+Many di↵erent decision-making methods can be viewed as ways of approximately
+solving the Bellman optimality equation. For example, heuristic search methods can be
+viewed as expanding the right-hand side of (3.19) several times, up to some depth, forming
+a “tree” of possibilities, and then using a heuristic evaluation function to approximate
+v⇤at the “leaf” nodes. (Heuristic search methods such as A⇤are almost always based
+on the episodic case.) The methods of dynamic programming can be related even more
+closely to the Bellman optimality equation. Many reinforcement learning methods can
+be clearly understood as approximately solving the Bellman optimality equation, using
+actual experienced transitions in place of knowledge of the expected transitions. We
+consider a variety of such methods in the following chapters.
+Exercise 3.20 Draw or describe the optimal state-value function for the golf example. ⇤
+Exercise 3.21 Draw or describe the contours of the optimal action-value function for
+putting, q⇤(s, putter), for the golf example.
+⇤
++2
+0
+0
++1
+left
+right
+Exercise 3.22 Consider the continuing MDP shown to the
+right. The only decision to be made is that in the top state,
+where two actions are available, left and right. The numbers
+show the rewards that are received deterministically after
+each action. There are exactly two deterministic policies,
+⇡left and ⇡right. What policy is optimal if γ = 0? If γ = 0.9?
+If γ = 0.5?
+⇤
+
+--- Page 89 ---
+3.7. Optimality and Approximation
+67
+Exercise 3.23 Give the Bellman equation for q⇤for the recycling robot.
+⇤
+Exercise 3.24 Figure 3.5 gives the optimal value of the best state of the gridworld as
+24.4, to one decimal place. Use your knowledge of the optimal policy and (3.8) to express
+this value symbolically, and then to compute it to three decimal places.
+⇤
+Exercise 3.25 Give an equation for v⇤in terms of q⇤.
+⇤
+Exercise 3.26 Give an equation for q⇤in terms of v⇤and the four-argument p.
+⇤
+Exercise 3.27 Give an equation for ⇡⇤in terms of q⇤.
+⇤
+Exercise 3.28 Give an equation for ⇡⇤in terms of v⇤and the four-argument p.
+⇤
+Exercise 3.29 Rewrite the four Bellman equations for the four value functions (v⇡, v⇤, q⇡,
+and q⇤) in terms of the three argument function p (3.4) and the two-argument function r
+(3.5).
+⇤
+3.7
+Optimality and Approximation
+We have deﬁned optimal value functions and optimal policies. Clearly, an agent that
+learns an optimal policy has done very well, but in practice this rarely happens. For
+the kinds of tasks in which we are interested, optimal policies can be generated only
+with extreme computational cost. A well-deﬁned notion of optimality organizes the
+approach to learning we describe in this book and provides a way to understand the
+theoretical properties of various learning algorithms, but it is an ideal that agents can
+only approximate. As we discussed above, even if we have a complete and accurate model
+of the environment’s dynamics, it is usually not possible to simply compute an optimal
+policy by solving the Bellman optimality equation. For example, board games such as
+chess are a tiny fraction of human experience, yet large, custom-designed computers still
+cannot compute the optimal moves. A critical aspect of the problem facing the agent is
+always the computational power available to it, in particular, the amount of computation
+it can perform in a single time step.
+The memory available is also an important constraint. A large amount of memory
+is often required to build up approximations of value functions, policies, and models.
+In tasks with small, ﬁnite state sets, it is possible to form these approximations using
+arrays or tables with one entry for each state (or state–action pair). This we call the
+tabular case, and the corresponding methods we call tabular methods. In many cases
+of practical interest, however, there are far more states than could possibly be entries
+in a table. In these cases the functions must be approximated, using some sort of more
+compact parameterized function representation.
+Our framing of the reinforcement learning problem forces us to settle for approxi-
+mations. However, it also presents us with some unique opportunities for achieving
+useful approximations.
+For example, in approximating optimal behavior, there may be
+many states that the agent faces with such a low probability that selecting suboptimal
+actions for them has little impact on the amount of reward the agent receives. Tesauro’s
+backgammon player, for example, plays with exceptional skill even though it might make
+
+--- Page 90 ---
+68
+Chapter 3: Finite Markov Decision Processes
+very bad decisions on board conﬁgurations that never occur in games against experts. In
+fact, it is possible that TD-Gammon makes bad decisions for a large fraction of the game’s
+state set. The online nature of reinforcement learning makes it possible to approximate
+optimal policies in ways that put more e↵ort into learning to make good decisions for
+frequently encountered states, at the expense of less e↵ort for infrequently encountered
+states. This is one key property that distinguishes reinforcement learning from other
+approaches to approximately solving MDPs.
+3.8
+Summary
+Let us summarize the elements of the reinforcement learning problem that we have
+presented in this chapter. Reinforcement learning is about learning from interaction
+how to behave in order to achieve a goal. The reinforcement learning agent and its
+environment interact over a sequence of discrete time steps. The speciﬁcation of their
+interface deﬁnes a particular task: the actions are the choices made by the agent; the
+states are the basis for making the choices; and the rewards are the basis for evaluating
+the choices. Everything inside the agent is known and controllable. Its environment, on
+the other hand, is incompletely controllable and may or may not be completely known.
+A policy is a stochastic rule by which the agent selects actions as a function of states.
+The agent’s objective is to maximize the amount of reward it receives over time.
+When the reinforcement learning setup described above is formulated with well deﬁned
+transition probabilities it constitutes a Markov decision process (MDP). A ﬁnite MDP is
+an MDP with ﬁnite state, action, and (as we formulate it here) reward sets. Much of the
+current theory of reinforcement learning is restricted to ﬁnite MDPs, but the methods
+and ideas apply more generally.
+The return is the function of future rewards that the agent seeks to maximize (in
+expected value). It has several di↵erent deﬁnitions depending upon the nature of the
+task and whether one wishes to discount delayed reward. The undiscounted formulation
+is appropriate for episodic tasks, in which the agent–environment interaction breaks
+naturally into episodes; the discounted formulation is appropriate for tabular continuing
+tasks, in which the interaction does not naturally break into episodes but continues
+without limit (but see Sections 10.3–4). We try to deﬁne the returns for the two kinds of
+tasks such that one set of equations can apply to both the episodic and continuing cases.
+A policy’s value functions (v⇡and q⇡) assign to each state, or state–action pair, the
+expected return from that state, or state–action pair, given that the agent uses the
+policy. The optimal value functions (v⇤and q⇤) assign to each state, or state–action pair,
+the largest expected return achievable by any policy. A policy whose value functions
+are optimal is an optimal policy. Whereas the optimal value functions for states and
+state–action pairs are unique for a given MDP, there can be many optimal policies. Any
+policy that is greedy with respect to the optimal value functions must be an optimal
+policy. The Bellman optimality equations are special consistency conditions that the
+optimal value functions must satisfy and that can, in principle, be solved for the optimal
+value functions, from which an optimal policy can be determined with relative ease.
+
+--- Page 91 ---
+3.8. Summary
+69
+A reinforcement learning problem can be posed in a variety of di↵erent ways depending
+on assumptions about the level of knowledge initially available to the agent. In problems
+of complete knowledge, the agent has a complete and accurate model of the environment’s
+dynamics. If the environment is an MDP, then such a model consists of the complete four-
+argument dynamics function p (3.2). In problems of incomplete knowledge, a complete
+and perfect model of the environment is not available.
+Even if the agent had a complete and accurate environment model, the agent would
+typically be unable to fully use it because of limitations on its memory and computation
+per time step. In particular, extensive memory may be required to build up accurate
+approximations of value functions, policies, and models. In most cases of practical interest
+there are far more states than could possibly be entries in a table, and approximations
+must be made.
+A well-deﬁned notion of optimality organizes the approach to learning we describe in
+this book and provides a way to understand the theoretical properties of various learning
+algorithms, but it is an ideal that reinforcement learning agents can only approximate
+to varying degrees. In reinforcement learning we are very much concerned with cases in
+which optimal solutions cannot be found but must be approximated in some way.
+Bibliographical and Historical Remarks
+The reinforcement learning problem is deeply indebted to the idea of Markov decision
+processes (MDPs) from the ﬁeld of optimal control. These historical inﬂuences and other
+major inﬂuences from psychology are described in the brief history given in Chapter 1.
+Reinforcement learning adds to MDPs a focus on approximation and incomplete infor-
+mation for realistically large problems. MDPs and the reinforcement learning problem
+are only weakly linked to traditional learning and decision-making problems in artiﬁcial
+intelligence. However, artiﬁcial intelligence is now vigorously exploring MDP formulations
+for planning and decision making from a variety of perspectives. MDPs are more general
+than previous formulations used in artiﬁcial intelligence in that they permit more general
+kinds of goals and uncertainty.
+The theory of MDPs is treated by, for example, Bertsekas (2005), White (1969), Whittle
+(1982, 1983), and Puterman (1994). A particularly compact treatment of the ﬁnite case
+is given by Ross (1983). MDPs are also studied under the heading of stochastic optimal
+control, where adaptive optimal control methods are most closely related to reinforcement
+learning (e.g., Kumar, 1985; Kumar and Varaiya, 1986).
+The theory of MDPs evolved from e↵orts to understand the problem of making sequences
+of decisions under uncertainty, where each decision can depend on the previous decisions
+and their outcomes. It is sometimes called the theory of multistage decision processes,
+or sequential decision processes, and has roots in the statistical literature on sequential
+sampling beginning with the papers by Thompson (1933, 1934) and Robbins (1952) that
+we cited in Chapter 2 in connection with bandit problems (which are prototypical MDPs
+if formulated as multiple-situation problems).
+The earliest instance (that we are aware of) in which reinforcement learning was
+discussed using the MDP formalism is Andreae’s (1969) description of a uniﬁed view of
+
+--- Page 92 ---
+70
+Chapter 3: Finite Markov Decision Processes
+learning machines. Witten and Corbin (1973) experimented with a reinforcement learning
+system later analyzed by Witten (1977, 1976a) using the MDP formalism. Although
+he did not explicitly mention MDPs, Werbos (1977) suggested approximate solution
+methods for stochastic optimal control problems that are related to modern reinforcement
+learning methods (see also Werbos, 1982, 1987, 1988, 1989, 1992). Although Werbos’s
+ideas were not widely recognized at the time, they were prescient in emphasizing the
+importance of approximately solving optimal control problems in a variety of domains,
+including artiﬁcial intelligence. The most inﬂuential integration of reinforcement learning
+and MDPs is due to Watkins (1989).
+3.1
+Our characterization of the dynamics of an MDP in terms of p(s0, r|s, a) is
+slightly unusual. It is more common in the MDP literature to describe the
+dynamics in terms of the state transition probabilities p(s0|s, a) and expected
+next rewards r(s, a). In reinforcement learning, however, we more often have
+to refer to individual actual or sample rewards (rather than just their expected
+values). Our notation also makes it plainer that St and Rt are in general jointly
+determined, and thus must have the same time index. In teaching reinforcement
+learning, we have found our notation to be more straightforward conceptually
+and easier to understand.
+For a good intuitive discussion of the system-theoretic concept of state, see
+Minsky (1967).
+The bioreactor example is based on the work of Ungar (1990) and Miller and
+Williams (1992). The recycling robot example was inspired by the can-collecting
+robot built by Jonathan Connell (1989). Kober and Peters (2012) present a
+collection of robotics applications of reinforcement learning.
+3.2
+An explicit statement of the reward hypothesis was suggested by Michael Littman
+(personal communication).
+3.3–4
+The terminology of episodic and continuing tasks is di↵erent from that usually
+used in the MDP literature.
+In that literature it is common to distinguish
+three types of tasks: (1) ﬁnite-horizon tasks, in which interaction terminates
+after a particular ﬁxed number of time steps; (2) indeﬁnite-horizon tasks, in
+which interaction can last arbitrarily long but must eventually terminate; and
+(3) inﬁnite-horizon tasks, in which interaction does not terminate. Our episodic
+and continuing tasks are similar to indeﬁnite-horizon and inﬁnite-horizon tasks,
+respectively, but we prefer to emphasize the di↵erence in the nature of the
+interaction. This di↵erence seems more fundamental than the di↵erence in the
+objective functions emphasized by the usual terms. Often episodic tasks use
+an indeﬁnite-horizon objective function and continuing tasks an inﬁnite-horizon
+objective function, but we see this as a common coincidence rather than a
+fundamental di↵erence.
+The pole-balancing example is from Michie and Chambers (1968) and Barto,
+Sutton, and Anderson (1983).
+
+--- Page 93 ---
+3.8. Summary
+71
+3.5–6
+Assigning value on the basis of what is good or bad in the long run has ancient
+roots.
+In control theory, mapping states to numerical values representing the
+long-term consequences of control decisions is a key part of optimal control theory,
+which was developed in the 1950s by extending nineteenth century state-function
+theories of classical mechanics (see, for example, Schultz and Melsa, 1967). In
+describing how a computer could be programmed to play chess, Shannon (1950)
+suggested using an evaluation function that took into account the long-term
+advantages and disadvantages of chess positions.
+Watkins’s (1989) Q-learning algorithm for estimating q⇤(Chapter 6) made action-
+value functions an important part of reinforcement learning, and consequently
+these functions are often called “Q-functions.” But the idea of an action-value
+function is much older than this. Shannon (1950) suggested that a function
+h(P, M) could be used by a chess-playing program to decide whether a move M
+in position P is worth exploring. Michie’s (1961, 1963) MENACE system and
+Michie and Chambers’s (1968) BOXES system can be understood as estimating
+action-value functions. In classical physics, Hamilton’s principal function is
+an action-value function; Newtonian dynamics are greedy with respect to this
+function (e.g., Goldstein, 1957). Action-value functions also played a central role
+in Denardo’s (1967) theoretical treatment of dynamic programming in terms of
+contraction mappings.
+The Bellman optimality equation (for v⇤) was popularized by Richard Bellman
+(1957a), who called it the “basic functional equation.” The counterpart of the
+Bellman optimality equation for continuous time and state problems is known
+as the Hamilton–Jacobi–Bellman equation (or often just the Hamilton–Jacobi
+equation), indicating its roots in classical physics (e.g., Schultz and Melsa, 1967).
+The golf example was suggested by Chris Watkins.
+
+--- Page 94 ---
+
+
+--- Page 95 ---
+Chapter 4
+Dynamic Programming
+The term dynamic programming (DP) refers to a collection of algorithms that can be
+used to compute optimal policies given a perfect model of the environment as a Markov
+decision process (MDP). Classical DP algorithms are of limited utility in reinforcement
+learning both because of their assumption of a perfect model and because of their great
+computational expense, but they are still important theoretically. DP provides an essential
+foundation for the understanding of the methods presented in the rest of this book. In
+fact, all of these methods can be viewed as attempts to achieve much the same e↵ect as
+DP, only with less computation and without assuming a perfect model of the environment.
+Starting with this chapter, we usually assume that the environment is a ﬁnite MDP.
+That is, we assume that its state, action, and reward sets, S, A, and R, are ﬁnite, and
+that its dynamics are given by a set of probabilities p(s0, r|s, a), for all s 2 S, a 2 A(s),
+r 2 R, and s0 2 S+ (S+ is S plus a terminal state if the problem is episodic). Although
+DP ideas can be applied to problems with continuous state and action spaces, exact
+solutions are possible only in special cases. A common way of obtaining approximate
+solutions for tasks with continuous states and actions is to quantize the state and action
+spaces and then apply ﬁnite-state DP methods. The methods we explore in Part II are
+applicable to continuous problems and are a signiﬁcant extension of that approach.
+The key idea of DP, and of reinforcement learning generally, is the use of value functions
+to organize and structure the search for good policies. In this chapter we show how DP
+can be used to compute the value functions deﬁned in Chapter 3. As discussed there, we
+can easily obtain optimal policies once we have found the optimal value functions, v⇤or
+q⇤, which satisfy the Bellman optimality equations:
+v⇤(s) = max
+a
+E[Rt+1 + γv⇤(St+1) | St =s, At =a]
+= max
+a
+X
+s0,r
+p(s0, r|s, a)
+h
+r + γv⇤(s0)
+i
+,
+(4.1)
+or
+q⇤(s, a) = E
+h
+Rt+1 + γ max
+a0 q⇤(St+1, a0)
+444 St =s, At =a
+i
+=
+X
+s0,r
+p(s0, r|s, a)
+h
+r + γ max
+a0 q⇤(s0, a0)
+i
+,
+(4.2)
+
+--- Page 96 ---
+74
+Chapter 4: Dynamic Programming
+for all s 2 S, a 2 A(s), and s0 2 S+. As we shall see, DP algorithms are obtained by
+turning Bellman equations such as these into assignments, that is, into update rules for
+improving approximations of the desired value functions.
+4.1
+Policy Evaluation (Prediction)
+First we consider how to compute the state-value function v⇡for an arbitrary policy ⇡.
+This is called policy evaluation in the DP literature. We also refer to it as the prediction
+problem. Recall from Chapter 3 that, for all s 2 S,
+v⇡(s) .= E⇡[Gt | St =s]
+= E⇡[Rt+1 + γGt+1 | St =s]
+(from (3.9))
+= E⇡[Rt+1 + γv⇡(St+1) | St =s]
+(4.3)
+=
+X
+a
+⇡(a|s)
+X
+s0,r
+p(s0, r|s, a)
+h
+r + γv⇡(s0)
+i
+,
+(4.4)
+where ⇡(a|s) is the probability of taking action a in state s under policy ⇡, and the
+expectations are subscripted by ⇡to indicate that they are conditional on ⇡being followed.
+The existence and uniqueness of v⇡are guaranteed as long as either γ < 1 or eventual
+termination is guaranteed from all states under the policy ⇡.
+If the environment’s dynamics are completely known, then (4.4) is a system of |S|
+simultaneous linear equations in |S| unknowns (the v⇡(s), s 2 S). In principle, its solution
+is a straightforward, if tedious, computation. For our purposes, iterative solution methods
+are most suitable. Consider a sequence of approximate value functions v0, v1, v2, . . .,
+each mapping S+ to R (the real numbers). The initial approximation, v0, is chosen
+arbitrarily (except that the terminal state, if any, must be given value 0), and each
+successive approximation is obtained by using the Bellman equation for v⇡(4.4) as an
+update rule:
+vk+1(s)
+.=
+E⇡[Rt+1 + γvk(St+1) | St =s]
+=
+X
+a
+⇡(a|s)
+X
+s0,r
+p(s0, r|s, a)
+h
+r + γvk(s0)
+i
+,
+(4.5)
+for all s 2 S. Clearly, vk = v⇡is a ﬁxed point for this update rule because the Bellman
+equation for v⇡assures us of equality in this case. Indeed, the sequence {vk} can be
+shown in general to converge to v⇡as k ! 1 under the same conditions that guarantee
+the existence of v⇡. This algorithm is called iterative policy evaluation.
+To produce each successive approximation, vk+1 from vk, iterative policy evaluation
+applies the same operation to each state s: it replaces the old value of s with a new value
+obtained from the old values of the successor states of s, and the expected immediate
+rewards, along all the one-step transitions possible under the policy being evaluated. We
+call this kind of operation an expected update. Each iteration of iterative policy evaluation
+updates the value of every state once to produce the new approximate value function
+
+--- Page 97 ---
+4.1. Policy Evaluation (Prediction)
+75
+vk+1. There are several di↵erent kinds of expected updates, depending on whether a
+state (as here) or a state–action pair is being updated, and depending on the precise way
+the estimated values of the successor states are combined. All the updates done in DP
+algorithms are called expected updates because they are based on an expectation over all
+possible next states rather than on a sample next state. The nature of an update can
+be expressed in an equation, as above, or in a backup diagram like those introduced in
+Chapter 3. For example, the backup diagram corresponding to the expected update used
+in iterative policy evaluation is shown on page 59.
+To write a sequential computer program to implement iterative policy evaluation as
+given by (4.5) you would have to use two arrays, one for the old values, vk(s), and one
+for the new values, vk+1(s). With two arrays, the new values can be computed one by
+one from the old values without the old values being changed. Alternatively, you could
+use one array and update the values “in place,” that is, with each new value immediately
+overwriting the old one. Then, depending on the order in which the states are updated,
+sometimes new values are used instead of old ones on the right-hand side of (4.5). This
+in-place algorithm also converges to v⇡; in fact, it usually converges faster than the
+two-array version, as you might expect, because it uses new data as soon as they are
+available. We think of the updates as being done in a sweep through the state space. For
+the in-place algorithm, the order in which states have their values updated during the
+sweep has a signiﬁcant inﬂuence on the rate of convergence. We usually have the in-place
+version in mind when we think of DP algorithms.
+A complete in-place version of iterative policy evaluation is shown in pseudocode in
+the box below. Note how it handles termination. Formally, iterative policy evaluation
+converges only in the limit, but in practice it must be halted short of this. The pseudocode
+tests the quantity maxs2S |vk+1(s)−vk(s)| after each sweep and stops when it is suﬃciently
+small.
+Iterative Policy Evaluation, for estimating V ⇡v⇡
+Input ⇡, the policy to be evaluated
+Algorithm parameter: a small threshold ✓> 0 determining accuracy of estimation
+Initialize V (s) arbitrarily, for s 2 S, and V (terminal) to 0
+Loop:
+∆ 0
+Loop for each s 2 S:
+v  V (s)
+V (s)  P
+a ⇡(a|s) P
+s0,r p(s0, r|s, a)
+⇥
+r + γV (s0)
+⇤
+∆ max(∆, |v −V (s)|)
+until ∆< ✓
+
+--- Page 98 ---
+76
+Chapter 4: Dynamic Programming
+Example 4.1 Consider the 4⇥4 gridworld shown below.
+actions
+r  =  !1
+on all transitions
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+Rt = −1
+The nonterminal states are S = {1, 2, . . . , 14}. There are four actions possible in each
+state, A = {up, down, right, left}, which deterministically cause the corresponding
+state transitions, except that actions that would take the agent o↵the grid in fact leave
+the state unchanged. Thus, for instance, p(6, −1|5, right) = 1, p(7, −1|7, right) = 1,
+and p(10, r|5, right) = 0 for all r 2 R. This is an undiscounted, episodic task. The
+reward is −1 on all transitions until the terminal state is reached. The terminal state is
+shaded in the ﬁgure (although it is shown in two places, it is formally one state). The
+expected reward function is thus r(s, a, s0) = −1 for all states s, s0 and actions a. Suppose
+the agent follows the equiprobable random policy (all actions equally likely). The left side
+of Figure 4.1 shows the sequence of value functions {vk} computed by iterative policy
+evaluation. The ﬁnal estimate is in fact v⇡, which in this case gives for each state the
+negation of the expected number of steps from that state until termination.
+Exercise 4.1 In Example 4.1, if ⇡is the equiprobable random policy, what is q⇡(11, down)?
+What is q⇡(7, down)?
+⇤
+Exercise 4.2 In Example 4.1, suppose a new state 15 is added to the gridworld just below
+state 13, and its actions, left, up, right, and down, take the agent to states 12, 13, 14,
+and 15, respectively. Assume that the transitions from the original states are unchanged.
+What, then, is v⇡(15) for the equiprobable random policy? Now suppose the dynamics of
+state 13 are also changed, such that action down from state 13 takes the agent to the new
+state 15. What is v⇡(15) for the equiprobable random policy in this case?
+⇤
+Exercise 4.3 What are the equations analogous to (4.3), (4.4), and (4.5), but for action-
+value functions instead of state-value functions?
+⇤
+4.2
+Policy Improvement
+Our reason for computing the value function for a policy is to help ﬁnd better policies.
+Suppose we have determined the value function v⇡for an arbitrary deterministic policy
+⇡. For some state s we would like to know whether or not we should change the policy
+to deterministically choose an action a 6= ⇡(s). We know how good it is to follow the
+current policy from s—that is v⇡(s)—but would it be better or worse to change to the
+new policy? One way to answer this question is to consider selecting a in s and thereafter
+
+--- Page 99 ---
+4.2. Policy Improvement
+77
+ 0.0  0.0  0.0
+ 0.0  0.0  0.0  0.0
+ 0.0  0.0  0.0  0.0
+ 0.0  0.0  0.0
+-1.0 -1.0 -1.0
+-1.0 -1.0 -1.0 -1.0
+-1.0 -1.0 -1.0 -1.0
+-1.0 -1.0 -1.0
+-1.7 -2.0 -2.0
+-1.7 -2.0 -2.0 -2.0
+-2.0 -2.0 -2.0 -1.7
+-2.0 -2.0 -1.7
+-2.4 -2.9 -3.0
+-2.4 -2.9 -3.0 -2.9
+-2.9 -3.0 -2.9 -2.4
+-3.0 -2.9 -2.4
+-6.1 -8.4 -9.0
+-6.1 -7.7 -8.4 -8.4
+-8.4 -8.4 -7.7 -6.1
+-9.0 -8.4 -6.1
+-14. -20. -22.
+-14. -18. -20. -20.
+-20. -20. -18. -14.
+-22. -20. -14.
+Vk  for the
+Random Policy
+Greedy Policy
+w.r.t. Vk
+k = 0
+k = 1
+k = 2
+k = 10
+k = !
+k = 3
+optimal 
+policy
+random 
+policy
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+vk
+      for the
+random policy
+vk
+greedy policy
+    w.r.t. vk
+Figure 4.1: Convergence of iterative policy evaluation on a small gridworld. The left column is
+the sequence of approximations of the state-value function for the random policy (all actions
+equally likely). The right column is the sequence of greedy policies corresponding to the value
+function estimates (arrows are shown for all actions achieving the maximum, and the numbers
+shown are rounded to two signiﬁcant digits). The last policy is guaranteed only to be an
+improvement over the random policy, but in this case it, and all policies after the third iteration,
+are optimal.
+
+--- Page 100 ---
+78
+Chapter 4: Dynamic Programming
+following the existing policy, ⇡. The value of this way of behaving is
+q⇡(s, a)
+.=
+E[Rt+1 + γv⇡(St+1) | St =s, At =a]
+(4.6)
+=
+X
+s0,r
+p(s0, r|s, a)
+h
+r + γv⇡(s0)
+i
+.
+The key criterion is whether this is greater than or less than v⇡(s). If it is greater—that
+is, if it is better to select a once in s and thereafter follow ⇡than it would be to follow
+⇡all the time—then one would expect it to be better still to select a every time s is
+encountered, and that the new policy would in fact be a better one overall.
+That this is true is a special case of a general result called the policy improvement
+theorem. Let ⇡and ⇡0 be any pair of deterministic policies such that, for all s 2 S,
+q⇡(s, ⇡0(s)) ≥v⇡(s).
+(4.7)
+Then the policy ⇡0 must be as good as, or better than, ⇡. That is, it must obtain greater
+or equal expected return from all states s 2 S:
+v⇡0(s) ≥v⇡(s).
+(4.8)
+Moreover, if there is strict inequality of (4.7) at any state, then there must be strict
+inequality of (4.8) at that state.
+The policy improvement theorem applies to the two policies that we considered at the
+beginning of this section: an original deterministic policy, ⇡, and a changed policy, ⇡0,
+that is identical to ⇡except that ⇡0(s) = a 6= ⇡(s). For states other than s, (4.7) holds
+because the two sides are equal. Thus, if q⇡(s, a) > v⇡(s), then the changed policy is
+indeed better than ⇡.
+The idea behind the proof of the policy improvement theorem is easy to understand.
+Starting from (4.7), we keep expanding the q⇡side with (4.6) and reapplying (4.7) until
+we get v⇡0(s):
+v⇡(s) q⇡(s, ⇡0(s))
+= E[Rt+1 + γv⇡(St+1) | St =s, At =⇡0(s)]
+(by (4.6))
+= E⇡0[Rt+1 + γv⇡(St+1) | St =s]
+E⇡0[Rt+1 + γq⇡(St+1, ⇡0(St+1)) | St =s]
+(by (4.7))
+= E⇡0[Rt+1 + γE[Rt+2 + γv⇡(St+2)|St+1, At+1 =⇡0(St+1)] | St =s]
+= E⇡0⇥
+Rt+1 + γRt+2 + γ2v⇡(St+2)
+44 St =s
+⇤
+E⇡0⇥
+Rt+1 + γRt+2 + γ2Rt+3 + γ3v⇡(St+3)
+44 St =s
+⇤
+...
+E⇡0⇥
+Rt+1 + γRt+2 + γ2Rt+3 + γ3Rt+4 + · · ·
+44 St =s
+⇤
+= v⇡0(s).
+So far we have seen how, given a policy and its value function, we can easily evaluate
+a change in the policy at a single state. It is a natural extension to consider changes at
+

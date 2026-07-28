@@ -1,0 +1,2471 @@
+--- Page 351 ---
+13.4. REINFORCE with Baseline
+329
+As a stochastic gradient method, REINFORCE has good theoretical convergence
+properties. By construction, the expected update over an episode is in the same direction
+as the performance gradient. This assures an improvement in expected performance for
+suﬃciently small ↵, and convergence to a local optimum under standard stochastic approx-
+imation conditions for decreasing ↵. However, as a Monte Carlo method REINFORCE
+may be of high variance and thus produce slow learning.
+Exercise 13.3 In Section 13.1 we considered policy parameterizations using the soft-max in
+action preferences (13.2) with linear action preferences (13.3). For this parameterization,
+prove that the eligibility vector is
+r ln ⇡(a|s, ✓) = x(s, a) −
+X
+b
+⇡(b|s, ✓)x(s, b),
+(13.9)
+using the deﬁnitions and elementary calculus.
+⇤
+13.4
+REINFORCE with Baseline
+The policy gradient theorem (13.5) can be generalized to include a comparison of the
+action value to an arbitrary baseline b(s):
+rJ(✓) /
+X
+s
+µ(s)
+X
+a
+⇣
+q⇡(s, a) −b(s)
+⌘
+r⇡(a|s, ✓).
+(13.10)
+The baseline can be any function, even a random variable, as long as it does not vary
+with a; the equation remains valid because the subtracted quantity is zero:
+X
+a
+b(s)r⇡(a|s, ✓) = b(s)r
+X
+a
+⇡(a|s, ✓) = b(s)r1 = 0.
+The policy gradient theorem with baseline (13.10) can be used to derive an update
+rule using similar steps as in the previous section. The update rule that we end up with
+is a new version of REINFORCE that includes a general baseline:
+✓t+1 .= ✓t + ↵
+⇣
+Gt −b(St)
+⌘r⇡(At|St, ✓t)
+⇡(At|St, ✓t) .
+(13.11)
+Because the baseline could be uniformly zero, this update is a strict generalization of
+REINFORCE. In general, the baseline leaves the expected value of the update unchanged,
+but it can have a large e↵ect on its variance. For example, we saw in Section 2.8 that an
+analogous baseline can signiﬁcantly reduce the variance (and thus speed the learning) of
+gradient bandit algorithms. In the bandit algorithms the baseline was just a number (the
+average of the rewards seen so far), but for MDPs the baseline should vary with state.
+In some states all actions have high values and we need a high baseline to di↵erentiate
+the higher valued actions from the less highly valued ones; in other states all actions will
+have low values and a low baseline is appropriate.
+One natural choice for the baseline is an estimate of the state value, ˆv(St,w), where
+w 2 Rd is a weight vector learned by one of the methods presented in previous chapters.
+
+--- Page 352 ---
+330
+Chapter 13: Policy Gradient Methods
+Because REINFORCE is a Monte Carlo method for learning the policy parameter, ✓,
+it seems natural to also use a Monte Carlo method to learn the state-value weights, w.
+A complete pseudocode algorithm for REINFORCE with baseline using such a learned
+state-value function as the baseline is given in the box below.
+REINFORCE with Baseline (episodic), for estimating ⇡✓⇡⇡⇤
+Input: a di↵erentiable policy parameterization ⇡(a|s, ✓)
+Input: a di↵erentiable state-value function parameterization ˆv(s,w)
+Algorithm parameters: step sizes ↵✓> 0, ↵w > 0
+Initialize policy parameter ✓2 Rd0 and state-value weights w 2 Rd (e.g., to 0)
+Loop forever (for each episode):
+Generate an episode S0, A0, R1, . . . , ST −1, AT −1, RT , following ⇡(·|·, ✓)
+Loop for each step of the episode t = 0, 1, . . . , T −1:
+G  PT
+k=t+1 γk−t−1Rk
+(Gt)
+δ  G −ˆv(St,w)
+w  w + ↵wδrˆv(St,w)
+✓ ✓+ ↵✓γtδr ln ⇡(At|St, ✓)
+This algorithm has two step sizes, denoted ↵✓and ↵w (where ↵✓is the ↵in (13.11)).
+Choosing the step size for values (here ↵w) is relatively easy; in the linear case we have
+rules of thumb for setting it, such as ↵w = 0.1/E
+⇥
+krˆv(St,w)k2
+µ
+⇤
+(see Section 9.6). It is
+much less clear how to set the step size for the policy parameters, ↵✓, whose best value
+depends on the range of variation of the rewards and on the policy parameterization.
+↵= 2−13
+Episode
+1000
+800
+600
+400
+200
+1
+-80
+-90
+-60
+-40
+-20
+-10
+v⇤(s0)
+REINFORCE
+REINFORCE with baseline
+↵= 2−9
+↵✓= 2−9, ↵w = 2−6
+Total reward
+on episode
+averaged over 100 runs
+G0
+Figure 13.2: Adding a baseline to REINFORCE can make it learn much faster, as illus-
+trated here on the short-corridor gridworld (Example 13.1). The step size used here for plain
+REINFORCE is that at which it performs best (to the nearest power of two; see Figure 13.1).
+
+--- Page 353 ---
+13.5. Actor–Critic Methods
+331
+Figure 13.2 compares the behavior of REINFORCE with and without a baseline on
+the short-corridor gridword (Example 13.1). Here the approximate state-value function
+used in the baseline is ˆv(s,w) = w. That is, w is a single component, w.
+13.5
+Actor–Critic Methods
+In REINFORCE with baseline, the learned state-value function estimates the value of
+the ﬁrst state of each state transition. This estimate sets a baseline for the subsequent
+return, but is made prior to the transition’s action and thus cannot be used to assess that
+action. In actor–critic methods, on the other hand, the state-value function is applied
+also to the second state of the transition. The estimated value of the second state, when
+discounted and added to the reward, constitutes the one-step return, Gt:t+1, which is a
+useful estimate of the actual return and thus is a way of assessing the action. As we have
+seen in the TD learning of value functions throughout this book, the one-step return is
+often superior to the actual return in terms of its variance and computational congeniality,
+even though it introduces bias. We also know how we can ﬂexibly modulate the extent
+of the bias with n-step returns and eligibility traces (Chapters 7 and 12). When the
+state-value function is used to assess actions in this way it is called a critic, and the
+overall policy-gradient method is termed an actor–critic method. Note that the bias in
+the gradient estimate is not due to bootstrapping as such; the actor would be biased even
+if the critic was learned by a Monte Carlo method.
+First consider one-step actor–critic methods, the analog of the TD methods introduced
+in Chapter 6 such as TD(0), Sarsa(0), and Q-learning. The main appeal of one-step
+methods is that they are fully online and incremental, yet avoid the complexities of
+eligibility traces. They are a special case of the eligibility trace methods, but easier
+to understand. One-step actor–critic methods replace the full return of REINFORCE
+(13.11) with the one-step return (and use a learned state-value function as the baseline)
+as follows:
+✓t+1 .= ✓t + ↵
+⇣
+Gt:t+1 −ˆv(St,w)
+⌘r⇡(At|St, ✓t)
+⇡(At|St, ✓t)
+(13.12)
+= ✓t + ↵
+⇣
+Rt+1 + γˆv(St+1,w) −ˆv(St,w)
+⌘r⇡(At|St, ✓t)
+⇡(At|St, ✓t)
+(13.13)
+= ✓t + ↵δt
+r⇡(At|St, ✓t)
+⇡(At|St, ✓t) .
+(13.14)
+The natural state-value-function learning method to pair with this is semi-gradient TD(0).
+Pseudocode for the complete algorithm is given in the box at the top of the next page.
+Note that it is now a fully online, incremental algorithm, with states, actions, and rewards
+processed as they occur and then never revisited.
+
+--- Page 354 ---
+332
+Chapter 13: Policy Gradient Methods
+One-step Actor–Critic (episodic), for estimating ⇡✓⇡⇡⇤
+Input: a di↵erentiable policy parameterization ⇡(a|s, ✓)
+Input: a di↵erentiable state-value function parameterization ˆv(s,w)
+Parameters: step sizes ↵✓> 0, ↵w > 0
+Initialize policy parameter ✓2 Rd0 and state-value weights w 2 Rd (e.g., to 0)
+Loop forever (for each episode):
+Initialize S (ﬁrst state of episode)
+I  1
+Loop while S is not terminal (for each time step):
+A ⇠⇡(·|S, ✓)
+Take action A, observe S0, R
+δ  R + γ ˆv(S0,w) −ˆv(S,w)
+(if S0 is terminal, then ˆv(S0,w) .= 0)
+w  w + ↵wδrˆv(S,w)
+✓ ✓+ ↵✓I δr ln ⇡(A|S, ✓)
+I  γI
+S  S0
+The generalizations to the forward view of n-step methods and then to a λ-return
+algorithm are straightforward. The one-step return in (13.12) is merely replaced by Gt:t+n
+or Gλ
+t respectively. The backward view of the λ-return algorithm is also straightforward,
+using separate eligibility traces for the actor and critic, each after the patterns in
+Chapter 12. Pseudocode for the complete algorithm is given in the box below.
+Actor–Critic with Eligibility Traces (episodic), for estimating ⇡✓⇡⇡⇤
+Input: a di↵erentiable policy parameterization ⇡(a|s, ✓)
+Input: a di↵erentiable state-value function parameterization ˆv(s,w)
+Parameters: trace-decay rates λ✓2 [0, 1], λw 2 [0, 1]; step sizes ↵✓> 0, ↵w > 0
+Initialize policy parameter ✓2 Rd0 and state-value weights w 2 Rd (e.g., to 0)
+Loop forever (for each episode):
+Initialize S (ﬁrst state of episode)
+z✓ 0 (d0-component eligibility trace vector)
+zw  0 (d-component eligibility trace vector)
+I  1
+Loop while S is not terminal (for each time step):
+A ⇠⇡(·|S, ✓)
+Take action A, observe S0, R
+δ  R + γ ˆv(S0,w) −ˆv(S,w)
+(if S0 is terminal, then ˆv(S0,w) .= 0)
+zw  γλwzw + rˆv(S,w)
+z✓ γλ✓z✓+ I r ln ⇡(A|S, ✓)
+w  w + ↵wδzw
+✓ ✓+ ↵✓δz✓
+I  γI
+S  S0
+
+--- Page 355 ---
+13.6. Policy Gradient for Continuing Problems
+333
+13.6
+Policy Gradient for Continuing Problems
+As discussed in Section 10.3, for continuing problems without episode boundaries we need
+to deﬁne performance in terms of the average rate of reward per time step:
+J(✓) .= r(⇡) .= lim
+h!1
+1
+h
+h
+X
+t=1
+E[Rt | S0, A0:t−1 ⇠⇡]
+(13.15)
+= lim
+t!1 E[Rt | S0, A0:t−1 ⇠⇡]
+=
+X
+s
+µ(s)
+X
+a
+⇡(a|s)
+X
+s0,r
+p(s0, r|s, a)r,
+where µ is the steady-state distribution under ⇡, µ(s) .= limt!1 Pr{St =s|A0:t ⇠⇡},
+which is assumed to exist and to be independent of S0 (an ergodicity assumption).
+Remember that this is the special distribution under which, if you select actions according
+to ⇡, you remain in the same distribution:
+X
+s
+µ(s)
+X
+a
+⇡(a|s, ✓)p(s0|s, a) = µ(s0), for all s0 2 S.
+(13.16)
+Complete pseudocode for the actor–critic algorithm in the continuing case (backward
+view) is given in the box below.
+Actor–Critic with Eligibility Traces (continuing), for estimating ⇡✓⇡⇡⇤
+Input: a di↵erentiable policy parameterization ⇡(a|s, ✓)
+Input: a di↵erentiable state-value function parameterization ˆv(s,w)
+Algorithm parameters: λw 2 [0, 1], λ✓2 [0, 1], ↵w > 0, ↵✓> 0, ↵¯
+R > 0
+Initialize ¯R 2 R (e.g., to 0)
+Initialize state-value weights w 2 Rd and policy parameter ✓2 Rd0 (e.g., to 0)
+Initialize S 2 S (e.g., to s0)
+zw  0 (d-component eligibility trace vector)
+z✓ 0 (d0-component eligibility trace vector)
+Loop forever (for each time step):
+A ⇠⇡(·|S, ✓)
+Take action A, observe S0, R
+δ  R −¯R + ˆv(S0,w) −ˆv(S,w)
+¯R  ¯R + ↵¯
+Rδ
+zw  λwzw + rˆv(S,w)
+z✓ λ✓z✓+ r ln ⇡(A|S, ✓)
+w  w + ↵wδzw
+✓ ✓+ ↵✓δz✓
+S  S0
+
+--- Page 356 ---
+334
+Chapter 13: Policy Gradient Methods
+Naturally, in the continuing case, we deﬁne values, v⇡(s) .= E⇡[Gt|St =s] and q⇡(s, a) .=
+E⇡[Gt|St =s, At =a], with respect to the di↵erential return:
+Gt
+.= Rt+1 −r(⇡) + Rt+2 −r(⇡) + Rt+3 −r(⇡) + · · · .
+(13.17)
+With these alternate deﬁnitions, the policy gradient theorem as given for the episodic
+case (13.5) remains true for the continuing case. A proof is given in the box on the next
+page. The forward and backward view equations also remain the same.
+Proof of the Policy Gradient Theorem (continuing case)
+The proof of the policy gradient theorem for the continuing case begins similarly
+to the episodic case. Again we leave it implicit in all cases that ⇡is a function
+of ✓and that the gradients are with respect to ✓. Recall that in the continuing
+case J(✓) = r(⇡) (13.15) and that v⇡and q⇡denote values with respect to the
+di↵erential return (13.17). The gradient of the state-value function can be written,
+for any s 2 S, as
+rv⇡(s) = r
+"X
+a
+⇡(a|s)q⇡(s, a)
+#
+,
+for all s 2 S
+(Exercise 3.18)
+=
+X
+a
+h
+r⇡(a|s)q⇡(s, a) + ⇡(a|s)rq⇡(s, a)
+i
+(product rule of calculus)
+=
+X
+a
+h
+r⇡(a|s)q⇡(s, a) + ⇡(a|s)r
+X
+s0,r
+p(s0, r|s, a)
+#
+r −r(✓) + v⇡(s0)
+$i
+=
+X
+a
+h
+r⇡(a|s)q⇡(s, a) + ⇡(a|s)
+⇥
+−rr(✓) +
+X
+s0
+p(s0|s, a)rv⇡(s0)
+⇤i
+.
+After re-arranging terms, we obtain
+rr(✓) =
+X
+a
+h
+r⇡(a|s)q⇡(s, a) + ⇡(a|s)
+X
+s0
+p(s0|s, a)rv⇡(s0)
+i
+−rv⇡(s).
+Notice that the left-hand side can be written rJ(✓), and that it does not depend
+on s. Thus the right-hand side does not depend on s either, and we can safely sum
+it over all s 2 S, weighted by µ(s), without changing it (because P
+s µ(s) = 1):
+rJ(✓) =
+X
+s
+µ(s)
+ X
+a
+h
+r⇡(a|s)q⇡(s, a) + ⇡(a|s)
+X
+s0
+p(s0|s, a)rv⇡(s0)
+i
+−rv⇡(s)
+!
+=
+X
+s
+µ(s)
+X
+a
+r⇡(a|s)q⇡(s, a)
++
+X
+s
+µ(s)
+X
+a
+⇡(a|s)
+X
+s0
+p(s0|s, a)rv⇡(s0) −
+X
+s
+µ(s)rv⇡(s)
+
+--- Page 357 ---
+13.7. Policy Parameterization for Continuous Actions
+335
+=
+X
+s
+µ(s)
+X
+a
+r⇡(a|s)q⇡(s, a)
++
+X
+s0
+X
+s
+µ(s)
+X
+a
+⇡(a|s)p(s0|s, a)
+|
+{z
+}
+µ(s0) (13.16)
+rv⇡(s0) −
+X
+s
+µ(s)rv⇡(s)
+=
+X
+s
+µ(s)
+X
+a
+r⇡(a|s)q⇡(s, a) +
+X
+s0
+µ(s0)rv⇡(s0) −
+X
+s
+µ(s)rv⇡(s)
+=
+X
+s
+µ(s)
+X
+a
+r⇡(a|s)q⇡(s, a).
+Q.E.D.
+13.7
+Policy Parameterization for Continuous Actions
+Policy-based methods o↵er practical ways of dealing with large action spaces, even
+continuous spaces with an inﬁnite number of actions. Instead of computing learned
+probabilities for each of the many actions, we instead learn statistics of the probability
+distribution. For example, the action set might be the real numbers, with actions chosen
+from a normal (Gaussian) distribution.
+The probability density function for the normal distribution is conventionally written
+p(x) .=
+1
+σ
+p
+2⇡exp
+✓
+−(x −µ)2
+2σ2
+◆
+,
+(13.18)
+xp
+✓
+−(x −µ)2
+2σ2
+◆
+0.8
+0.6
+0.4
+0.2
+0.0
+−5
+−3
+1
+3
+5
+x
+1.0
+−1
+0
+2
+4
+−2
+−4
+0,
+µ=
+0,
+µ=
+0,
+µ=
+−2,
+µ=
+2
+0.2,
+σ =
+2
+1.0,
+σ =
+2
+5.0,
+σ =
+2
+0.5,
+σ =
+where µ and σ here are the mean and stan-
+dard deviation of the normal distribution,
+and of course ⇡here is just the number
+⇡⇡3.14159. The probability density func-
+tions for several di↵erent means and stan-
+dard deviations are shown to the right. The
+value p(x) is the density of the probability
+at x, not the probability. It can be greater
+than 1; it is the total area under p(x) that
+must sum to 1. In general, one can take
+the integral under p(x) for any range of x
+values to get the probability of x falling
+within that range.
+To produce a policy parameterization, the policy can be deﬁned as the normal proba-
+bility density over a real-valued scalar action, with mean and standard deviation given
+by parametric function approximators that depend on the state. That is,
+⇡(a|s, ✓) .=
+1
+σ(s, ✓)
+p
+2⇡exp
+✓
+−(a −µ(s, ✓))2
+2σ(s, ✓)2
+◆
+,
+(13.19)
+where µ : S⇥Rd0 ! R and σ : S⇥Rd0 ! R+ are two parameterized function approximators.
+
+--- Page 358 ---
+336
+Chapter 13: Policy Gradient Methods
+To complete the example we need only give a form for these approximators. For this we
+divide the policy’s parameter vector into two parts, ✓= [✓µ, ✓σ]>, one part to be used
+for the approximation of the mean and one part for the approximation of the standard
+deviation. The mean can be approximated as a linear function. The standard deviation
+must always be positive and is better approximated as the exponential of a linear function.
+Thus
+µ(s, ✓) .= ✓µ
+>xµ(s)
+and
+σ(s, ✓) .= exp
+⇣
+✓σ
+>xσ(s)
+⌘
+,
+(13.20)
+where xµ(s) and xσ(s) are state feature vectors perhaps constructed by one of the methods
+described in Section 9.5. With these deﬁnitions, all the algorithms described in the rest
+of this chapter can be applied to learn to select real-valued actions.
+Exercise 13.4 Show that for the Gaussian policy parameterization (Equations 13.19 and
+13.20) the eligibility vector has the following two parts:
+r ln ⇡(a|s, ✓µ) = r⇡(a|s, ✓µ)
+⇡(a|s, ✓)
+=
+1
+σ(s, ✓)2
+#
+a −µ(s, ✓)
+$
+xµ(s), and
+r ln ⇡(a|s, ✓σ) = r⇡(a|s, ✓σ)
+⇡(a|s, ✓)
+=
+ #
+a −µ(s, ✓)
+$2
+σ(s, ✓)2
+−1
+!
+xσ(s).
+⇤
+Exercise 13.5 A Bernoulli-logistic unit is a stochastic neuron-like unit used in some ANNs
+(Section 9.7). Its input at time t is a feature vector x(St); its output, At, is a random
+variable having two values, 0 and 1, with Pr{At = 1} = Pt and Pr{At = 0} = 1 −Pt (the
+Bernoulli distribution). Let h(s, 0, ✓) and h(s, 1, ✓) be the preferences in state s for the
+unit’s two actions given policy parameter ✓. Assume that the di↵erence between the
+action preferences is given by a weighted sum of the unit’s input vector, that is, assume
+that h(s, 1, ✓) −h(s, 0, ✓) = ✓>x(s), where ✓is the unit’s weight vector.
+(a) Show that if the exponential soft-max distribution (13.2) is used to convert action
+preferences to policies, then Pt = ⇡(1|St, ✓t) = 1/(1 + exp(−✓>
+t x(St))) (the logistic
+function).
+(b) What is the Monte-Carlo REINFORCE update of ✓t to ✓t+1 upon receipt of return
+Gt?
+(c) Express the eligibility r ln ⇡(a|s, ✓) for a Bernoulli-logistic unit, in terms of a, x(s),
+and ⇡(a|s, ✓) by calculating the gradient.
+Hint for part (c): Deﬁne P = ⇡(1|s, ✓) and compute the derivative of the logarithm, for
+each action, using the chain rule on P. Combine the two results into one expression that
+depends on a and P, and then use the chain rule again, this time on ✓>x(s), noting that
+the derivative of the logistic function f(x) = 1/(1 + e−x) is f(x)(1 −f(x)).
+⇤
+
+--- Page 359 ---
+13.8. Summary
+337
+13.8
+Summary
+Prior to this chapter, this book focused on action-value methods—meaning methods that
+learn action values and then use them to determine action selections. In this chapter, on
+the other hand, we considered methods that learn a parameterized policy that enables
+actions to be taken without consulting action-value estimates. In particular, we have
+considered policy-gradient methods—meaning methods that update the policy parameter
+on each step in the direction of an estimate of the gradient of performance with respect
+to the policy parameter.
+Methods that learn and store a policy parameter have many advantages. They can
+learn speciﬁc probabilities for taking the actions. They can learn appropriate levels
+of exploration and approach deterministic policies asymptotically. They can naturally
+handle continuous action spaces. All these things are easy for policy-based methods but
+awkward or impossible for "-greedy methods and for action-value methods in general. In
+addition, on some problems the policy is just simpler to represent parametrically than
+the value function; these problems are more suited to parameterized policy methods.
+Parameterized policy methods also have an important theoretical advantage over
+action-value methods in the form of the policy gradient theorem, which gives an exact
+formula for how performance is a↵ected by the policy parameter that does not involve
+derivatives of the state distribution. This theorem provides a theoretical foundation for
+all policy gradient methods.
+The REINFORCE method follows directly from the policy gradient theorem. Adding
+a state-value function as a baseline reduces REINFORCE’s variance without introducing
+bias. If the state-value function is also used to assess—or criticize—the policy’s action
+selections, then the value function is called a critic and the policy is called an actor;
+the overall method is called an actor–critic method. The critic introduces bias into the
+actor’s gradient estimates, but is often desirable for the same reason that bootstrapping
+TD methods are often superior to Monte Carlo methods (substantially reduced variance).
+Overall, policy-gradient methods provide a signiﬁcantly di↵erent set of strengths and
+weaknesses than action-value methods. Today they are less well understood in some
+respects, but a subject of excitement and ongoing research.
+Bibliographical and Historical Remarks
+Methods that we now see as related to policy gradients were actually some of the earliest
+to be studied in reinforcement learning (Witten, 1977; Barto, Sutton, and Anderson,
+1983; Sutton, 1984; Williams, 1987, 1992) and in predecessor ﬁelds (see Phansalkar
+and Thathachar, 1995). They were largely supplanted in the 1990s by the action-value
+methods that are the focus of the other chapters of this book. In recent years, however,
+attention has returned to actor–critic methods and to policy-gradient methods in general.
+Among the further developments beyond what we cover here are natural-gradient methods
+(Amari, 1998; Kakade, 2002, Peters, Vijayakumar and Schaal, 2005; Peters and Schaal,
+2008; Park, Kim and Kang, 2005; Bhatnagar, Sutton, Ghavamzadeh and Lee, 2009; see
+Grondman, Busoniu, Lopes and Babuska, 2012), deterministic policy-gradient methods
+
+--- Page 360 ---
+338
+Chapter 13: Policy Gradient Methods
+(Silver et al., 2014), o↵-policy policy-gradient methods (Degris, White, and Sutton, 2012;
+Maei, 2018), and entropy regularization (see Schulman, Chen, and Abbeel, 2017). Major
+applications include acrobatic helicopter autopilots and AlphaGo (Section 16.6).
+Our presentation in this chapter is based primarily on that by Sutton, McAllester,
+Singh, and Mansour (2000), who introduced the term “policy gradient methods.” A
+useful overview is provided by Bhatnagar et al. (2009). One of the earliest related works
+is by Aleksandrov, Sysoyev, and Shemeneva (1968). Thomas (2014) ﬁrst realized that
+the factor of γt, as speciﬁed in the boxed algorithms of this chapter, was needed in the
+case of discounted episodic problems.
+13.1
+Example 13.1 and the results with it in this chapter were developed with Eric
+Graves.
+13.2
+The policy gradient theorem here and on page 334 was ﬁrst obtained by Marbach
+and Tsitsiklis (1998, 2001) and then independently by Sutton et al. (2000). A
+similar expression was obtained by Cao and Chen (1997). Other early results
+are due to Konda and Tsitsiklis (2000, 2003), Baxter and Bartlett (2001), and
+Baxter, Bartlett, and Weaver (2001). Some additional results are developed by
+Sutton, Singh, and McAllester (2000).
+13.3
+REINFORCE is due to Williams (1987, 1992). Phansalkar and Thathachar
+(1995) proved both local and global convergence theorems for modiﬁed versions
+of REINFORCE algorithms.
+The all-actions algorithm was ﬁrst presented in an unpublished but widely
+circulated incomplete paper (Sutton, Singh, and McAllester, 2000) and then
+developed further by Ciosek and Whiteson (2017, 2018), who termed it “expected
+policy gradients,” and by Asadi, Allen, Roderick, Mohamed, Konidaris, and
+Littman (2017), who called it “mean actor critic.”
+13.4
+The baseline was introduced in Williams’s (1987, 1992) original work. Greensmith,
+Bartlett, and Baxter (2004) analyzed an arguably better baseline (see Dick, 2015).
+Thomas and Brunskill (2017) argue that an action-dependent baseline can be
+used without incurring bias.
+13.5–6 Actor–critic methods were among the earliest to be investigated in reinforcement
+learning (Witten, 1977; Barto, Sutton, and Anderson, 1983; Sutton, 1984). The
+algorithms presented here are based on the work of Degris, White, and Sutton
+(2012). Actor–critic methods are sometimes referred to as advantage actor–critic
+(“A2C”) methods in the literature.
+13.7
+The ﬁrst to show how continuous actions could be handled this way appears
+to have been Williams (1987, 1992). The ﬁgure on page 335 is adapted from
+Wikipedia.
+
+--- Page 361 ---
+Part III: Looking Deeper
+In this last part of the book we look beyond the standard reinforcement learning ideas
+presented in the ﬁrst two parts of the book to brieﬂy survey their relationships with
+psychology and neuroscience, a sampling of reinforcement learning applications, and some
+of the active frontiers for future reinforcement learning research.
+
+--- Page 362 ---
+
+
+--- Page 363 ---
+Chapter 14
+Psychology
+In previous chapters we developed ideas for algorithms based on computational con-
+siderations alone. In this chapter we look at some of these algorithms from another
+perspective: the perspective of psychology and its study of how animals learn. The goals
+of this chapter are, ﬁrst, to discuss ways that reinforcement learning ideas and algorithms
+correspond to what psychologists have discovered about animal learning, and second, to
+explain the inﬂuence reinforcement learning is having on the study of animal learning.
+The clear formalism provided by reinforcement learning that systemizes tasks, returns,
+and algorithms is proving to be enormously useful in making sense of experimental data,
+in suggesting new kinds of experiments, and in pointing to factors that may be critical to
+manipulate and to measure. The idea of optimizing return over the long term that is
+at the core of reinforcement learning is contributing to our understanding of otherwise
+puzzling features of animal learning and behavior.
+Some of the correspondences between reinforcement learning and psychological theories
+are not surprising because the development of reinforcement learning drew inspiration
+from psychological learning theories. However, as developed in this book, reinforcement
+learning explores idealized situations from the perspective of an artiﬁcial intelligence
+researcher or engineer, with the goal of solving computational problems with eﬃcient
+algorithms, rather than to replicate or explain in detail how animals learn. As a result,
+some of the correspondences we describe connect ideas that arose independently in their
+respective ﬁelds. We believe these points of contact are specially meaningful because they
+expose computational principles important to learning, whether it is learning by artiﬁcial
+or by natural systems.
+For the most part, we describe correspondences between reinforcement learning and
+learning theories developed to explain how animals like rats, pigeons, and rabbits learn
+in controlled laboratory experiments. Thousands of these experiments were conducted
+throughout the 20th century, and many are still being conducted today.
+Although
+sometimes dismissed as irrelevant to wider issues in psychology, these experiments probe
+subtle properties of animal learning, often motivated by precise theoretical questions.
+As psychology shifted its focus to more cognitive aspects of behavior, that is, to mental
+
+--- Page 364 ---
+342
+Chapter 14: Psychology
+processes such as thought and reasoning, animal learning experiments came to play
+less of a role in psychology than they once did. But this experimentation led to the
+discovery of learning principles that are elemental and widespread throughout the animal
+kingdom, principles that should not be neglected in designing artiﬁcial learning systems.
+In addition, as we shall see, some aspects of cognitive processing connect naturally to the
+computational perspective provided by reinforcement learning.
+This chapter’s ﬁnal section includes references relevant to the connections we discuss as
+well as to connections we neglect. We hope this chapter encourages readers to probe all
+of these connections more deeply. Also included in this ﬁnal section is a discussion of how
+the terminology used in reinforcement learning relates to that of psychology. Many of
+the terms and phrases used in reinforcement learning are borrowed from animal learning
+theories, but the computational/engineering meanings of these terms and phrases do not
+always coincide with their meanings in psychology.
+14.1
+Prediction and Control
+The algorithms we describe in this book fall into two broad categories: algorithms
+for prediction and algorithms for control.1 These categories arise naturally in solution
+methods for the reinforcement learning problem presented in Chapter 3. In many ways
+these categories respectively correspond to categories of learning extensively studied
+by psychologists: classical, or Pavlovian, conditioning and instrumental, or operant,
+conditioning. These correspondences are not completely accidental because of psychology’s
+inﬂuence on reinforcement learning, but they are nevertheless striking because they connect
+ideas arising from di↵erent objectives.
+The prediction algorithms presented in this book estimate quantities that depend
+on how features of an agent’s environment are expected to unfold over the future. We
+speciﬁcally focus on estimating the amount of reward an agent can expect to receive over
+the future while it interacts with its environment. In this role, prediction algorithms are
+policy evaluation algorithms, which are integral components of algorithms for improving
+policies. But prediction algorithms are not limited to predicting future reward; they can
+predict any feature of the environment (see, for example, Modayil, White, and Sutton,
+2014). The correspondence between prediction algorithms and classical conditioning rests
+on their common property of predicting upcoming stimuli, whether or not those stimuli
+are rewarding (or punishing).
+The situation in an instrumental, or operant, conditioning experiment is di↵erent.
+Here, the experimental apparatus is set up so that an animal is given something it likes
+(a reward) or something it dislikes (a penalty) depending on what the animal did. The
+animal learns to increase its tendency to produce rewarded behavior and to decrease its
+tendency to produce penalized behavior. The reinforcing stimulus is said to be contingent
+on the animal’s behavior, whereas in classical conditioning it is not (although it is diﬃcult
+to remove all behavior contingencies in a classical conditioning experiment). Instrumental
+1What control means for us is di↵erent from what it typically means in animal learning theories; there
+the environment controls the agent instead of the other way around. See our comments on terminology
+at the end of this chapter.
+
+--- Page 365 ---
+14.2. Classical Conditioning
+343
+conditioning experiments are like those that inspired Thorndike’s Law of E↵ect that
+we brieﬂy discuss in Chapter 1. Control is at the core of this form of learning, which
+corresponds to the operation of reinforcement learning’s policy-improvement algorithms.
+Thinking of classical conditioning in terms of prediction, and instrumental conditioning
+in terms of control, is a starting point for connecting our computational view of rein-
+forcement learning to animal learning, but in reality, the situation is more complicated
+than this. There is more to classical conditioning than prediction; it also involves action,
+and so is a mode of control, sometimes called Pavlovian control. Further, classical and
+instrumental conditioning interact in interesting ways, with both sorts of learning likely
+being engaged in most experimental situations. Despite these complications, aligning the
+classical/instrumental distinction with the prediction/control distinction is a convenient
+ﬁrst approximation in connecting reinforcement learning to animal learning.
+In psychology, the term reinforcement is used to describe learning in both classical and
+instrumental conditioning. Originally referring only to the strengthening of a pattern of
+behavior, it is frequently also used for the weakening of a pattern of behavior. A stimulus
+considered to be the cause of the change in behavior is called a reinforcer, whether or
+not it is contingent on the animal’s previous behavior. At the end of this chapter we
+discuss this terminology in more detail and how it relates to terminology used in machine
+learning.
+14.2
+Classical Conditioning
+While studying the activity of the digestive system, the celebrated Russian physiologist
+Ivan Pavlov found that an animal’s innate responses to certain triggering stimuli can
+come to be triggered by other stimuli that are quite unrelated to the inborn triggers. His
+experimental subjects were dogs that had undergone minor surgery to allow the intensity
+of their salivary reﬂex to be accurately measured. In one case he describes, the dog did
+not salivate under most circumstances, but about 5 seconds after being presented with
+food it produced about six drops of saliva over the next several seconds. After several
+repetitions of presenting another stimulus, one not related to food, in this case the sound
+of a metronome, shortly before the introduction of food, the dog salivated in response to
+the sound of the metronome in the same way it did to the food. “The activity of the
+salivary gland has thus been called into play by impulses of sound—a stimulus quite
+alien to food” (Pavlov, 1927, p. 22). Summarizing the signiﬁcance of this ﬁnding, Pavlov
+wrote:
+It is pretty evident that under natural conditions the normal animal must
+respond not only to stimuli which themselves bring immediate beneﬁt or
+harm, but also to other physical or chemical agencies—waves of sound, light,
+and the like—which in themselves only signal the approach of these stimuli;
+though it is not the sight and sound of the beast of prey which is in itself
+harmful to the smaller animal, but its teeth and claws. (Pavlov, 1927, p. 14)
+Connecting new stimuli to innate reﬂexes in this way is now called classical, or Pavlovian,
+conditioning. Pavlov (or more exactly, his translators) called inborn responses (e.g.,
+
+--- Page 366 ---
+344
+Chapter 14: Psychology
+salivation in his demonstration described above) “unconditioned responses” (URs), their
+natural triggering stimuli (e.g., food) “unconditioned stimuli” (USs), and new responses
+triggered by predictive stimuli (e.g., here also salivation) “conditioned responses” (CRs).
+A stimulus that is initially neutral, meaning that it does not normally elicit strong
+responses (e.g., the metronome sound), becomes a “conditioned stimulus” (CS) as the
+animal learns that it predicts the US and so comes to produce a CR in response to the CS.
+These terms are still used in describing classical conditioning experiments (though better
+translations would have been “conditional” and “unconditional” instead of conditioned
+and unconditioned). The US is called a reinforcer because it reinforces producing a CR
+in response to the CS.
+t
+Trace Conditioning
+Delay Conditioning
+CS
+US
+CS
+US
+ISI
+The arrangement of stimuli in two
+common types of classical condition-
+ing experiments is shown to the right.
+In delay conditioning, the CS extends
+throughout the interstimulus interval, or
+ISI, which is the time interval between
+the CS onset and the US onset (with
+the CS ending when the US ends in a
+common version shown here). In trace
+conditioning, the US begins after the CS
+ends, and the time interval between CS
+o↵set and US onset is called the trace
+interval.
+The salivation of Pavlov’s dogs to the
+sound of a metronome is just one exam-
+ple of classical conditioning, which has
+been intensively studied across many response systems of many species of animals. URs
+are often preparatory in some way, like the salivation of Pavlov’s dog, or protective in
+some way, like an eye blink in response to something irritating to the eye, or freezing
+in response to seeing a predator. Experiencing the CS-US predictive relationship over
+a series of trials causes the animal to learn that the CS predicts the US so that the
+animal can respond to the CS with a CR that prepares the animal for, or protects it
+from, the predicted US. Some CRs are similar to the UR but begin earlier and di↵er in
+ways that increase their e↵ectiveness. In one intensively studied type of experiment, for
+example, a tone CS reliably predicts a pu↵of air (the US) to a rabbit’s eye, triggering a
+UR consisting of the closure of a protective inner eyelid called the nictitating membrane.
+After one or more trials, the tone comes to trigger a CR consisting of membrane closure
+that begins before the air pu↵and eventually becomes timed so that peak closure occurs
+just when the air pu↵is likely to occur. This CR, being initiated in anticipation of the
+air pu↵and appropriately timed, o↵ers better protection than simply initiating closure
+as a reaction to the irritating US. The ability to act in anticipation of important events
+by learning about predictive relationships among stimuli is so beneﬁcial that it is widely
+present across the animal kingdom.
+
+--- Page 367 ---
+14.2. Classical Conditioning
+345
+14.2.1
+Blocking and Higher-order Conditioning
+Many interesting properties of classical conditioning have been observed in experiments.
+Beyond the anticipatory nature of CRs, two widely observed properties ﬁgured prominently
+in the development of classical conditioning models: blocking and higher-order conditioning.
+Blocking occurs when an animal fails to learn a CR when a potential CS is presented along
+with another CS that had been used previously to condition the animal to produce that
+CR. For example, in the ﬁrst stage of a blocking experiment involving rabbit nictitating
+membrane conditioning, a rabbit is ﬁrst conditioned with a tone CS and an air pu↵US
+to produce the CR of closing its nictitating membrane in anticipation of the air pu↵. The
+experiment’s second stage consists of additional trials in which a second stimulus, say
+a light, is added to the tone to form a compound tone/light CS followed by the same
+air pu↵US. In the experiment’s third phase, the second stimulus alone—the light—is
+presented to the rabbit to see if the rabbit has learned to respond to it with a CR. It
+turns out that the rabbit produces very few, or no, CRs in response to the light: learning
+to the light had been blocked by the previous learning to the tone.2 Blocking results like
+this challenged the idea that conditioning depends only on simple temporal contiguity,
+that is, that a necessary and suﬃcient condition for conditioning is that a US frequently
+follows a CS closely in time. In the next section we describe the Rescorla–Wagner model
+(Rescorla and Wagner, 1972) that o↵ered an inﬂuential explanation for blocking.
+Higher-order conditioning occurs when a previously-conditioned CS acts as a US
+in conditioning another initially neutral stimulus. Pavlov described an experiment in
+which his assistant ﬁrst conditioned a dog to salivate to the sound of a metronome that
+predicted a food US, as described above. After this stage of conditioning, a number of
+trials were conducted in which a black square, to which the dog was initially indi↵erent,
+was placed in the dog’s line of vision followed by the sound of the metronome—and
+this was not followed by food. In just ten trials, the dog began to salivate merely upon
+seeing the black square, despite the fact that the sight of it had never been followed by
+food. The sound of the metronome itself acted as a US in conditioning a salivation CR
+to the black square CS. This was second-order conditioning. If the black square had
+been used as a US to establish salivation CRs to another otherwise neutral CS, it would
+have been third-order conditioning, and so on. Higher-order conditioning is diﬃcult to
+demonstrate, especially above the second order, in part because a higher-order reinforcer
+loses its reinforcing value due to not being repeatedly followed by the original US during
+higher-order conditioning trials. But under the right conditions, such as intermixing
+ﬁrst-order trials with higher-order trials or by providing a general energizing stimulus,
+higher-order conditioning beyond the second order can be demonstrated. As we describe
+below, the TD model of classical conditioning uses the bootstrapping idea that is central
+to our approach to extend the Rescorla–Wagner model’s account of blocking to include
+both the anticipatory nature of CRs and higher-order conditioning.
+2Comparison with a control group is necessary to show that the previous conditioning to the tone is
+responsible for blocking learning to the light. This is done by trials with the tone/light CS but with no
+prior conditioning to the tone. Learning to the light in this case is unimpaired. Moore and Schmajuk
+(2008) give a full account of this procedure.
+
+--- Page 368 ---
+346
+Chapter 14: Psychology
+Higher-order instrumental conditioning occurs as well. In this case, a stimulus that
+consistently predicts primary reinforcement becomes a reinforcer itself, where reinforce-
+ment is primary if its rewarding or penalizing quality has been built into the animal by
+evolution. The predicting stimulus becomes a secondary reinforcer, or more generally, a
+higher-order or conditioned reinforcer—the latter being a better term when the predicted
+reinforcing stimulus is itself a secondary, or an even higher-order, reinforcer. A condi-
+tioned reinforcer delivers conditioned reinforcement: conditioned reward or conditioned
+penalty. Conditioned reinforcement acts like primary reinforcement in increasing an
+animal’s tendency to produce behavior that leads to conditioned reward, and to decrease
+an animal’s tendency to produce behavior that leads to conditioned penalty. (See our
+comments at the end of this chapter that explain how our terminology sometimes di↵ers,
+as it does here, from terminology used in psychology.)
+Conditioned reinforcement is a key phenomenon that explains, for instance, why we
+work for the conditioned reinforcer money, whose worth derives solely from what is
+predicted by having it. In actor–critic methods described in Section 13.5 (and discussed
+in the context of neuroscience in Sections 15.7 and 15.8), the critic uses a TD method
+to evaluate the actor’s policy, and its value estimates provide conditioned reinforcement
+to the actor, allowing the actor to improve its policy.
+This analog of higher-order
+instrumental conditioning helps address the credit-assignment problem mentioned in
+Section 1.7 because the critic gives moment-by-moment reinforcement to the actor when
+the primary reward signal is delayed. We discuss this more below in Section 14.4.
+14.2.2
+The Rescorla–Wagner Model
+Rescorla and Wagner created their model mainly to account for blocking. The core
+idea of the Rescorla–Wagner model is that an animal only learns when events violate
+its expectations, in other words, only when the animal is surprised (although without
+necessarily implying any conscious expectation or emotion). We ﬁrst present Rescorla and
+Wagner’s model using their terminology and notation before shifting to the terminology
+and notation we use to describe the TD model.
+Here is how Rescorla and Wagner described their model. The model adjusts the
+“associative strength” of each component stimulus of a compound CS, which is a number
+representing how strongly or reliably that component is predictive of a US. When
+a compound CS consisting of several component stimuli is presented in a classical
+conditioning trial, the associative strength of each component stimulus changes in a way
+that depends on an associative strength associated with the entire stimulus compound,
+called the “aggregate associative strength,” and not just on the associative strength of
+each component itself.
+Rescorla and Wagner considered a compound CS AX, consisting of component stimuli
+A and X, where the animal may have already experienced stimulus A, and stimulus X
+might be new to the animal. Let VA, VX, and VAX respectively denote the associative
+strengths of stimuli A, X, and the compound AX. Suppose that on a trial the compound
+CS AX is followed by a US, which we label stimulus Y. Then the associative strengths of
+
+--- Page 369 ---
+14.2. Classical Conditioning
+347
+the stimulus components change according to these expressions:
+∆VA = ↵AβY(RY −VAX)
+∆VX = ↵XβY(RY −VAX),
+where ↵AβY and ↵XβY are the step-size parameters, which depend on the identities of
+the CS components and the US, and RY is the asymptotic level of associative strength
+that the US Y can support. (Rescorla and Wagner used λ here instead of R, but we
+use R to avoid confusion with our use of λ and because we usually think of this as the
+magnitude of a reward signal, with the caveat that the US in classical conditioning is not
+necessarily rewarding or penalizing.) A key assumption of the model is that the aggregate
+associative strength VAX is equal to VA + VX. The associative strengths as changed by
+these ∆s become the associative strengths at the beginning of the next trial.
+To be complete, the model needs a response-generation mechanism, which is a way
+of mapping values of V s to CRs. Because this mapping would depend on details of
+the experimental situation, Rescorla and Wagner did not specify a mapping but simply
+assumed that larger V s would produce stronger or more likely CRs, and that negative
+V s would mean that there would be no CRs.
+The Rescorla–Wagner model accounts for the acquisition of CRs in a way that explains
+blocking. As long as the aggregate associative strength, VAX, of the stimulus compound
+is below the asymptotic level of associative strength, RY, that the US Y can support, the
+prediction error RY−VAX is positive. This means that over successive trials the associative
+strengths VA and VX of the component stimuli increase until the aggregate associative
+strength VAX equals RY, at which point the associative strengths stop changing (unless the
+US changes). When a new component is added to a compound CS to which the animal has
+already been conditioned, further conditioning with the augmented compound produces
+little or no increase in the associative strength of the added CS component because the
+error has already been reduced to zero, or to a low value. The occurrence of the US is
+already predicted nearly perfectly, so little or no error—or surprise—is introduced by the
+new CS component. Prior learning blocks learning to the new component.
+To transition from Rescorla and Wagner’s model to the TD model of classical condi-
+tioning (which we just call the TD model), we ﬁrst recast their model in terms of the
+concepts that we are using throughout this book. Speciﬁcally, we match the notation
+we use for learning with linear function approximation (Section 9.4), and we think of
+the conditioning process as one of learning to predict the “magnitude of the US” on a
+trial on the basis of the compound CS presented on that trial, where the magnitude of
+a US Y is the RY of the Rescorla–Wagner model as given above. We also introduce
+states. Because the Rescorla–Wagner model is a trial-level model, meaning that it deals
+with how associative strengths change from trial to trial without considering any details
+about what happens within and between trials, we do not have to consider how states
+change during a trial until we present the full TD model in the following section. Instead,
+here we simply think of a state as a way of labeling a trial in terms of the collection of
+component CSs that are present on the trial.
+Therefore, assume that trial-type, or state, s is described by a real-valued vector of
+features x(s) = (x1(s), x2(s), . . . , xd(s))> where xi(s) = 1 if CSi, the ith component of a
+
+--- Page 370 ---
+348
+Chapter 14: Psychology
+compound CS, is present on the trial and 0 otherwise. Then if the d-dimensional vector
+of associative strengths is w, the aggregate associative strength for trial-type s is
+ˆv(s,w) = w>x(s).
+(14.1)
+This corresponds to a value estimate in reinforcement learning, and we think of it as the
+US prediction.
+Now temporally let t denote the number of a complete trial and not its usual meaning
+as a time step (we revert to t’s usual meaning when we extend this to the TD model
+below), and assume that St is the state corresponding to trial t. Conditioning trial t
+updates the associative strength vector wt to wt+1 as follows:
+wt+1 = wt + ↵δtx(St),
+(14.2)
+where ↵is the step-size parameter, and—because here we are describing the Rescorla–
+Wagner model—δt is the prediction error
+δt = Rt −ˆv(St,wt).
+(14.3)
+Rt is the target of the prediction on trial t, that is, the magnitude of the US, or in Rescorla
+and Wagner’s terms, the associative strength that the US on the trial can support. Note
+that because of the factor x(St) in (14.2), only the associative strengths of CS components
+present on a trial are adjusted as a result of that trial. You can think of the prediction
+error as a measure of surprise, and the aggregate associative strength as the animal’s
+expectation that is violated when it does not match the target US magnitude.
+From the perspective of machine learning, the Rescorla–Wagner model is an error-
+correction supervised learning rule. It is essentially the same as the Least Mean Square
+(LMS), or Widrow-Ho↵, learning rule (Widrow and Ho↵, 1960) that ﬁnds the weights—
+here the associative strengths—that make the average of the squares of all the errors as
+close to zero as possible. It is a “curve-ﬁtting,” or regression, algorithm that is widely
+used in engineering and scientiﬁc applications (see Section 9.4).3
+The Rescorla–Wagner model was very inﬂuential in the history of animal learning
+theory because it showed that a “mechanistic” theory could account for the main facts
+about blocking without resorting to more complex cognitive theories involving, for
+example, an animal’s explicit recognition that another stimulus component had been
+added and then scanning its short-term memory backward to reassess the predictive
+relationships involving the US. The Rescorla–Wagner model showed how traditional
+contiguity theories of conditioning—that temporal contiguity of stimuli was a necessary
+and suﬃcient condition for learning—could be adjusted in a simple way to account for
+blocking (Moore and Schmajuk, 2008).
+The Rescorla–Wagner model provides a simple account of blocking and some other
+features of classical conditioning, but it is not a complete or perfect model of classical
+3The only di↵erences between the LMS rule and the Rescorla–Wagner model are that for LMS the
+input vectors xt can have any real numbers as components, and—at least in the simplest version of the
+LMS rule—the step-size parameter ↵does not depend on the input vector or the identity of the stimulus
+setting the prediction target.
+
+--- Page 371 ---
+14.2. Classical Conditioning
+349
+conditioning. Di↵erent ideas account for a variety of other observed e↵ects, and progress
+is still being made toward understanding the many subtleties of classical conditioning.
+The TD model, which we describe next, though also not a complete or perfect model
+model of classical conditioning, extends the Rescorla–Wagner model to address how
+within-trial and between-trial timing relationships among stimuli can inﬂuence learning
+and how higher-order conditioning might arise.
+14.2.3
+The TD Model
+The TD model is a real-time model, as opposed to a trial-level model like the Rescorla–
+Wagner model.
+A single step t in the Rescorla–Wagner model represents an entire
+conditioning trial. The model does not apply to details about what happens during the
+time a trial is taking place, or what might happen between trials. Within each trial an
+animal might experience various stimuli whose onsets occur at particular times and that
+have particular durations. These timing relationships strongly inﬂuence learning. The
+Rescorla–Wagner model also does not include a mechanism for higher-order conditioning,
+whereas for the TD model, higher-order conditioning is a natural consequence of the
+bootstrapping idea that is at the base of TD algorithms.
+To describe the TD model we begin with the formulation of the Rescorla–Wagner
+model above, but t now labels time steps within or between trials instead of complete
+trials. Think of the time between t and t + 1 as a small time interval, say .01 second, and
+think of a trial as a sequences of states, one associated with each time step, where the
+state at step t now represents details of how stimuli are represented at t instead of just
+a label for the CS components present on a trial. In fact, we can completely abandon
+the idea of trials. From the point of view of the animal, a trial is just a fragment of its
+continuing experience interacting with its world. Following our usual view of an agent
+interacting with its environment, imagine that the animal is experiencing an endless
+sequence of states s, each represented by a feature vector x(s). That said, it is still often
+convenient to refer to trials as fragments of time during which patterns of stimuli repeat
+in an experiment.
+State features are not restricted to describing the external stimuli that an animal
+experiences; they can describe neural activity patterns that external stimuli produce in
+an animal’s brain, and these patterns can be history-dependent, meaning that they can
+be persistent patterns produced by sequences of external stimuli. Of course, we do not
+know exactly what these neural activity patterns are, but a real-time model like the TD
+model allows one to explore the consequences on learning of di↵erent hypotheses about
+the internal representations of external stimuli. For these reasons, the TD model does
+not commit to any particular state representation. In addition, because the TD model
+includes discounting and eligibility traces that span time intervals between stimuli, the
+model also makes it possible to explore how discounting and eligibility traces interact with
+stimulus representations in making predictions about the results of classical conditioning
+experiments.
+Below we describe some of the state representations that have been used with the
+TD model and some of their implications, but for the moment we stay agnostic about
+
+--- Page 372 ---
+350
+Chapter 14: Psychology
+the representation and just assume that each state s is represented by a feature vector
+x(s) = (x1(s), x2(s), . . . , xn(s))>. Then the aggregate associative strength corresponding
+to a state s is given by (14.1), the same as for the Rescorla-Wagner model, but the TD
+model updates the associative strength vector, w, di↵erently. With t now labeling a time
+step instead of a complete trial, the TD model governs learning according to this update:
+wt+1 = wt + ↵δtzt,
+(14.4)
+which replaces xt(St) in the Rescorla–Wagner update (14.2) with zt, a vector of eligibility
+traces, and instead of the δt of (14.3), here δt is a TD error:
+δt = Rt+1 + γˆv(St+1,wt) −ˆv(St,wt),
+(14.5)
+where γ is a discount factor (between 0 and 1), Rt is the prediction target at time t, and
+ˆv(St+1,wt) and ˆv(St,wt) are aggregate associative strengths at t + 1 and t as deﬁned by
+(14.1).
+Each component i of the eligibility-trace vector zt increments or decrements according
+to the component xi(St) of the feature vector x(St), and otherwise decays with a rate
+determined by γλ:
+zt = γλzt−1 + x(St).
+(14.6)
+Here λ is the usual eligibility trace decay parameter.
+Note that if γ = 0, the TD model reduces to the Rescorla–Wagner model with the
+exceptions that: the meaning of t is di↵erent in each case (a trial number for the
+Rescorla–Wagner model and a time step for the TD model), and in the TD model there
+is a one-time-step lead in the prediction target R. The TD model is equivalent to the
+backward view of the semi-gradient TD(λ) algorithm with linear function approximation
+(Chapter 12), except that Rt in the model does not have to be a reward signal as it does
+when the TD algorithm is used to learn a value function for policy-improvement.
+14.2.4
+TD Model Simulations
+Real-time conditioning models like the TD model are interesting primarily because they
+make predictions for a wide range of situations that cannot be represented by trial-level
+models. These situations involve the timing and durations of conditionable stimuli, the
+timing of these stimuli in relation to the timing of the US, and the timing and shapes
+of CRs. For example, the US generally must begin after the onset of a neutral stimulus
+for conditioning to occur, with the rate and e↵ectiveness of learning depending on the
+inter-stimulus interval, or ISI, the interval between the onsets of the CS and the US. When
+CRs appear, they generally begin before the appearance of the US and their temporal
+proﬁles change during learning. In conditioning with compound CSs, the component
+stimuli of the compound CSs may not all begin and end at the same time, sometimes
+forming what is called a serial compound in which the component stimuli occur in a
+sequence over time. Timing considerations like these make it important to consider how
+
+--- Page 373 ---
+14.2. Classical Conditioning
+351
+Presence
+Complete Serial 
+Compound
+Stimulus 
+Representation
+Microstimuli
+CS
+US
+Figure 14.1: Three stimulus representations (in columns) sometimes used with the TD model.
+Each row represents one element of the stimulus representation. The three representations vary
+along a temporal generalization gradient, with no generalization between nearby time points in
+the complete serial compound (left column) and complete generalization between nearby time
+points in the presence representation (right column). The microstimulus representation occupies
+a middle ground. The degree of temporal generalization determines the temporal granularity
+with which US predictions are learned. Adapted with minor changes from Learning & Behavior,
+Evaluating the TD Model of Classical Conditioning, volume 40, 2012, p. 311, E. A. Ludvig, R. S.
+Sutton, E. J. Kehoe. With permission of Springer.
+stimuli are represented, how these representations unfold over time during and between
+trials, and how they interact with discounting and eligibility traces.
+Figure 14.1 shows three of the stimulus representations that have been used in exploring
+the behavior of the TD model: the complete serial compound (CSC), the microstimulus
+(MS), and the presence representations (Ludvig, Sutton, and Kehoe, 2012).
+These
+representations di↵er in the degree to which they force generalization among nearby time
+points during which a stimulus is present.
+The simplest of the representations shown in Figure 14.1 is the presence representation
+in the ﬁgure’s right column. This representation has a single feature for each component
+CS present on a trial, where the feature has value 1 whenever that component is present,
+and 0 otherwise.4 The presence representation is not a realistic hypothesis about how
+stimuli are represented in an animal’s brain, but as we describe below, the TD model
+with this representation can produce many of the timing phenomena seen in classical
+conditioning.
+4In our formalism, there is a di↵erent state, St, for each time step t during a trial, and for a trial
+in which a compound CS consists of n component CSs of various durations occurring at various times
+throughout the trial, there is a feature, xi, for each component CSi, i = 1, . . . , n, where xi(St) = 1 for
+all times t when the CSi is present, and equals zero otherwise.
+
+--- Page 374 ---
+352
+Chapter 14: Psychology
+For the CSC representation (left column of Figure 14.1), the onset of each external
+stimulus initiates a sequence of precisely-timed short-duration internal signals that
+continues until the external stimulus ends.5 This is like assuming the animal’s nervous
+system has a clock that keeps precise track of time during stimulus presentations; it is
+what engineers call a “tapped delay line.” Like the presence representation, the CSC
+representation is unrealistic as a hypothesis about how the brain internally represents
+stimuli, but Ludvig et al. (2012) call it a “useful ﬁction” because it can reveal details of
+how the TD model works when relatively unconstrained by the stimulus representation.
+The CSC representation is also used in most TD models of dopamine-producing neurons
+in the brain, a topic we take up in Chapter 15. The CSC representation is often viewed
+as an essential part of the TD model, although this view is mistaken.
+The MS representation (center column of Figure 14.1) is like the CSC representation
+in that each external stimulus initiates a cascade of internal stimuli, but in this case the
+internal stimuli—the microstimuli—are not of such limited and non-overlapping form;
+they are extended over time and overlap. As time elapses from stimulus onset, di↵erent
+sets of microstimuli become more or less active, and each subsequent microstimulus
+becomes progressively wider in time and reaches a lower maximal level. Of course, there
+are many MS representations depending on the nature of the microstimuli, and a number
+of examples of MS representations have been studied in the literature, in some cases along
+with proposals for how an animal’s brain might generate them (see the Bibliographic and
+Historical Comments at the end of this chapter). MS representations are more realistic
+than the presence or CSC representations as hypotheses about neural representations of
+stimuli, and they allow the behavior of the TD model to be related to a broader collection
+of phenomena observed in animal experiments. In particular, by assuming that cascades
+of microstimuli are initiated by USs as well as by CSs, and by studying the signiﬁcant
+e↵ects on learning of interactions between microstimuli, eligibility traces, and discounting,
+the TD model is helping to frame hypotheses to account for many of the subtle phenomena
+of classical conditioning and how an animal’s brain might produce them. We say more
+about this below, particularly in Chapter 15 where we discuss reinforcement learning and
+neuroscience.
+Even with the simple presence representation, however, the TD model produces all the
+basic properties of classical conditioning that are accounted for by the Rescorla–Wagner
+model, plus features of conditioning that are beyond the scope of trial-level models. For
+example, as we have already mentioned, a conspicuous feature of classical conditioning is
+that the US generally must begin after the onset of a neutral stimulus for conditioning
+to occur, and that after conditioning, the CR begins before the appearance of the US.
+In other words, conditioning generally requires a positive ISI, and the CR generally
+anticipates the US. How the strength of conditioning (e.g., the percentage of CRs elicited
+by a CS) depends on the ISI varies substantially across species and response systems, but
+it typically has the following properties: it is negligible for a zero or negative ISI, i.e., when
+5In our formalism, for each CS component CSi present on a trial, and for each time step t during a
+trial, there is a separate feature xt
+i, where xt
+i(St0) = 1 if t = t0 for any t0 at which CSi is present, and
+equals 0 otherwise. This is di↵erent from the CSC representation in Sutton and Barto (1990) in which
+there are the same distinct features for each time step but no reference to external stimuli; hence the
+name complete serial compound.
+
+--- Page 375 ---
+14.2. Classical Conditioning
+353
+the US onset occurs simultaneously with, or earlier than, the CS onset (although research
+has found that associative strengths sometimes increase slightly or become negative with
+negative ISIs); it increases to a maximum at a positive ISI where conditioning is most
+e↵ective; and it then decreases to zero after an interval that varies widely with response
+systems. The precise shape of this dependency for the TD model depends on the values
+of its parameters and details of the stimulus representation, but these basic features of
+ISI-dependency are core properties of the TD model.
+Facilitation of remote associations in the TD model
+One of the theoretical issues arising
+with serial-compound conditioning, that
+is, conditioning with a compound CS
+whose components occur in a sequence,
+concerns the facilitation of remote asso-
+ciations. It has been found that if the
+empty trace interval between a ﬁrst CS
+(CSA) and the US is ﬁlled with a second
+CS (CSB) to form a serial-compound
+stimulus, then conditioning to CSA is
+facilitated.
+Shown to the right is the
+behavior of the TD model with the pres-
+ence representation in a simulation of
+such an experiment whose timing details
+are shown above. Consistent with the
+experimental results (Kehoe, 1982), the
+model shows facilitation of both the rate
+of conditioning and the asymptotic level
+of conditioning of the ﬁrst CS due to the
+presence of the second CS.
+wCSB
+The Egger-Miller e↵ect in the TD model
+A well-known demonstration of the
+e↵ects on conditioning of temporal re-
+lationships among stimuli within a trial
+is an experiment by Egger and Miller
+(1962) that involved two overlapping
+CSs in a delay conﬁguration as shown
+to the right (top). Although CSB was
+in a better temporal relationship with
+the US, the presence of CSA substan-
+tially reduced conditioning to CSB as
+compared to controls in which CSA was
+absent. Directly to the right is shown
+the same result being generated by the
+TD model in a simulation of this exper-
+iment with the presence representation.
+The TD model accounts for blocking
+because it is an error-correcting learning
+
+--- Page 376 ---
+354
+Chapter 14: Psychology
+rule like the Rescorla–Wagner model. Beyond accounting for basic blocking results,
+however, the TD model predicts (with the presence representation and more complex
+representations as well) that blocking is reversed if the blocked stimulus is moved earlier
+wCSB
+Figure 14.2:
+Temporal primacy overriding
+blocking in the TD model.
+in time (like CSA in the diagram to the
+right) so that its onset occurs before the
+onset of the blocking stimulus. This feature
+of the TD model’s behavior deserves atten-
+tion because it had not been observed at
+the time of the model’s introduction. Recall
+that in blocking, if an animal has already
+learned that one CS predicts a US, then
+learning that a newly-added second CS also
+predicts the US is much reduced, i.e., is
+blocked. But if the newly-added second CS
+begins earlier than the pretrained CS, then—
+according to the TD model—learning to the
+newly-added CS is not blocked. In fact, as
+training continues and the newly-added CS
+gains associative strength, the pretrained
+CS loses associative strength. The behavior
+of the TD model under these conditions
+is shown in the lower part of Figure 14.2.
+This simulation experiment di↵ered from the Egger-Miller experiment (bottom of the
+preceding page) in that the shorter CS with the later onset was given prior training
+until it was fully associated with the US. This surprising prediction led Kehoe, Schreurs,
+and Graham (1987) to conduct the experiment using the well-studied rabbit nictitating
+membrane preparation. Their results conﬁrmed the model’s prediction, and they noted
+that non-TD models have considerable diﬃculty explaining their data.
+With the TD model, an earlier predictive stimulus takes precedence over a later
+predictive stimulus because, like all the prediction methods described in this book, the
+TD model is based on the backing-up or bootstrapping idea: updates to associative
+strengths shift the strengths at a particular state toward the strength at later states.
+Another consequence of bootstrapping is that the TD model provides an account of higher-
+order conditioning, a feature of classical conditioning that is beyond the scope of the
+Rescorla-Wagner and similar models. As we described above, higher-order conditioning
+is the phenomenon in which a previously-conditioned CS can act as a US in conditioning
+another initially neutral stimulus. Figure 14.3 shows the behavior of the TD model (again
+with the presence representation) in a higher-order conditioning experiment—in this case
+it is second-order conditioning. In the ﬁrst phase (not shown in the ﬁgure), CSB is trained
+to predict a US so that its associative strength increases, here to 1.65. In the second
+phase, CSA is paired with CSB in the absence of the US, in the sequential arrangement
+shown at the top of the ﬁgure. CSA acquires associative strength even though it is never
+paired with the US. With continued training, CSA’s associative strength reaches a peak
+and then decreases because the associative strength of CSB, the secondary reinforcer,
+decreases so that it loses its ability to provide secondary reinforcement. CSB’s associative
+
+--- Page 377 ---
+14.2. Classical Conditioning
+355
+w
+Figure 14.3: Second-order conditioning with
+the TD model.
+strength decreases because the US does not
+occur in these higher-order conditioning tri-
+als. These are extinction trials for CSB
+because its predictive relationship to the
+US is disrupted so that its ability to act as
+a reinforcer decreases. This same pattern
+is seen in animal experiments. This extinc-
+tion of conditioned reinforcement in higher-
+order conditioning trials makes it diﬃcult
+to demonstrate higher-order conditioning
+unless the original predictive relationships
+are periodically refreshed by occasionally
+inserting ﬁrst-order trials.
+The TD model produces an analog of
+second- and higher-order conditioning be-
+cause γˆv(St+1,wt) −ˆv(St,wt) appears in
+the TD error δt (14.5). Due to the ﬁrst
+phase of learning, γˆv(St+1,wt) may di↵er
+from ˆv(St,wt), making δt non-zero (a temporal di↵erence). This di↵erence has the same
+status as Rt+1 in (14.5), implying that as far as learning is concerned there is no di↵erence
+between a temporal di↵erence and the occurrence of a US. In fact, this feature of the
+TD algorithm is one of the major reasons for its development, which we now understand
+through its connection to dynamic programming as described in Chapter 6. Bootstrapping
+values is intimately related to second-order, and higher-order, conditioning.
+In the examples of the TD model’s behavior described above, we examined only the
+changes in the associative strengths of the CS components; we did not look at what
+the model predicts about properties of an animal’s conditioned responses (CRs): their
+timing, shape, and how they develop over conditioning trials. These properties depend
+on the species, the response system being observed, and parameters of the conditioning
+trials, but in many experiments with di↵erent animals and di↵erent response systems, the
+magnitude of the CR, or the probability of a CR, increases as the expected time of the
+US approaches. For example, in classical conditioning of a rabbit’s nictitating membrane
+response that we mentioned above, over conditioning trials the delay from CS onset to
+when the nictitating membrane begins to move across the eye decreases over trials, and
+the amplitude of this anticipatory closure gradually increases over the interval between
+the CS and the US until the membrane reaches maximal closure at the expected time of
+the US. The timing and shape of this CR is critical to its adaptive signiﬁcance—covering
+the eye too early reduces vision (even though the nictitating membrane is translucent),
+while covering it too late is of little protective value. Capturing CR features like these is
+challenging for models of classical conditioning.
+The TD model does not include as part of its deﬁnition any mechanism for translat-
+ing the time course of the US prediction, ˆv(St,wt), into a proﬁle that can be compared
+
+--- Page 378 ---
+356
+Chapter 14: Psychology
+with the properties of an animal’s CR. The simplest choice is to let the time course of
+a simulated CR equal the time course of the US prediction. In this case, features of
+simulated CRs and how they change over trials depend only on the stimulus representation
+chosen and the values of the model’s parameters ↵, γ, and λ.
+Figure 14.4 shows the time courses of US predictions at di↵erent points during learning
+with the three representations shown in Figure 14.1.
+For these simulations the US
+occurred 25 time steps after the onset of the CS, and ↵= .05, λ = .95 and γ = .97.
+With the CSC representation (Figure 14.4 left), the curve of the US prediction formed
+by the TD model increases exponentially throughout the interval between the CS and
+the US until it reaches a maximum exactly when the US occurs (at time step 25). This
+exponential increase is the result of discounting in the TD model learning rule. With the
+presence representation (Figure 14.4 middle), the US prediction is nearly constant while
+the stimulus is present because there is only one weight, or associative strength, to be
+learned for each stimulus. Consequently, the TD model with the presence representation
+cannot recreate many features of CR timing. With an MS representation (Figure 14.4
+right), the development of the TD model’s US prediction is more complicated. After 200
+trials the prediction’s proﬁle is a reasonable approximation of the US prediction curve
+produced with the CSC representation.
+ˆv
+ˆv
+ˆv
+Figure 14.4: Time course of US prediction over the course of acquisition for the TD model
+with three di↵erent stimulus representations. Left: With the complete serial compound (CSC),
+the US prediction increases exponentially through the interval, peaking at the time of the US.
+At asymptote (trial 200), the US prediction peaks at the US intensity (1 in these simulations).
+Middle: With the presence representation, the US prediction converges to an almost constant
+level. This constant level is determined by the US intensity and the length of the CS–US interval.
+Right: With the microstimulus representation, at asymptote, the TD model approximates the
+exponentially increasing time course depicted with the CSC through a linear combination of the
+di↵erent microstimuli. Adapted with minor changes from Learning & Behavior, Evaluating the
+TD Model of Classical Conditioning, volume 40, 2012, E. A. Ludvig, R. S. Sutton, E. J. Kehoe.
+With permission of Springer.
+The US prediction curves shown in Figure 14.4 were not intended to precisely match
+proﬁles of CRs as they develop during conditioning in any particular animal experiment,
+but they illustrate the strong inﬂuence that the stimulus representation has on predictions
+derived from the TD model. Further, although we can only mention it here, how the
+
+--- Page 379 ---
+14.3. Instrumental Conditioning
+357
+stimulus representation interacts with discounting and eligibility traces is important
+in determining properties of the US prediction proﬁles produced by the TD model.
+Another dimension beyond what we can discuss here is the inﬂuence of di↵erent response-
+generation mechanisms that translate US predictions into CR proﬁles; the proﬁles shown
+in Figure 14.4 are “raw” US prediction proﬁles. Even without any special assumption
+about how an animal’s brain might produce overt responses from US predictions, however,
+the proﬁles in Figure 14.4 for the CSC and MS representations increase as the time of the
+US approaches and reach a maximum at the time of the US, as is seen in many animal
+conditioning experiments.
+The TD model, when combined with particular stimulus representations and response-
+generation mechanisms, is able to account for a surprisingly wide range of phenomena
+observed in animal classical conditioning experiments, but it is far from being a perfect
+model. To generate other details of classical conditioning the model needs to be extended,
+perhaps by adding model-based elements and mechanisms for adaptively altering some of
+its parameters. Other approaches to modeling classical conditioning depart signiﬁcantly
+from the Rescorla–Wagner-style error-correction process. Bayesian models, for example,
+work within a probabilistic framework in which experience revises probability estimates.
+All of these models usefully contribute to our understanding of classical conditioning.
+Perhaps the most notable feature of the TD model is that it is based on a theory—the
+theory we have described in this book—that suggests an account of what an animal’s
+nervous system is trying to do while undergoing conditioning: it is trying to form accurate
+long-term predictions, consistent with the limitations imposed by the way stimuli are
+represented and how the nervous system works. In other words, it suggests a normative
+account of classical conditioning in which long-term, instead of immediate, prediction is a
+key feature.
+The development of the TD model of classical conditioning is one instance in which the
+explicit goal was to model some of the details of animal learning behavior. In addition to
+its standing as an algorithm, then, TD learning is also the basis of this model of aspects
+of biological learning. As we discuss in Chapter 15, TD learning has also turned out
+to underlie an inﬂuential model of the activity of neurons that produce dopamine, a
+chemical in the brain of mammals that is deeply involved in reward processing. These
+are instances in which reinforcement learning theory makes detailed contact with animal
+behavioral and neural data.
+We now turn to considering correspondences between reinforcement learning and animal
+behavior in instrumental conditioning experiments, the other major type of laboratory
+experiment studied by animal learning psychologists.
+14.3
+Instrumental Conditioning
+In instrumental conditioning experiments learning depends on the consequences of be-
+havior: the delivery of a reinforcing stimulus is contingent on what the animal does.
+In classical conditioning experiments, in contrast, the reinforcing stimulus—the US—is
+delivered independently of the animal’s behavior. Instrumental conditioning is usually
+considered to be the same as operant conditioning, the term B. F. Skinner (1938, 1963)
+
+--- Page 380 ---
+358
+Chapter 14: Psychology
+introduced for experiments with behavior-contingent reinforcement, though the experi-
+ments and theories of those who use these two terms di↵er in a number of ways, some of
+which we touch on below. We will exclusively use the term instrumental conditioning for
+experiments in which reinforcement is contingent upon behavior. The roots of instrumen-
+tal conditioning go back to experiments performed by the American psychologist Edward
+Thorndike one hundred years before publication of the ﬁrst edition of this book.
+One of Thorndike’s puzzle boxes.
+Reprinted from Thorndike, Animal Intelligence:
+An
+Experimental Study of the Associative Processes in
+Animals, The Psychological Review, Series of Mono-
+graph Supplements II(4), Macmillan, New York, 1898.
+Thorndike observed the behavior of cats
+when they were placed in “puzzle boxes,”
+such as the one at the right, from which
+they could escape by appropriate actions.
+For example, a cat could open the door
+of one box by performing a sequence of
+three separate actions: depressing a plat-
+form at the back of the box, pulling a string
+by clawing at it, and pushing a bar up or
+down. When ﬁrst placed in a puzzle box,
+with food visible outside, all but a few of
+Thorndike’s cats displayed “evident signs
+of discomfort” and extraordinarily vigorous
+activity “to strive instinctively to escape
+from conﬁnement” (Thorndike, 1898).
+In experiments with di↵erent cats and
+boxes with di↵erent escape mechanisms, Thorndike recorded the amounts of time each
+cat took to escape over multiple experiences in each box. He observed that the time
+almost invariably decreased with successive experiences, for example, from 300 seconds
+to 6 or 7 seconds. He described cats’ behavior in a puzzle box like this:
+The cat that is clawing all over the box in her impulsive struggle will probably
+claw the string or loop or button so as to open the door. And gradually all the
+other non-successful impulses will be stamped out and the particular impulse
+leading to the successful act will be stamped in by the resulting pleasure,
+until, after many trials, the cat will, when put in the box, immediately claw
+the button or loop in a deﬁnite way. (Thorndike 1898, p. 13)
+These and other experiments (some with dogs, chicks, monkeys, and even ﬁsh) led
+Thorndike to formulate a number of “laws” of learning, the most inﬂuential being the
+Law of E↵ect. This law describes what is generally known as learning by trial and
+error. As we mentioned in Chapter 1, many aspects of the Law of E↵ect have generated
+controversy, and its details have been modiﬁed over the years. Still the law—in one form
+or another—expresses an enduring principle of learning.
+Essential features of reinforcement learning algorithms correspond to features of animal
+learning described by the Law of E↵ect. First, reinforcement learning algorithms are
+selectional, meaning that they try alternatives and select among them by comparing their
+consequences. Second, reinforcement learning algorithms are associative, meaning that
+the alternatives found by selection are associated with particular situations, or states,
+to form the agent’s policy. Like learning described by the Law of E↵ect, reinforcement
+
+--- Page 381 ---
+14.3. Instrumental Conditioning
+359
+learning is not just the process of ﬁnding actions that produce a lot of reward, but also
+of connecting these actions to situations or states. Thorndike used the phrase learning
+by “selecting and connecting” (Hilgard, 1956). Natural selection in evolution is a prime
+example of a selectional process, but it is not associative (at least as it is commonly
+understood); supervised learning is associative, but it is not selectional because it relies
+on instructions that directly tell the agent how to change its behavior.
+In computational terms, the Law of E↵ect describes an elementary way of combining
+search and memory: search in the form of trying and selecting among many actions
+in each situation, and memory in the form of associations linking situations with the
+actions found—so far—to work best in those situations. Search and memory are essential
+components of all reinforcement learning algorithms, whether memory takes the form of
+an agent’s policy, value function, or environment model.
+A reinforcement learning algorithm’s need to search means that it has to explore in
+some way. Animals clearly explore as well, and early animal learning researchers disagreed
+about the degree of guidance an animal uses in selecting its actions in situations like
+Thorndike’s puzzle boxes. Are actions the result of “absolutely random, blind groping”
+(Woodworth, 1938, p. 777), or is there some degree of guidance, either from prior learning,
+reasoning, or other means? Although some thinkers, including Thorndike, seem to have
+taken the former position, others favored more deliberate exploration. Reinforcement
+learning algorithms allow wide latitude for how much guidance an agent can employ in
+selecting actions. The forms of exploration we have used in the algorithms presented
+in this book, such as "-greedy and upper-conﬁdence-bound action selection, are merely
+among the simplest. More sophisticated methods are possible, with the only stipulation
+being that there has to be some form of exploration for the algorithms to work e↵ectively.
+The feature of our treatment of reinforcement learning allowing the set of actions
+available at any time to depend on the environment’s current state echoes something
+Thorndike observed in his cats’ puzzle-box behaviors. The cats selected actions from
+those that they instinctively perform in their current situation, which Thorndike called
+their “instinctual impulses.” First placed in a puzzle box, a cat instinctively scratches,
+claws, and bites with great energy: a cat’s instinctual responses to ﬁnding itself in a
+conﬁned space. Successful actions are selected from these and not from every possible
+action or activity. This is like the feature of our formalism where the action selected
+from a state s belongs to a set of admissible actions, A(s). Specifying these sets is an
+important aspect of reinforcement learning because it can radically simplify learning.
+They are like an animal’s instinctual impulses. On the other hand, Thorndike’s cats might
+have been exploring according to an instinctual context-speciﬁc ordering over actions
+rather than by just selecting from a set of instinctual impulses. This is another way to
+make reinforcement learning easier.
+Among the most prominent animal learning researchers inﬂuenced by the Law of E↵ect
+were Clark Hull (e.g., Hull, 1943) and B. F. Skinner (e.g., Skinner, 1938). At the center
+of their research was the idea of selecting behavior on the basis of its consequences.
+Reinforcement learning has features in common with Hull’s theory, which included
+eligibility-like mechanisms and secondary reinforcement to account for the ability to learn
+when there is a signiﬁcant time interval between an action and the consequent reinforcing
+
+--- Page 382 ---
+360
+Chapter 14: Psychology
+stimulus (see Section 14.4). Randomness also played a role in Hull’s theory through what
+he called “behavioral oscillation” to introduce exploratory behavior.
+Skinner did not fully subscribe to the memory aspect of the Law of E↵ect. Being averse
+to the idea of associative linkages, he instead emphasized selection from spontaneously-
+emitted behavior. He introduced the term “operant” to emphasize the key role of an
+action’s e↵ects on an animal’s environment. Unlike the experiments of Thorndike and
+others, which consisted of sequences of separate trials, Skinner’s operant conditioning
+experiments allowed animal subjects to behave for extended periods of time without
+interruption. He invented the operant conditioning chamber, now called a “Skinner box,”
+the most basic version of which contains a lever or key that an animal can press to obtain
+a reward, such as food or water, which would be delivered according to a well-deﬁned rule,
+called a reinforcement schedule. By recording the cumulative number of lever presses
+as a function of time, Skinner and his followers could investigate the e↵ect of di↵erent
+reinforcement schedules on the animal’s rate of lever-pressing. Modeling results from
+experiments likes these using the reinforcement learning principles we present in this
+book is not well developed, but we mention some exceptions in the Bibliographic and
+Historical Remarks section at the end of this chapter.
+Another of Skinner’s contributions resulted from his recognition of the e↵ectiveness of
+training an animal by reinforcing successive approximations of the desired behavior, a
+process he called shaping. Although this technique had been used by others, including
+Skinner himself, its signiﬁcance was impressed upon him when he and colleagues were
+attempting to train a pigeon to bowl by swiping a wooden ball with its beak. After
+waiting for a long time without seeing any swipe that they could reinforce, they
+... decided to reinforce any response that had the slightest resemblance to
+a swipe—perhaps, at ﬁrst, merely the behavior of looking at the ball—and
+then to select responses which more closely approximated the ﬁnal form. The
+result amazed us. In a few minutes, the ball was caroming o↵the walls of
+the box as if the pigeon had been a champion squash player. (Skinner, 1958,
+p. 94)
+Not only did the pigeon learn a behavior that is unusual for pigeons, it learned quickly
+through an interactive process in which its behavior and the reinforcement contingencies
+changed in response to each other. Skinner compared the process of altering reinforcement
+contingencies to the work of a sculptor shaping clay into a desired form. Shaping is a
+powerful technique for computational reinforcement learning systems as well. When it is
+diﬃcult for an agent to receive any non-zero reward signal at all, either due to sparseness
+of rewarding situations or their inaccessibility given initial behavior, starting with an
+easier problem and incrementally increasing its diﬃculty as the agent learns can be an
+e↵ective, and sometimes indispensable, strategy.
+A concept from psychology that is especially relevant in the context of instrumental
+conditioning is motivation, which refers to processes that inﬂuence the direction and
+strength, or vigor, of behavior. Thorndike’s cats, for example, were motivated to escape
+from puzzle boxes because they wanted the food that was sitting just outside. Obtaining
+this goal was rewarding to them and reinforced the actions allowing them to escape. It
+is diﬃcult to link the concept of motivation, which has many dimensions, in a precise
+
+--- Page 383 ---
+14.4. Delayed Reinforcement
+361
+way to reinforcement learning’s computational perspective, but there are clear links with
+some of its dimensions.
+In one sense, a reinforcement learning agent’s reward signal is at the base of its
+motivation: the agent is motivated to maximize the total reward it receives over the long
+run. A key facet of motivation, then, is what makes an agent’s experience rewarding. In
+reinforcement learning, reward signals depend on the state of the reinforcement learning
+agent’s environment and the agent’s actions. Further, as pointed out in Chapter 1, the
+state of the agent’s environment not only includes information about what is external to
+the machine, like an organism or a robot, that houses the agent, but also what is internal
+to this machine. Some internal state components correspond to what psychologists call
+an animal’s motivational state, which inﬂuences what is rewarding to the animal. For
+example, an animal will be more rewarded by eating when it is hungry than when it has
+just ﬁnished a satisfying meal. The concept of state dependence is broad enough to allow
+for many types of modulating inﬂuences on the generation of reward signals.
+Value functions provide a further link to psychologists’ concept of motivation. If the
+most basic motive for selecting an action is to obtain as much reward as possible, for a
+reinforcement learning agent that selects actions using a value function, a more proximal
+motive is to ascend the gradient of its value function, that is, to select actions expected
+to lead to the most highly-valued next states (or what is essentially the same thing, to
+select actions with the greatest action-values). For these agents, value functions are the
+main driving force determining the direction of their behavior.
+Another dimension of motivation is that an animal’s motivational state not only
+inﬂuences learning, but also inﬂuences the strength, or vigor, of the animal’s behavior
+after learning. For example, after learning to ﬁnd food in the goal box of a maze, a hungry
+rat will run faster to the goal box than one that is not hungry. This aspect of motivation
+does not link so cleanly to the reinforcement learning framework we present here, but
+in the Bibliographical and Historical Remarks section at the end of this chapter we cite
+several publications that propose theories of behavioral vigor based on reinforcement
+learning.
+We turn now to the subject of learning when reinforcing stimuli occur well after the
+events they reinforce. The mechanisms used by reinforcement learning algorithms to
+enable learning with delayed reinforcement—eligibility traces and TD learning—closely
+correspond to psychologists’ hypotheses about how animals can learn under these condi-
+tions.
+14.4
+Delayed Reinforcement
+The Law of E↵ect requires a backward e↵ect on connections, and some early critics of the
+law could not conceive of how the present could a↵ect something that was in the past. This
+concern was ampliﬁed by the fact that learning can even occur when there is a considerable
+delay between an action and the consequent reward or penalty. Similarly, in classical
+conditioning, learning can occur when US onset follows CS o↵set by a non-negligible time
+interval. We call this the problem of delayed reinforcement, which is related to what
+Minsky (1961) called the “credit-assignment problem for learning systems”: how do you
+
+--- Page 384 ---
+362
+Chapter 14: Psychology
+distribute credit for success among the many decisions that may have been involved in
+producing it? The reinforcement learning algorithms presented in this book include two
+basic mechanisms for addressing this problem. The ﬁrst is the use of eligibility traces,
+and the second is the use of TD methods to learn value functions that provide nearly
+immediate evaluations of actions (in tasks like instrumental conditioning experiments) or
+that provide immediate prediction targets (in tasks like classical conditioning experiments).
+Both of these methods correspond to similar mechanisms proposed in theories of animal
+learning.
+Pavlov (1927) pointed out that every stimulus must leave a trace in the nervous system
+that persists for some time after the stimulus ends, and he proposed that stimulus traces
+make learning possible when there is a temporal gap between the CS o↵set and the
+US onset. To this day, conditioning under these conditions is called trace conditioning
+(page 344). Assuming a trace of the CS remains when the US arrives, learning occurs
+through the simultaneous presence of the trace and the US. We discuss some proposals
+for trace mechanisms in the nervous system in Chapter 15.
+Stimulus traces were also proposed as a means for bridging the time interval between
+actions and consequent rewards or penalties in instrumental conditioning. In Hull’s
+inﬂuential learning theory, for example, “molar stimulus traces” accounted for what
+he called an animal’s goal gradient, a description of how the maximum strength of an
+instrumentally-conditioned response decreases with increasing delay of reinforcement
+(Hull, 1932, 1943). Hull hypothesized that an animal’s actions leave internal stimuli whose
+traces decay exponentially as functions of time since an action was taken. Looking at the
+animal learning data available at the time, he hypothesized that the traces e↵ectively
+reach zero after 30 to 40 seconds.
+The eligibility traces used in the algorithms described in this book are like Hull’s
+traces: they are decaying traces of past state visitations, or of past state–action pairs.
+Eligibility traces were introduced by Klopf (1972) in his neuronal theory in which they
+are temporally-extended traces of past activity at synapses, the connections between
+neurons. Klopf’s traces are more complex than the exponentially-decaying traces our
+algorithms use, and we discuss this more when we take up his theory in Section 15.9.
+To account for goal gradients that extend over longer time periods than spanned
+by stimulus traces, Hull (1943) proposed that longer gradients result from conditioned
+reinforcement passing backwards from the goal, a process acting in conjunction with
+his molar stimulus traces.
+Animal experiments showed that if conditions favor the
+development of conditioned reinforcement during a delay period, learning does not
+decrease with increased delay as much as it does under conditions that obstruct secondary
+reinforcement. Conditioned reinforcement is favored if there are stimuli that regularly
+occur during the delay interval. Then it is as if reward is not actually delayed because
+there is more immediate conditioned reinforcement. Hull therefore envisioned that there
+is a primary gradient based on the delay of the primary reinforcement mediated by
+stimulus traces, and that this is progressively modiﬁed, and lengthened, by conditioned
+reinforcement.
+Algorithms presented in this book that use both eligibility traces and value functions
+to enable learning with delayed reinforcement correspond to Hull’s hypothesis about how
+animals are able to learn under these conditions. The actor–critic architecture discussed
+
+--- Page 385 ---
+14.5. Cognitive Maps
+363
+in Sections 13.5, 15.7, and 15.8 illustrates this correspondence most clearly. The critic uses
+a TD algorithm to learn a value function associated with the system’s current behavior,
+that is, to predict the current policy’s return. The actor updates the current policy based
+on the critic’s predictions, or more exactly, on changes in the critic’s predictions. The
+TD error produced by the critic acts as a conditioned reinforcement signal for the actor,
+providing an immediate evaluation of performance even when the primary reward signal
+itself is considerably delayed. Algorithms that estimate action-value functions, such as
+Q-learning and Sarsa, similarly use TD learning principles to enable learning with delayed
+reinforcement by means of conditioned reinforcement. The close parallel between TD
+learning and the activity of dopamine producing neurons that we discuss in Chapter 15
+lends additional support to links between reinforcement learning algorithms and this
+aspect of Hull’s learning theory.
+14.5
+Cognitive Maps
+Model-based reinforcement learning algorithms use environment models that have elements
+in common with what psychologists call cognitive maps. Recall from our discussion of
+planning and learning in Chapter 8 that by an environment model we mean anything
+an agent can use to predict how its environment will respond to its actions in terms of
+state transitions and rewards, and by planning we mean any process that computes a
+policy from such a model. Environment models consist of two parts: the state-transition
+part encodes knowledge about the e↵ect of actions on state changes, and the reward-
+model part encodes knowledge about the reward signals expected for each state or each
+state–action pair. A model-based algorithm selects actions by using a model to predict
+the consequences of possible courses of action in terms of future states and the reward
+signals expected to arise from those states. The simplest kind of planning is to compare
+the predicted consequences of collections of “imagined” sequences of decisions.
+Questions about whether or not animals use environment models, and if so, what are the
+models like and how are they learned, have played inﬂuential roles in the history of animal
+learning research. Some researchers challenged the then-prevailing stimulus-response
+(S–R) view of learning and behavior, which corresponds to the simplest model-free way
+of learning policies, by demonstrating latent learning. In the earliest latent learning
+experiment, two groups of rats were run in a maze. For the experimental group, there
+was no reward during the ﬁrst stage of the experiment, but food was suddenly introduced
+into the goal box of the maze at the start of the second stage. For the control group, food
+was in the goal box throughout both stages. The question was whether or not rats in the
+experimental group would have learned anything during the ﬁrst stage in the absence
+of food reward. Although the experimental rats did not appear to learn much during
+the ﬁrst, unrewarded, stage, as soon as they discovered the food that was introduced
+in the second stage, they rapidly caught up with the rats in the control group. It was
+concluded that “during the non-reward period, the rats [in the experimental group] were
+developing a latent learning of the maze which they were able to utilize as soon as reward
+was introduced” (Blodgett, 1929).
+
+--- Page 386 ---
+364
+Chapter 14: Psychology
+Latent learning is most closely associated with the psychologist Edward Tolman, who
+interpreted this result, and others like it, as showing that animals could learn a “cognitive
+map of the environment” in the absence of rewards or penalties, and that they could use
+the map later when they were motivated to reach a goal (Tolman, 1948). A cognitive map
+could also allow a rat to plan a route to the goal that was di↵erent from the route the rat
+had used in its initial exploration. Explanations of results like these led to the enduring
+controversy lying at the heart of the behaviorist/cognitive dichotomy in psychology. In
+modern terms, cognitive maps are not restricted to models of spatial layouts but are
+more generally environment models, or models of an animal’s “task space” (e.g., Wilson,
+Takahashi, Schoenbaum, and Niv, 2014). The cognitive map explanation of latent learning
+experiments is analogous to the claim that animals use model-based algorithms, and that
+environment models can be learned even without explicit rewards or penalties. Models
+are then used for planning when the animal is motivated by the appearance of rewards or
+penalties.
+Tolman’s account of how animals learn cognitive maps was that they learn stimulus-
+stimulus, or S–S, associations by experiencing successions of stimuli as they explore an
+environment. In psychology this is called expectancy theory: given S–S associations, the
+occurrence of a stimulus generates an expectation about the stimulus to come next. This
+is much like what control engineers call system identiﬁcation, in which a model of a
+system with unknown dynamics is learned from labeled training examples. In the simplest
+discrete-time versions, training examples are S–S0 pairs, where S is a state and S0, the
+subsequent state, is the label. When S is observed, the model creates the “expectation”
+that S0 will be observed next. Models more useful for planning involve actions as well,
+so that examples look like SA–S0, where S0 is expected when action A is executed in
+state S. It is also useful to learn how the environment generates rewards. In this case,
+examples are of the form S–R or SA–R, where R is a reward signal associated with S or
+the SA pair. These are all forms of supervised learning by which an agent can acquire
+cognitive-like maps whether or not it receives any non-zero reward signals while exploring
+its environment.
+14.6
+Habitual and Goal-directed Behavior
+The distinction between model-free and model-based reinforcement learning algorithms
+corresponds to the distinction psychologists make between habitual and goal-directed
+control of learned behavioral patterns. Habits are behavior patterns triggered by appro-
+priate stimuli and then performed more-or-less automatically. Goal-directed behavior,
+according to how psychologists use the phrase, is purposeful in the sense that it is con-
+trolled by knowledge of the value of goals and the relationship between actions and their
+consequences. Habits are sometimes said to be controlled by antecedent stimuli, whereas
+goal-directed behavior is said to be controlled by its consequences (Dickinson, 1980,
+1985). Goal-directed control has the advantage that it can rapidly change an animal’s
+behavior when the environment changes its way of reacting to the animal’s actions. While
+habitual behavior responds quickly to input from an accustomed environment, it is unable
+
+--- Page 387 ---
+14.6. Habitual and Goal-directed Behavior
+365
+to quickly adjust to changes in the environment. The development of goal-directed
+behavioral control was likely a major advance in the evolution of animal intelligence.
+Figure 14.5 illustrates the di↵erence between model-free and model-based decision
+strategies in a hypothetical task in which a rat has to navigate a maze that has distinctive
+goal boxes, each delivering an associated reward of the magnitude shown (Figure 14.5
+top). Starting at S1, the rat has to ﬁrst select left (L) or right (R) and then has to select
+L or R again at S2 or S3 to reach one of the goal boxes. The goal boxes are the terminal
+states of each episode of the rat’s episodic task. A model-free strategy (Figure 14.5 lower
+left) relies on stored values for state–action pairs. These action values are estimates of
+the highest return the rat can expect for each action taken from each (nonterminal) state.
+They are obtained over many trials of running the maze from start to ﬁnish. When the
+action values have become good enough estimates of the optimal returns, the rat just has
+S1, L
+S2, L
+S2, R
+S3, L
+S3, R
+S1, R
+4
+3
+0
+4
+3
+2
+Model-Free
+= 4
+= 0
+= 2
+= 3
+Reward
+Model-Based
+S1
+L
+R
+S2
+S3
+L
+R
+L
+R
+(4)
+S2
+S3
+S1
+4
+0
+2
+3
+Figure 14.5: Model-based and model-free strategies to solve a hypothetical sequential action-
+selection problem. Top: a rat navigates a maze with distinctive goal boxes, each associated
+with a reward having the value shown. Lower left: a model-free strategy relies on stored action
+values for all the state–action pairs obtained over many learning trials. To make decisions the
+rat just has to select at each state the action with the largest action value for that state. Lower
+right: in a model-based strategy, the rat learns an environment model, consisting of knowledge
+of state–action-next-state transitions and a reward model consisting of knowledge of the reward
+associated with each distinctive goal box. The rat can decide which way to turn at each state
+by using the model to simulate sequences of action choices to ﬁnd a path yielding the highest
+return. Adapted from Trends in Cognitive Science, volume 10, number 8, Y. Niv, D. Joel, and P.
+Dayan, A Normative Perspective on Motivation, p. 376, 2006, with permission from Elsevier.
+
+--- Page 388 ---
+366
+Chapter 14: Psychology
+to select at each state the action with the largest action value in order to make optimal
+decisions. In this case, when the action-value estimates become accurate enough, the
+rat selects L from S1 and R from S2 to obtain the maximum return of 4. A di↵erent
+model-free strategy might simply rely on a cached policy instead of action values, making
+direct links from S1 to L and from S2 to R. In neither of these strategies do decisions
+rely on an environment model. There is no need to consult a state-transition model, and
+no connection is required between the features of the goal boxes and the rewards they
+deliver.
+Figure 14.5 (lower right) illustrates a model-based strategy. It uses an environment
+model consisting of a state-transition model and a reward model. The state-transition
+model is shown as a decision tree, and the reward model associates the distinctive features
+of the goal boxes with the rewards to be found in each. (The rewards associated with
+states S1, S2, and S3 are also part of the reward model, but here they are zero and are
+not shown.) A model-based agent can decide which way to turn at each state by using
+the model to simulate sequences of action choices to ﬁnd a path yielding the highest
+return. In this case the return is the reward obtained from the outcome at the end of
+the path. Here, with a suﬃciently accurate model, the rat would select L and then R
+to obtain a return of 4. Comparing the predicted returns of simulated paths is a simple
+form of planning, which can be done in a variety of ways as discussed in Chapter 8.
+When the environment of a model-free agent changes the way it reacts to the agent’s
+actions, the agent has to acquire new experience in the changed environment during
+which it can update its policy and/or value function. In the model-free strategy shown
+in Figure 14.5 (lower left), for example, if one of the goal boxes were to somehow shift
+to delivering a di↵erent reward, the rat would have to traverse the maze, possibly many
+times, to experience the new reward upon reaching that goal box, all the while updating
+either its policy or its action-value function (or both) based on this experience. The key
+point is that for a model-free agent to change the action its policy speciﬁes for a state, or
+to change an action value associated with a state, it has to move to that state, act from
+it, possibly many times, and experience the consequences of its actions.
+A model-based agent can accommodate changes in its environment without this kind
+of ‘personal experience’ with the states and actions a↵ected by the change. A change in
+its model automatically (through planning) changes its policy. Planning can determine
+the consequences of changes in the environment that have never been linked together in
+the agent’s own experience. For example, again referring to the maze task of Figure 14.5,
+imagine that a rat with a previously learned transition and reward model is placed directly
+in the goal box to the right of S2 to ﬁnd that the reward available there now has value 1
+instead of 4. The rat’s reward model will change even though the action choices required
+to ﬁnd that goal box in the maze were not involved. The planning process will bring
+knowledge of the new reward to bear on maze running without the need for additional
+experience in the maze; in this case changing the policy to right turns at both S1 and S3
+to obtain a return of 3.
+Exactly this logic is the basis of outcome-devaluation experiments with animals. Results
+from these experiments provide insight into whether an animal has learned a habit or if
+its behavior is under goal-directed control. Outcome-devaluation experiments are like
+latent-learning experiments in that the reward changes from one stage to the next. After
+
+--- Page 389 ---
+14.6. Habitual and Goal-directed Behavior
+367
+an initial rewarded stage of learning, the reward value of an outcome is changed, including
+being shifted to zero or even to a negative value.
+An early important experiment of this type was conducted by Adams and Dickinson
+(1981). They trained rats via instrumental conditioning until the rats energetically pressed
+a lever for sucrose pellets in a training chamber. The rats were then placed in the same
+chamber with the lever retracted and allowed non-contingent food, meaning that pellets
+were made available to them independently of their actions. After 15-minutes of this
+free-access to the pellets, rats in one group were injected with the nausea-inducing poison
+lithium chloride. This was repeated for three sessions, in the last of which none of the
+injected rats consumed any of the non-contingent pellets, indicating that the reward
+value of the pellets had been decreased—the pellets had been devalued. In the next stage
+taking place a day later, the rats were again placed in the chamber and given a session of
+extinction training, meaning that the response lever was back in place but disconnected
+from the pellet dispenser so that pressing it did not release pellets. The question was
+whether the rats that had the reward value of the pellets decreased would lever-press
+less than rats that did not have the reward value of the pellets decreased, even without
+experiencing the devalued reward as a result of lever-pressing. It turned out that the
+injected rats had signiﬁcantly lower response rates than the non-injected rats right from
+the start of the extinction trials.
+Adams and Dickinson concluded that the injected rats associated lever pressing with
+consequent nausea by means of a cognitive map linking lever pressing to pellets, and
+pellets to nausea. Hence, in the extinction trials, the rats “knew” that the consequences
+of pressing the lever would be something they did not want, and so they reduced their
+lever-pressing right from the start. The important point is that they reduced lever-pressing
+without ever having experienced lever-pressing directly followed by being sick: no lever
+was present when they were made sick. They seemed able to combine knowledge of the
+outcome of a behavioral choice (pressing the lever will be followed by getting a pellet)
+with the reward value of the outcome (pellets are to be avoided) and hence could alter
+their behavior accordingly. Not every psychologist agrees with this “cognitive” account
+of this kind of experiment, and it is not the only possible way to explain these results,
+but the model-based planning explanation is widely accepted.
+Nothing prevents an agent from using both model-free and model-based algorithms, and
+there are good reasons for using both. We know from our own experience that with enough
+repetition, goal-directed behavior tends to turn into habitual behavior. Experiments show
+that this happens for rats too. Adams (1982) conducted an experiment to see if extended
+training would convert goal-directed behavior into habitual behavior. He did this by
+comparing the e↵ect of outcome devaluation on rats that experienced di↵erent amounts
+of training. If extended training made the rats less sensitive to devaluation compared to
+rats that received less training, this would be evidence that extended training made the
+behavior more habitual. Adams’ experiment closely followed the Adams and Dickinson
+(1981) experiment just described. Simplifying a bit, rats in one group were trained until
+they made 100 rewarded lever-presses, and rats in the other group—the overtrained
+group—were trained until they made 500 rewarded lever-presses. After this training,
+the reward value of the pellets was decreased (using lithium chloride injections) for rats
+
+--- Page 390 ---
+368
+Chapter 14: Psychology
+in both groups. Then both groups of rats were given a session of extinction training.
+Adams’ question was whether devaluation would e↵ect the rate of lever-pressing for the
+overtrained rats less than it would for the non-overtrained rats, which would be evidence
+that extended training reduces sensitivity to outcome devaluation. It turned out that
+devaluation strongly decreased the lever-pressing rate of the non-overtrained rats. For
+the overtrained rats, in contrast, devaluation had little e↵ect on their lever-pressing; in
+fact, if anything, it made it more vigorous. (The full experiment included control groups
+showing that the di↵erent amounts of training did not by themselves signiﬁcantly e↵ect
+lever-pressing rates after learning.) This result suggested that while the non-overtrained
+rats were acting in a goal-directed manner sensitive to their knowledge of the outcome of
+their actions, the overtrained rats had developed a lever-pressing habit.
+Viewing this and other results like it from a computational perspective provides insight
+as to why one might expect animals to behave habitually in some circumstances but in a
+goal-directed way in others, and why they shift from one mode of control to another as
+they continue to learn. While animals undoubtedly use algorithms that do not exactly
+match those we have presented in this book, one can gain insight into animal behavior by
+considering the tradeo↵s that various reinforcement learning algorithms imply. An idea
+developed by computational neuroscientists Daw, Niv, and Dayan (2005) is that animals
+use both model-free and model-based processes. Each process proposes an action, and
+the action chosen for execution is the one proposed by the process judged to be the more
+trustworthy of the two as determined by measures of conﬁdence that are maintained
+throughout learning. Early in learning the planning process of a model-based system is
+more trustworthy because it chains together short-term predictions which can become
+accurate with less experience than long-term predictions of the model-free process. But
+with continued experience, the model-free process becomes more trustworthy because
+planning is prone to making mistakes due to model inaccuracies and short-cuts necessary
+to make planning feasible, such as various forms of “tree-pruning”: the removal of
+unpromising search tree branches. According to this idea one would expect a shift from
+goal-directed behavior to habitual behavior as more experience accumulates. Other ideas
+have been proposed for how animals arbitrate between goal-directed and habitual control,
+and both behavioral and neuroscience research continues to examine this and related
+questions.
+The distinction between model-free and model-based algorithms is proving to be useful
+for this research. One can examine the computational implications of these types of
+algorithms in abstract settings that expose basic advantages and limitations of each
+type.
+This serves both to suggest and to sharpen questions that guide the design
+of experiments necessary for increasing psychologists’ understanding of habitual and
+goal-directed behavioral control.
+14.7
+Summary
+Our goal in this chapter has been to discuss correspondences between reinforcement
+learning and the experimental study of animal learning in psychology. We emphasized
+at the outset that reinforcement learning as described in this book is not intended
+
+--- Page 391 ---
+14.7. Summary
+369
+to model details of animal behavior. It is an abstract computational framework that
+explores idealized situations from the perspective of artiﬁcial intelligence and engineering.
+But many of the basic reinforcement learning algorithms were inspired by psychological
+theories, and in some cases, these algorithms have contributed to the development of
+new animal learning models. This chapter described the most conspicuous of these
+correspondences.
+The distinction in reinforcement learning between algorithms for prediction and al-
+gorithms for control parallels animal learning theory’s distinction between classical, or
+Pavlovian, conditioning and instrumental conditioning.
+The key di↵erence between
+instrumental and classical conditioning experiments is that in the former the reinforcing
+stimulus is contingent upon the animal’s behavior, whereas in the latter it is not. Learning
+to predict via a TD algorithm corresponds to classical conditioning, and we described
+the TD model of classical conditioning as one instance in which reinforcement learning
+principles account for some details of animal learning behavior. This model generalizes
+the inﬂuential Rescorla–Wagner model by including the temporal dimension where events
+within individual trials inﬂuence learning, and it provides an account of second-order
+conditioning, where predictors of reinforcing stimuli become reinforcing themselves. It
+also is the basis of an inﬂuential view of the activity of dopamine neurons in the brain,
+something we take up in Chapter 15.
+Learning by trial and error is at the base of the control aspect of reinforcement learning.
+We presented some details about Thorndike’s experiments with cats and other animals that
+led to his Law of E↵ect, which we discussed here and in Chapter 1 (page 15). We pointed
+out that in reinforcement learning, exploration does not have to be limited to “blind
+groping”; trials can be generated by sophisticated methods using innate and previously
+learned knowledge as long as there is some exploration. We discussed the training method
+B. F. Skinner called shaping in which reward contingencies are progressively altered to
+train an animal to successively approximate a desired behavior. Shaping is not only
+indispensable for animal training, it is also an e↵ective tool for training reinforcement
+learning agents. There is also a connection to the idea of an animal’s motivational state,
+which inﬂuences what an animal will approach or avoid and what events are rewarding
+or punishing for the animal.
+The reinforcement learning algorithms presented in this book include two basic mecha-
+nisms for addressing the problem of delayed reinforcement: eligibility traces and value
+functions learned via TD algorithms. Both mechanisms have antecedents in theories of
+animal learning. Eligibility traces are similar to stimulus traces of early theories, and
+value functions correspond to the role of secondary reinforcement in providing nearly
+immediate evaluative feedback.
+The next correspondence the chapter addressed is that between reinforcement learning’s
+environment models and what psychologists call cognitive maps. Experiments conducted
+in the mid 20th century purported to demonstrate the ability of animals to learn cognitive
+maps as alternatives to, or as additions to, state–action associations, and later use them
+to guide behavior, especially when the environment changes unexpectedly. Environment
+models in reinforcement learning are like cognitive maps in that they can be learned by
+supervised learning methods without relying on reward signals, and then they can be
+used later to plan behavior.
+
+--- Page 392 ---
+370
+Chapter 14: Psychology
+Reinforcement learning’s distinction between model-free and model-based algorithms
+corresponds to the distinction in psychology between habitual and goal-directed behavior.
+Model-free algorithms make decisions by accessing information that has been stored in a
+policy or an action-value function, whereas model-based methods select actions as the
+result of planning ahead using a model of the agent’s environment. Outcome-devaluation
+experiments provide information about whether an animal’s behavior is habitual or under
+goal-directed control. Reinforcement learning theory has helped clarify thinking about
+these issues.
+Animal learning clearly informs reinforcement learning, but as a type of machine
+learning, reinforcement learning is directed toward designing and understanding e↵ective
+learning algorithms, not toward replicating or explaining details of animal behavior.
+We focused on aspects of animal learning that relate in clear ways to methods for
+solving prediction and control problems, highlighting the fruitful two-way ﬂow of ideas
+between reinforcement learning and psychology without venturing deeply into many of the
+behavioral details and controversies that have occupied the attention of animal learning
+researchers. Future development of reinforcement learning theory and algorithms will
+likely exploit links to many other features of animal learning as the computational utility
+of these features becomes better appreciated. We expect that a ﬂow of ideas between
+reinforcement learning and psychology will continue to bear fruit for both disciplines.
+Many connections between reinforcement learning and areas of psychology and other
+behavioral sciences are beyond the scope of this chapter. We largely omit discussing
+links to the psychology of decision making, which focuses on how actions are selected,
+or how decisions are made, after learning has taken place. We also do not discuss links
+to ecological and evolutionary aspects of behavior studied by ethologists and behavioral
+ecologists: how animals relate to one another and to their physical surroundings, and how
+their behavior contributes to evolutionary ﬁtness. Optimization, MDPs, and dynamic
+programming ﬁgure prominently in these ﬁelds, and our emphasis on agent interaction
+with dynamic environments connects to the study of agent behavior in complex “ecologies.”
+Multi-agent reinforcement learning, omitted in this book, has connections to social aspects
+of behavior. Despite the lack of treatment here, reinforcement learning should by no means
+be interpreted as dismissing evolutionary perspectives. Nothing about reinforcement
+learning implies a tabula rasa view of learning and behavior. Indeed, experience with
+engineering applications has highlighted the importance of building into reinforcement
+learning systems knowledge that is analogous to what evolution provides to animals.
+
+--- Page 393 ---
+14.7. Summary
+371
+Bibliographical and Historical Remarks
+Ludvig, Bellemare, and Pearson (2011) and Shah (2012) review reinforcement learning in
+the contexts of psychology and neuroscience. These publications are useful companions
+to this chapter and the following chapter on reinforcement learning and neuroscience.
+14.1
+Dayan, Niv, Seymour, and Daw (2006) focused on interactions between clas-
+sical and instrumental conditioning, particularly situations where classically-
+conditioned and instrumental responses are in conﬂict. They proposed a Q-
+learning framework for modeling aspects of this interaction. Modayil and Sutton
+(2014) used a mobile robot to demonstrate the e↵ectiveness of a control method
+combining a ﬁxed response with online prediction learning. Calling this Pavlo-
+vian control, they emphasized that it di↵ers from the usual control methods of
+reinforcement learning, being based on predictively executing ﬁxed responses
+and not on reward maximization. The electro-mechanical machine of Ross (1933)
+and especially the learning version of Walter’s turtle (Walter, 1951) were very
+early illustrations of Pavlovian control.
+14.2.1 Kamin (1968) ﬁrst reported blocking, now commonly known as Kamin blocking,
+in classical conditioning.
+Moore and Schmajuk (2008) provide an excellent
+summary of the blocking phenomenon, the research it stimulated, and its lasting
+inﬂuence on animal learning theory. Gibbs, Cool, Land, Kehoe, and Gormezano
+(1991) describe second-order conditioning of the rabbit’s nictitating membrane
+response and its relationship to conditioning with serial-compound stimuli. Finch
+and Culler (1934) reported obtaining ﬁfth-order conditioning of a dog’s foreleg
+withdrawal “when the motivation of the animal is maintained through the various
+orders.”
+14.2.2 The idea built into the Rescorla–Wagner model that learning occurs when animals
+are surprised is derived from Kamin (1969). Models of classical conditioning
+other than Rescorla and Wagner’s include the models of Klopf (1988), Grossberg
+(1975), Mackintosh (1975), Moore and Stickney (1980), Pearce and Hall (1980),
+and Courville, Daw, and Touretzky (2006). Schmajuk (2008) reviews models of
+classical conditioning. Wagner (2008) provides a modern psychological perspective
+on the Rescorla-Wagner model and similar elemental theories of learning.
+14.2.3 An early version of the TD model of classical conditioning appeared in Sutton and
+Barto (1981a), which also included the early model’s prediction that temporal
+primacy overrides blocking, later shown by Kehoe, Schreurs, and Graham (1987)
+to occur in the rabbit nictitating membrane preparation. Sutton and Barto
+(1981a) contains the earliest recognition of the near identity between the Rescorla–
+Wagner model and the Least-Mean-Square (LMS), or Widrow-Ho↵, learning
+rule (Widrow and Ho↵, 1960). This early model was revised following Sutton’s
+development of the TD algorithm (Sutton, 1984, 1988) and was ﬁrst presented as
+the TD model in Sutton and Barto (1987) and more completely in Sutton and
+Barto (1990), upon which this section is largely based. Additional exploration
+
+--- Page 394 ---
+372
+Chapter 14: Psychology
+of the TD model and its possible neural implementation was conducted by
+Moore and colleagues (Moore, Desmond, Berthier, Blazis, Sutton, and Barto,
+1986; Moore and Blazis, 1989; Moore, Choi, and Brunzell, 1998; Moore, Marks,
+Castagna, and Polewan, 2001). Klopf’s (1988) drive-reinforcement theory of
+classical conditioning extends the TD model to address additional experimental
+details, such as the S-shape of acquisition curves. In some of these publications
+TD is taken to mean Time Derivative instead of Temporal Di↵erence.
+14.2.4 Ludvig, Sutton, and Kehoe (2012) evaluated the performance of the TD model
+in previously unexplored tasks involving classical conditioning and examined
+the inﬂuence of various stimulus representations, including the microstimulus
+representation that they introduced earlier (Ludvig, Sutton, and Kehoe, 2008).
+Earlier investigations of the inﬂuence of various stimulus representations and their
+possible neural implementations on response timing and topography in the context
+of the TD model are those of Moore and colleagues cited above. Although not in
+the context of the TD model, representations like the microstimulus representation
+of Ludvig et al. (2012) have been proposed and studied by Grossberg and
+Schmajuk (1989), Brown, Bullock, and Grossberg (1999), Buhusi and Schmajuk
+(1999), and Machado (1997). The ﬁgures on pages 353–355 are adapted from
+Sutton and Barto (1990).
+14.3
+Section 1.7 includes comments on the history of trial-and-error learning and
+the Law of E↵ect. The idea that Thorndike’s cats might have been exploring
+according to an instinctual context-speciﬁc ordering over actions rather than by
+just selecting from a set of instinctual impulses was suggested by Peter Dayan
+(personal communication). Selfridge, Sutton, and Barto (1985) illustrated the
+e↵ectiveness of shaping in a pole-balancing reinforcement learning task. Other
+examples of shaping in reinforcement learning are Gullapalli and Barto (1992),
+Mahadevan and Connell (1992), Mataric (1994), Dorigo and Colombette (1994),
+Saksida, Raymond, and Touretzky (1997), and Randløv and Alstrøm (1998). Ng
+(2003) and Ng, Harada, and Russell (1999) used the term shaping in a sense
+somewhat di↵erent from Skinner’s, focusing on the problem of how to alter the
+reward signal without altering the set of optimal policies.
+Dickinson and Balleine (2002) discuss the complexity of the interaction between
+learning and motivation. Wise (2004) provides an overview of reinforcement
+learning and its relation to motivation. Daw and Shohamy (2008) link motivation
+and learning to aspects of reinforcement learning theory. See also McClure,
+Daw, and Montague (2003), Niv, Joel, and Dayan (2006), Rangel, Camerer, and
+Montague (2008), and Dayan and Berridge (2014). McClure et al. (2003), Niv,
+Daw, and Dayan (2006), and Niv, Daw, Joel, and Dayan (2007) present theories
+of behavioral vigor related to the reinforcement learning framework.
+14.4
+Spence, Hull’s student and collaborator at Yale, elaborated the role of higher-
+order reinforcement in addressing the problem of delayed reinforcement (Spence,
+1947). Learning over very long delays, as in taste-aversion conditioning with
+
+--- Page 395 ---
+14.7. Summary
+373
+delays up to several hours, led to interference theories as alternatives to decaying-
+trace theories (e.g., Revusky and Garcia, 1970; Boakes and Costa, 2014). Other
+views of learning under delayed reinforcement invoke roles for awareness and
+working memory (e.g., Clark and Squire, 1998; Seo, Barraclough, and Lee, 2007).
+14.5
+Thistlethwaite (1951) provides an extensive review of latent learning experiments
+up to the time of its publication. Ljung (1998) provides an overview of model
+learning, or system identiﬁcation, techniques in engineering. Gopnik, Glymour,
+Sobel, Schulz, Kushnir, and Danks (2004) present a Bayesian theory about how
+children learn models.
+14.6
+Connections between habitual and goal-directed behavior and model-free and
+model-based reinforcement learning were ﬁrst proposed by Daw, Niv, and Dayan
+(2005). The hypothetical maze task used to explain habitual and goal-directed
+behavioral control is based on the explanation of Niv, Joel, and Dayan (2006).
+Dolan and Dayan (2013) review four generations of experimental research related
+to this issue and discuss how it can move forward on the basis of reinforcement
+learning’s model-free/model-based distinction. Dickinson (1980, 1985) and Dick-
+inson and Balleine (2002) discuss experimental evidence related to this distinction.
+Donahoe and Burgos (2000) alternatively argue that model-free processes can
+account for the results of outcome-devaluation experiments. Dayan and Berridge
+(2014) argue that classical conditioning involves model-based processes. Rangel,
+Camerer, and Montague (2008) review many of the outstanding issues involving
+habitual, goal-directed, and Pavlovian modes of control.
+Comments on Terminology— The traditional meaning of reinforcement in psychol-
+ogy is the strengthening of a pattern of behavior (by increasing either its intensity or
+frequency) as a result of an animal receiving a stimulus (or experiencing the omission
+of a stimulus) in an appropriate temporal relationship with another stimulus or with a
+response. Reinforcement produces changes that remain in future behavior. Sometimes in
+psychology reinforcement refers to the process of producing lasting changes in behavior,
+whether the changes strengthen or weaken a behavior pattern (Mackintosh, 1983). Letting
+reinforcement refer to weakening in addition to strengthening is at odds with the everyday
+meaning of reinforce, and its traditional use in psychology, but it is a useful extension
+that we have adopted here. In either case, a stimulus considered to be the cause of the
+behavioral change is called a reinforcer.
+Psychologists do not generally use the speciﬁc phrase reinforcement learning as we
+do. Animal learning pioneers probably regarded reinforcement and learning as being
+synonymous, so it would be redundant to use both words. Our use of the phrase follows
+its use in computational and engineering research, inﬂuenced mostly by Minsky (1961).
+But the phrase is lately gaining currency in psychology and neuroscience, likely because
+strong parallels have surfaced between reinforcement learning algorithms and animal
+learning—parallels described in this chapter and the next.
+According to common usage, a reward is an object or event that an animal will
+approach and work for. A reward may be given to an animal in recognition of its ‘good’
+
+--- Page 396 ---
+374
+Chapter 14: Psychology
+behavior, or given in order to make the animal’s behavior ‘better.’ Similarly, a penalty is
+an object or event that the animal usually avoids and that is given as a consequence of
+‘bad’ behavior, usually in order to change that behavior. Primary reward is reward due
+to machinery built into an animal’s nervous system by evolution to improve its chances
+of survival and reproduction, for example, reward produced by the taste of nourishing
+food, sexual contact, successful escape, and many other stimuli and events that predicted
+reproductive success over the animal’s ancestral history. As explained in Section 14.2.1,
+higher-order reward is reward delivered by stimuli that predict primary reward, either
+directly or indirectly by predicting other stimuli that predict primary reward. Reward is
+secondary if its rewarding quality is the result of directly predicting primary reward.
+In this book we call Rt the ‘reward signal at time t,’ or sometimes just the ‘reward
+at time t,’ but we do not think of it as an object or event in the agent’s environment.
+Because Rt is a number—not an object or an event—it is more like a reward signal in
+neuroscience, which is a signal internal to the brain, like the activity of neurons, that
+inﬂuences decision making and learning. This signal might be triggered when the animal
+perceives an attractive (or an aversive) object, but it can also be triggered by things that
+do not physically exist in the animal’s external environment, such as memories, ideas, or
+hallucinations. Because our Rt can be positive, negative, or zero, it might be better to
+call a negative Rt a penalty, and an Rt equal to zero a neutral signal, but for simplicity
+we generally avoid these terms.
+In reinforcement learning, the process that generates all the Rts deﬁnes the problem
+the agent is trying to solve. The agent’s objective is to keep the magnitude of Rt as large
+as possible over time. In this respect, Rt is like primary reward for an animal if we think
+of the problem the animal faces as the problem of obtaining as much primary reward as
+possible over its lifetime (and thereby, through the prospective “wisdom” of evolution,
+improve its chances of solving its real problem, which is to pass its genes on to future
+generations). However, as we suggest in Chapter 15, it is unlikely that there is a single
+“master” reward signal like Rt in an animal’s brain.
+Not all reinforcers are rewards or penalties. Sometimes reinforcement is not the result
+of an animal receiving a stimulus that evaluates its behavior by labeling the behavior
+good or bad. A behavior pattern can be reinforced by a stimulus that arrives to an animal
+no matter how the animal behaved. As described in Section 14.1, whether the delivery of
+reinforcement depends, or does not depend, on preceding behavior is the deﬁning di↵erence
+between instrumental, or operant, conditioning experiments and classical, or Pavlovian,
+conditioning experiments. Reinforcement is at work in both types of experiments, but
+only in the former is it feedback that evaluates past behavior. (Though it has often been
+pointed out that even when the reinforcing US in a classical conditioning experiment is
+not contingent on the subject’s preceding behavior, its reinforcing value can be inﬂuenced
+by this behavior, an example being that a closed eye makes an air pu↵to the eye less
+aversive.)
+The distinction between reward signals and reinforcement signals is a crucial point
+when we discuss neural correlates of these signals in the next chapter. Like a reward signal,
+for us, the reinforcement signal at any speciﬁc time is a positive or negative number, or
+zero. A reinforcement signal is the major factor directing changes a learning algorithm
+
+--- Page 397 ---
+14.7. Summary
+375
+makes in an agent’s policy, value estimates, or environment models. The deﬁnition that
+makes the most sense to us is that a reinforcement signal at any time is a number that
+multiplies (possibly along with some constants) a vector to determine parameter updates
+in some learning algorithm.
+For some algorithms, the reward signal alone is the critical multiplier in the parameter-
+update equation.
+For these algorithms the reinforcement signal is the same as the
+reward signal. But for most of the algorithms we discuss in this book, reinforcement
+signals include terms in addition to the reward signal, an example being a TD error
+δt = Rt+1 + γV (St+1) −V (St), which is the reinforcement signal for TD state-value
+learning (and analogous TD errors for action-value learning). In this reinforcement signal,
+Rt+1 is the primary reinforcement contribution, and the temporal di↵erence in predicted
+values, γV (St+1) −V (St) (or an analogous temporal di↵erence for action values), is
+the conditioned reinforcement contribution. Thus, whenever γV (St+1) −V (St) = 0, δt
+signals ‘pure’ primary reinforcement; and whenever Rt+1 = 0, it signals ‘pure’ conditioned
+reinforcement, but it often signals a mixture of these. Note as we mentioned in Section 6.1,
+this δt is not available until time t + 1. We therefore think of δt as the reinforcement
+signal at time t + 1, which is ﬁtting because it reinforces predictions and/or actions made
+earlier at step t.
+A possible source of confusion is the terminology used by the famous psychologist
+B. F. Skinner and his followers. For Skinner, positive reinforcement occurs when the
+consequences of an animal’s behavior increase the frequency of that behavior; punishment
+occurs when the behavior’s consequences decrease that behavior’s frequency. Negative
+reinforcement occurs when behavior leads to the removal of an aversive stimulus (that is,
+a stimulus the animal does not like), thereby increasing the frequency of that behavior.
+Negative punishment, on the other hand, occurs when behavior leads to the removal of an
+appetitive stimulus (that is, a stimulus the animal likes), thereby decreasing the frequency
+of that behavior. We ﬁnd no critical need for these distinctions because our approach
+is more abstract than this, with both reward and reinforcement signals allowed to take
+on both positive and negative values. (But note especially that when our reinforcement
+signal is negative, it is not the same as Skinner’s negative reinforcement.)
+On the other hand, it has often been pointed out that using a single number as a
+reward or a penalty signal, depending only on its sign, is at odds with the fact that
+animals’ appetitive and aversive systems have qualitatively di↵erent properties and
+involve di↵erent brain mechanisms. This points to a direction in which the reinforcement
+learning framework might be developed in the future to exploit computational advantages
+of separate appetitive and aversive systems, but for now we are passing over these
+possibilities.
+Another discrepancy in terminology is how we use the word action. To many cognitive
+scientists, an action is purposeful in the sense of being the result of an animal’s knowledge
+about the relationship between the behavior in question and the consequences of that
+behavior. An action is goal-directed and the result of a decision, whereas a response
+is triggered by a stimulus and is the result of a reﬂex or a habit. We use the word
+action without di↵erentiating among what others call actions, decisions, and responses.
+These are important distinctions, but for us they are encompassed by di↵erences between
+
+--- Page 398 ---
+376
+Chapter 14: Psychology
+model-free and model-based reinforcement learning algorithms, which we discussed above
+in relation to habitual and goal-directed behavior in Section 14.6. Dickinson (1985)
+discusses the distinction between responses and actions.
+A term used a lot in this book is control. What we mean by control is entirely di↵erent
+from what it means to animal learning psychologists. By control we mean that an agent
+inﬂuences its environment to bring about states or events that the agent prefers: the agent
+exerts control over its environment. This is the sense of control used by control engineers.
+In psychology, on the other hand, control typically means that an animal’s behavior is
+inﬂuenced by—is controlled by—the stimuli the animal receives (stimulus control) or
+the reinforcement schedule it experiences. Here the environment is controlling the agent.
+Control in this sense is the basis of behavior modiﬁcation therapy. Of course, both of
+these directions of control are at play when an agent interacts with its environment,
+but our focus is on the agent as controller, not the environment as controller. A view
+equivalent to ours, and perhaps more illuminating, is that the agent is actually controlling
+the input it receives from its environment (Powers, 1973). This is not what psychologists
+mean by stimulus control.
+Sometimes reinforcement learning is understood to refer solely to learning policies
+directly from rewards (and penalties) without the involvement of value functions or
+environment models. This is what psychologists call stimulus-response, or S-R, learning.
+But for us, along with most of today’s psychologists, reinforcement learning is much
+broader than this, including in addition to S-R learning, methods involving value functions,
+environment models, planning, and other processes that are commonly thought to belong
+to the more cognitive side of mental functioning.
+
+--- Page 399 ---
+Chapter 15
+Neuroscience
+Neuroscience is the multidisciplinary study of nervous systems: how they regulate bodily
+functions; control behavior; change over time as a result of development, learning, and
+aging; and how cellular and molecular mechanisms make these functions possible. One
+of the most exciting aspects of reinforcement learning is the mounting evidence from
+neuroscience that the nervous systems of humans and many other animals implement
+algorithms that correspond in striking ways to reinforcement learning algorithms. The
+main objective of this chapter is to explain these parallels and what they suggest about
+the neural basis of reward-related learning in animals.
+The most remarkable point of contact between reinforcement learning and neuroscience
+involves dopamine, a chemical deeply involved in reward processing in the brains of mam-
+mals. Dopamine appears to convey temporal-di↵erence (TD) errors to brain structures
+where learning and decision making take place. This parallel is expressed by the reward
+prediction error hypothesis of dopamine neuron activity, a hypothesis that resulted from
+the convergence of computational reinforcement learning and results of neuroscience
+experiments. In this chapter we discuss this hypothesis, the neuroscience ﬁndings that
+led to it, and why it is a signiﬁcant contribution to understanding brain reward systems.
+We also discuss parallels between reinforcement learning and neuroscience that are less
+striking than this dopamine/TD-error parallel but that provide useful conceptual tools
+for thinking about reward-based learning in animals. Other elements of reinforcement
+learning have the potential to impact the study of nervous systems, but their connections
+to neuroscience are still relatively undeveloped. We discuss several of these evolving
+connections that we think will grow in importance over time.
+As we outlined in the history section of this book’s introductory chapter (Section 1.7),
+many aspects of reinforcement learning were inﬂuenced by neuroscience.
+A second
+objective of this chapter is to acquaint readers with ideas about brain function that have
+contributed to our approach to reinforcement learning. Some elements of reinforcement
+learning are easier to understand when seen in light of theories of brain function. This
+is particularly true for the idea of the eligibility trace, one of the basic mechanisms
+of reinforcement learning, that originated as a conjectured property of synapses, the
+structures by which nerve cells—neurons—communicate with one another.
+
+--- Page 400 ---
+378
+Chapter 15: Neuroscience
+In this chapter we do not delve very deeply into the enormous complexity of the neural
+systems underlying reward-based learning in animals: this chapter is too short, and we are
+not neuroscientists. We do not try to describe—or even to name—the very many brain
+structures and pathways, or any of the molecular mechanisms, believed to be involved in
+these processes. We also do not do justice to hypotheses and models that are alternatives
+to those that align so well with reinforcement learning. It should not be surprising that
+there are di↵ering views among experts in the ﬁeld. We can only provide a glimpse into
+this fascinating and developing story. We hope, though, that this chapter convinces
+you that a very fruitful channel has emerged connecting reinforcement learning and its
+theoretical underpinnings to the neuroscience of reward-based learning in animals.
+Many excellent publications cover links between reinforcement learning and neuro-
+science, some of which we cite in this chapter’s ﬁnal section. Our treatment di↵ers from
+most of these because we assume familiarity with reinforcement learning as presented
+in the earlier chapters of this book, but we do not assume knowledge of neuroscience.
+We begin with a brief introduction to the neuroscience concepts needed for a basic
+understanding of what is to follow.
+15.1
+Neuroscience Basics
+Some basic information about nervous systems is helpful for following what we cover in
+this chapter. Terms that we refer to later are italicized. Skipping this section will not be
+a problem if you already have an elementary knowledge of neuroscience.
+Neurons, the main components of nervous systems, are cells specialized for processing
+and transmitting information using electrical and chemical signals. They come in many
+forms, but a neuron typically has a cell body, dendrites, and a single axon. Dendrites
+are structures that branch from the cell body to receive input from other neurons (or to
+also receive external signals in the case of sensory neurons). A neuron’s axon is a ﬁber
+that carries the neuron’s output to other neurons (or to muscles or glands). A neuron’s
+output consists of sequences of electrical pulses called action potentials that travel along
+the axon. Action potentials are also called spikes, and a neuron is said to ﬁre when it
+generates a spike. In models of neural networks it is common to use real numbers to
+represent a neuron’s ﬁring rate, the average number of spikes per some unit of time.
+A neuron’s axon can branch widely so that the neuron’s action potentials reach
+many targets. The branching structure of a neuron’s axon is called the neuron’s axonal
+arbor. Because the conduction of an action potential is an active process, not unlike the
+burning of a fuse, when an action potential reaches an axonal branch point it “lights
+up” action potentials on all of the outgoing branches (although propagation to a branch
+can sometimes fail). As a result, the activity of a neuron with a large axonal arbor can
+inﬂuence many target sites.
+

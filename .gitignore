@@ -1,0 +1,23 @@
+# Secrets — never commit
+.env
+.env.local
+
+# OAuth state: contains registered clients and issued access/refresh tokens
+oauth_state.db
+oauth_state.db-journal
+oauth_state.db-wal
+oauth_state.db-shm
+
+# Source PDF (copyrighted, 70 MB) — download it yourself, see README
+*.pdf
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Logs
+*.log
+tunnel.log

@@ -1,0 +1,3314 @@
+--- Page 301 ---
+11.7. Gradient-TD Methods
+279
+Substituting these expectations for the three factors in our expression for the gradient of
+the PBE, we get
+rPBE(w) = 2E
+⇥
+⇢t(γxt+1 −xt)x>
+t
+⇤
+E
+⇥
+xtx>
+t
+⇤−1 E[⇢tδtxt] .
+(11.27)
+It might not be obvious that we have made any progress by writing the gradient in this
+form. It is a product of three expressions and the ﬁrst and last are not independent.
+They both depend on the next feature vector xt+1; we cannot simply sample both of
+these expectations and then multiply the samples. This would give us a biased estimate
+of the gradient just as in the residual-gradient algorithm.
+Another idea would be to estimate the three expectations separately and then combine
+them to produce an unbiased estimate of the gradient. This would work, but would
+require a lot of computational resources, particularly to store the ﬁrst two expectations,
+which are d ⇥d matrices, and to compute the inverse of the second. This idea can be
+improved. If two of the three expectations are estimated and stored, then the third could
+be sampled and used in conjunction with the two stored quantities. For example, you
+could store estimates of the second two quantities (using the increment inverse-updating
+techniques in Section 9.8) and then sample the ﬁrst expression. Unfortunately, the overall
+algorithm would still be of quadratic complexity (of order O(d2)).
+The idea of storing some estimates separately and then combining them with samples
+is a good one and is also used in Gradient-TD methods. Gradient-TD methods estimate
+and store the product of the second two factors in (11.27). These factors are a d ⇥d
+matrix and a d-vector, so their product is just a d-vector, like w itself. We denote this
+second learned vector as v:
+v ⇡E
+⇥
+xtx>
+t
+⇤−1 E[⇢tδtxt] .
+(11.28)
+This form is familiar to students of linear supervised learning. It is the solution to a linear
+least-squares problem that tries to approximate ⇢tδt from the features. The standard
+SGD method for incrementally ﬁnding the vector v that minimizes the expected squared
+error
+#
+v>xt −⇢tδt
+$2 is known as the Least Mean Square (LMS) rule (here augmented
+with an importance sampling ratio):
+vt+1 .= vt + β⇢t
+#
+δt −v>
+t xt
+$
+xt,
+where β > 0 is another step-size parameter. We can use this method to e↵ectively achieve
+(11.28) with O(d) storage and per-step computation.
+Given a stored estimate vt approximating (11.28), we can update our main parameter
+vector wt using SGD methods based on (11.27). The simplest such rule is
+wt+1 = wt −1
+2↵rPBE(wt)
+(the general SGD rule)
+= wt −1
+2↵2E
+⇥
+⇢t(γxt+1 −xt)x>
+t
+⇤
+E
+⇥
+xtx>
+t
+⇤−1 E[⇢tδtxt]
+(from (11.27))
+= wt + ↵E
+⇥
+⇢t(xt −γxt+1)x>
+t
+⇤
+E
+⇥
+xtx>
+t
+⇤−1 E[⇢tδtxt]
+(11.29)
+⇡wt + ↵E
+⇥
+⇢t(xt −γxt+1)x>
+t
+⇤
+vt
+(based on (11.28))
+⇡wt + ↵⇢t (xt −γxt+1) x>
+t vt.
+(sampling)
+
+--- Page 302 ---
+280
+Chapter 11: O↵-policy Methods with Approximation
+This algorithm is called GTD2. Note that if the ﬁnal inner product (x>
+t vt) is done ﬁrst,
+then the entire algorithm is of O(d) complexity.
+A slightly better algorithm can be derived by doing a few more analytic steps before
+substituting in vt. Continuing from (11.29):
+wt+1 = wt + ↵E
+⇥
+⇢t(xt −γxt+1)x>
+t
+⇤
+E
+⇥
+xtx>
+t
+⇤−1 E[⇢tδtxt]
+= wt + ↵
+#
+E
+⇥
+⇢txtx>
+t
+⇤
+−γE
+⇥
+⇢txt+1x>
+t
+⇤$
+E
+⇥
+xtx>
+t
+⇤−1 E[⇢tδtxt]
+= wt + ↵
+#
+E
+⇥
+xtx>
+t
+⇤
+−γE
+⇥
+⇢txt+1x>
+t
+⇤$
+E
+⇥
+xtx>
+t
+⇤−1 E[⇢tδtxt]
+= wt + ↵
+⇣
+E[⇢tδtxt] −γE
+⇥
+⇢txt+1x>
+t
+⇤
+E
+⇥
+xtx>
+t
+⇤−1 E[⇢tδtxt]
+⌘
+⇡wt + ↵
+#
+E[⇢tδtxt] −γE
+⇥
+⇢txt+1x>
+t
+⇤
+vt
+$
+(based on (11.28))
+⇡wt + ↵⇢t
+#
+δtxt −γxt+1x>
+t vt
+$
+,
+(sampling)
+which again is O(d) if the ﬁnal product (x>
+t vt) is done ﬁrst. This algorithm is known as
+either TD(0) with gradient correction (TDC) or, alternatively, as GTD(0).
+Figure 11.5 shows a sample and the expected behavior of TDC on Baird’s counterex-
+ample. As intended, the PBE falls to zero, but note that the individual components
+of the parameter vector do not approach zero. In fact, these values are still far from
+w1– w6
+w8
+w8
+p
+VE
+p
+VE
+p
+PBE
+p
+PBE
+10
+5
+2
+0
+-2.34
+0
+1000
+0
+1000
+Steps
+w7
+w1– w6
+TDC
+Expected TDC
+Sweeps
+w7
+Figure 11.5: The behavior of the TDC algorithm on Baird’s counterexample. On the left is
+shown a typical single run, and on the right is shown the expected behavior of this algorithm if
+the updates are done synchronously (analogous to (11.9), except for the two TDC parameter
+vectors). The step sizes were ↵= 0.005 and β = 0.05.
+
+--- Page 303 ---
+11.8. Emphatic-TD Methods
+281
+an optimal solution, ˆv(s) = 0, for all s, for which w would have to be proportional to
+(1, 1, 1, 1, 1, 1, 4, −2)>. After 1000 iterations we are still far from an optimal solution, as
+we can see from the VE, which remains almost 2. The system is actually converging to
+an optimal solution, but progress is extremely slow because the PBE is already so close
+to zero.
+GTD2 and TDC both involve two learning processes, a primary one for w and a
+secondary one for v. The logic of the primary learning process relies on the secondary
+learning process having ﬁnished, at least approximately, whereas the secondary learning
+process proceeds without being inﬂuenced by the ﬁrst. We call this sort of asymmetrical
+dependence a cascade. In cascades we often assume that the secondary learning process
+is proceeding faster and thus is always at its asymptotic value, ready and accurate to
+assist the primary learning process. The convergence proofs for these methods often make
+this assumption explicitly. These are called two-time-scale proofs. The fast time scale is
+that of the secondary learning process, and the slower time scale is that of the primary
+learning process. If ↵is the step size of the primary learning process, and β is the step
+size of the secondary learning process, then these convergence proofs will typically require
+that in the limit β ! 0 and ↵
+β ! 0.
+Gradient-TD methods are currently the most well understood and widely used stable
+o↵-policy methods. There are extensions to action values and control (GQ, Maei et al.,
+2010), to eligibility traces (GTD(λ) and GQ(λ), Maei, 2011; Maei and Sutton, 2010), and
+to nonlinear function approximation (Maei et al., 2009). There have also been proposed
+hybrid algorithms midway between semi-gradient TD and gradient TD (Hackman, 2012;
+White and White, 2016). Hybrid-TD algorithms behave like Gradient-TD algorithms in
+states where the target and behavior policies are very di↵erent, and behave like semi-
+gradient algorithms in states where the target and behavior policies are the same. Finally,
+the Gradient-TD idea has been combined with the ideas of proximal methods and control
+variates to produce more eﬃcient methods (Mahadevan et al., 2014; Du et al., 2017).
+11.8
+Emphatic-TD Methods
+We turn now to the second major strategy that has been extensively explored for obtaining
+a cheap and eﬃcient o↵-policy learning method with function approximation. Recall
+that linear semi-gradient TD methods are eﬃcient and stable when trained under the
+on-policy distribution, and that we showed in Section 9.4 that this has to do with the
+positive deﬁniteness of the matrix A (9.11)4 and the match between the on-policy state
+distribution µ⇡and the state-transition probabilities p(s|s, a) under the target policy. In
+o↵-policy learning, we reweight the state transitions using importance sampling so that
+they become appropriate for learning about the target policy, but the state distribution
+is still that of the behavior policy. There is a mismatch. A natural idea is to somehow
+reweight the states, emphasizing some and de-emphasizing others, so as to return the
+distribution of updates to the on-policy distribution. There would then be a match,
+and stability and convergence would follow from existing results. This is the idea of
+4In the o↵-policy case, the matrix A is generally deﬁned as Es⇠b
+⇥
+x(s)E
+⇥
+x(St+1)>"" St =s, At ⇠⇡
+⇤⇤
+.
+
+--- Page 304 ---
+282
+Chapter 11: O↵-policy Methods with Approximation
+Emphatic-TD methods, ﬁrst introduced for on-policy training in Section 9.11.
+Actually, the notion of “the on-policy distribution” is not quite right, as there are many
+on-policy distributions, and any one of these is suﬃcient to guarantee stability. Consider
+an undiscounted episodic problem. The way episodes terminate is fully determined by the
+transition probabilities, but there may be several di↵erent ways the episodes might begin.
+However the episodes start, if all state transitions are due to the target policy, then the
+state distribution that results is an on-policy distribution. You might start close to the
+terminal state and visit only a few states with high probability before ending the episode.
+Or you might start far away and pass through many states before terminating. Both are
+on-policy distributions, and training on both with a linear semi-gradient method would
+be guaranteed to be stable. However the process starts, an on-policy distribution results
+as long as all states encountered are updated up until termination.
+If there is discounting, it can be treated as partial or probabilistic termination for these
+purposes. If γ = 0.9, then we can consider that with probability 0.1 the process terminates
+on every time step and then immediately restarts in the state that is transitioned to. A
+discounted problem is one that is continually terminating and restarting with probability
+1 −γ on every step. This way of thinking about discounting is an example of a more
+general notion of pseudo termination—termination that does not a↵ect the sequence of
+state transitions, but does a↵ect the learning process and the quantities being learned.
+This kind of pseudo termination is important to o↵-policy learning because the restarting
+is optional—remember we can start any way we want to—and the termination relieves
+the need to keep including encountered states within the on-policy distribution. That is,
+if we don’t consider the new states as restarts, then discounting quickly gives us a limited
+on-policy distribution.
+The one-step Emphatic-TD algorithm for learning episodic state values is deﬁned by:
+δt = Rt+1 + γˆv(St+1,wt) −ˆv(St,wt),
+wt+1 = wt + ↵Mt⇢tδtrˆv(St,wt),
+Mt = γ⇢t−1Mt−1 + It,
+with It, the interest, being arbitrary and Mt, the emphasis, being initialized to M−1 = 0.
+How does this algorithm perform on Baird’s counterexample? Figure 11.6 shows the
+trajectory in expectation of the components of the parameter vector (for the case in
+which It =1, for all t). There are some oscillations but eventually everything converges
+and the VE goes to zero. These trajectories are obtained by iteratively computing the
+expectation of the parameter vector trajectory without any of the variance due to sampling
+of transitions and rewards. We do not show the results of applying the Emphatic-TD
+algorithm directly because its variance on Baird’s counterexample is so high that it is
+nigh impossible to get consistent results in computational experiments. The algorithm
+converges to the optimal solution in theory on this problem, but in practice it does
+not. We turn to the topic of reducing the variance of all these algorithms in the next
+section.
+
+--- Page 305 ---
+11.9. Reducing Variance
+283
+Sweeps
+w1– w6
+w7
+w8
+p
+VE
+10
+5
+2
+0
+-5
+0
+1000
+Figure 11.6: The behavior of the one-step Emphatic-TD algorithm in expectation on Baird’s
+counterexample. The step size was ↵= 0.03.
+11.9
+Reducing Variance
+O↵-policy learning is inherently of greater variance than on-policy learning. This is not
+surprising; if you receive data less closely related to a policy, you should expect to learn
+less about the policy’s values. In the extreme, one may be able to learn nothing. You
+can’t expect to learn how to drive by cooking dinner, for example. Only if the target and
+behavior policies are related, if they visit similar states and take similar actions, should
+one be able to make signiﬁcant progress in o↵-policy training.
+On the other hand, any policy has many neighbors, many similar policies with con-
+siderable overlap in states visited and actions chosen, and yet which are not identical.
+The raison d’ˆetre of o↵-policy learning is to enable generalization to this vast number
+of related-but-not-identical policies. The problem remains of how to make the best use
+of the experience. Now that we have some methods that are stable in expected value
+(if the step sizes are set right), attention naturally turns to reducing the variance of the
+estimates. There are many possible ideas, and we can just touch on a few of them in this
+introductory text.
+Why is controlling variance especially critical in o↵-policy methods based on importance
+sampling? As we have seen, importance sampling often involves products of policy ratios.
+The ratios are always one in expectation (5.13), but their actual values may be very high
+or as low as zero. Successive ratios are uncorrelated, so their products are also always one
+in expected value, but they can be of very high variance. Recall that these ratios multiply
+the step size in SGD methods, so high variance means taking steps that vary greatly in
+their sizes. This is problematic for SGD because of the occasional very large steps. They
+must not be so large as to take the parameter to a part of the space with a very di↵erent
+gradient. SGD methods rely on averaging over multiple steps to get a good sense of
+the gradient, and if they make large moves from single samples they become unreliable.
+If the step-size parameter is set small enough to prevent this, then the expected step
+
+--- Page 306 ---
+284
+Chapter 11: O↵-policy Methods with Approximation
+can end up being very small, resulting in very slow learning. The notions of momentum
+(Derthick, 1984), of Polyak-Ruppert averaging (Polyak, 1990; Ruppert, 1988; Polyak and
+Juditsky, 1992), or further extensions of these ideas may signiﬁcantly help. Methods for
+adaptively setting separate step sizes for di↵erent components of the parameter vector
+are also pertinent (e.g., Jacobs, 1988; Sutton, 1992b, c), as are the “importance weight
+aware” updates of Karampatziakis and Langford (2010).
+In Chapter 5 we saw how weighted importance sampling is signiﬁcantly better behaved,
+with lower variance updates, than ordinary importance sampling. However, adapting
+weighted importance sampling to function approximation is challenging and can probably
+only be done approximately with O(d) complexity (Mahmood and Sutton, 2015).
+The Tree Backup algorithm (Section 7.5) shows that it is possible to perform some
+o↵-policy learning without using importance sampling. This idea has been extended to
+the o↵-policy case to produce stable and more eﬃcient methods by Munos, Stepleton,
+Harutyunyan, and Bellemare (2016) and by Mahmood, Yu and Sutton (2017).
+Another, complementary strategy is to allow the target policy to be determined in
+part by the behavior policy, in such a way that it never can be so di↵erent from it to
+create large importance sampling ratios. For example, the target policy can be deﬁned by
+reference to the behavior policy, as in the “recognizers” proposed by Precup et al. (2006).
+11.10
+Summary
+O↵-policy learning is a tempting challenge, testing our ingenuity in designing stable and
+eﬃcient learning algorithms. Tabular Q-learning makes o↵-policy learning seem easy,
+and it has natural generalizations to Expected Sarsa and to the Tree Backup algorithm.
+But as we have seen in this chapter, the extension of these ideas to signiﬁcant function
+approximation, even linear function approximation, involves new challenges and forces us
+to deepen our understanding of reinforcement learning algorithms.
+Why go to such lengths? One reason to seek o↵-policy algorithms is to give ﬂexibility
+in dealing with the tradeo↵between exploration and exploitation. Another is to free
+behavior from learning, and avoid the tyranny of the target policy. TD learning appears
+to hold out the possibility of learning about multiple things in parallel, of using one
+stream of experience to solve many tasks simultaneously. We can certainly do this in
+special cases, just not in every case that we would like to or as eﬃciently as we would
+like to.
+In this chapter we divided the challenge of o↵-policy learning into two parts. The
+ﬁrst part, correcting the targets of learning for the behavior policy, is straightforwardly
+dealt with using the techniques devised earlier for the tabular case, albeit at the cost of
+increasing the variance of the updates and thereby slowing learning. High variance will
+probably always remains a challenge for o↵-policy learning.
+The second part of the challenge of o↵-policy learning emerges as the instability
+of semi-gradient TD methods that involve bootstrapping. We seek powerful function
+approximation, o↵-policy learning, and the eﬃciency and ﬂexibility of bootstrapping
+
+--- Page 307 ---
+11.10.
+Summary
+285
+TD methods, but it is challenging to combine all three aspects of this deadly triad in
+one algorithm without introducing the potential for instability. There have been several
+attempts. The most popular has been to seek to perform true stochastic gradient descent
+(SGD) in the Bellman error (a.k.a. the Bellman residual). However, our analysis concludes
+that this is not an appealing goal in many cases, and that anyway it is impossible to
+achieve with a learning algorithm—the gradient of the BE is not learnable from experience
+that reveals only feature vectors and not underlying states. Another approach, Gradient-
+TD methods, performs SGD in the projected Bellman error. The gradient of the PBE
+is learnable with O(d) complexity, but at the cost of a second parameter vector with a
+second step size. The newest family of methods, Emphatic-TD methods, reﬁne an old idea
+for reweighting updates, emphasizing some and de-emphasizing others. In this way they
+restore the special properties that make on-policy learning stable with computationally
+simple semi-gradient methods.
+The whole area of o↵-policy learning is relatively new and unsettled. Which methods
+are best or even adequate is not yet clear. Are the complexities of the new methods
+introduced at the end of this chapter really necessary? Which of them can be combined
+e↵ectively with variance reduction methods? The potential for o↵-policy learning remains
+tantalizing, the best way to achieve it still a mystery.
+Bibliographical and Historical Remarks
+11.1
+The ﬁrst semi-gradient method was linear TD(λ) (Sutton, 1988). The name
+“semi-gradient” is more recent (Sutton, 2015a). Semi-gradient o↵-policy TD(0)
+with general importance-sampling ratio may not have been explicitly stated until
+Sutton, Mahmood, and White (2016), but the action-value forms were introduced
+by Precup, Sutton, and Singh (2000), who also did eligibility trace forms of these
+algorithms (see Chapter 12). Their continuing, undiscounted forms have not
+been signiﬁcantly explored. The n-step forms given here are new.
+11.2
+The earliest w-to-2w example was given by Tsitsiklis and Van Roy (1996), who
+also introduced the speciﬁc counterexample in the box on page 263. Baird’s
+counterexample is due to Baird (1995), though the version we present here is
+slightly modiﬁed. Averaging methods for function approximation were developed
+by Gordon (1995, 1996b). Other examples of instability with o↵-policy DP
+methods and more complex methods of function approximation are given by
+Boyan and Moore (1995). Bradtke (1993) gives an example in which Q-learning
+using linear function approximation in a linear quadratic regulation problem
+converges to a destabilizing policy.
+11.3
+The deadly triad was ﬁrst identiﬁed by Sutton (1995b) and thoroughly analyzed
+by Tsitsiklis and Van Roy (1997). The name “deadly triad” is due to Sutton
+(2015a).
+11.4
+This kind of linear analysis was pioneered by Tsitsiklis and Van Roy (1996; 1997),
+including the dynamic programming operator. Diagrams like Figure 11.3 were
+
+--- Page 308 ---
+286
+Chapter 11: O↵-policy Methods with Approximation
+introduced by Lagoudakis and Parr (2003).
+What we have called the Bellman operator, and denoted B⇡, is more commonly
+denoted T ⇡and called a “dynamic programming operator,” while a generalized
+form, denoted T (λ), is called the “TD(λ) operator” (Tsitsiklis and Van Roy, 1996,
+1997).
+11.5
+The BE was ﬁrst proposed as an objective function for dynamic programming by
+Schweitzer and Seidmann (1985). Baird (1995, 1999) extended it to TD learning
+based on stochastic gradient descent. In the literature, BE minimization is often
+referred to as Bellman residual minimization.
+The earliest A-split example is due to Dayan (1992). The two forms given here
+were introduced by Sutton et al. (2009a).
+11.6
+The contents of this section are new to this text.
+11.7
+Gradient-TD methods were introduced by Sutton, Szepesv´ari, and Maei (2009b).
+The methods highlighted in this section were introduced by Sutton et al. (2009a)
+and Mahmood et al. (2014).
+A major extension to proximal TD methods
+was developed by Mahadevan et al.
+(2014).
+The most sensitive empirical
+investigations to date of Gradient-TD and related methods are given by Geist
+and Scherrer (2014), Dann, Neumann, and Peters (2014), White (2015), and
+Ghiassian, Patterson, White, Sutton, and White (2018). Recent developments in
+the theory of Gradient-TD methods are presented by Yu (2017).
+11.8
+Emphatic-TD methods were introduced by Sutton, Mahmood, and White (2016).
+Full convergence proofs and other theory were later established by Yu (2015;
+2016; Yu, Mahmood, and Sutton, 2017), Hallak, Tamar, and Mannor (2015), and
+Hallak, Tamar, Munos, and Mannor (2016).
+
+--- Page 309 ---
+Chapter 12
+Eligibility Traces
+Eligibility traces are one of the basic mechanisms of reinforcement learning. For example,
+in the popular TD(λ) algorithm, the λ refers to the use of an eligibility trace. Almost any
+temporal-di↵erence (TD) method, such as Q-learning or Sarsa, can be combined with
+eligibility traces to obtain a more general method that may learn more eﬃciently.
+Eligibility traces unify and generalize TD and Monte Carlo methods. When TD
+methods are augmented with eligibility traces, they produce a family of methods spanning
+a spectrum that has Monte Carlo methods at one end (λ=1) and one-step TD methods
+at the other (λ = 0). In between are intermediate methods that are often better than
+either extreme method. Eligibility traces also provide a way of implementing Monte Carlo
+methods online and on continuing problems without episodes.
+Of course, we have already seen one way of unifying TD and Monte Carlo methods: the
+n-step TD methods of Chapter 7. What eligibility traces o↵er beyond these is an elegant
+algorithmic mechanism with signiﬁcant computational advantages. The mechanism is
+a short-term memory vector, the eligibility trace zt 2 Rd, that parallels the long-term
+weight vector wt 2 Rd. The rough idea is that when a component of wt participates in
+producing an estimated value, then the corresponding component of zt is bumped up and
+then begins to fade away. Learning will then occur in that component of wt if a nonzero
+TD error occurs before the trace falls back to zero. The trace-decay parameter λ 2 [0, 1]
+determines the rate at which the trace falls.
+The primary computational advantage of eligibility traces over n-step methods is that
+only a single trace vector is required rather than a store of the last n feature vectors.
+Learning also occurs continually and uniformly in time rather than being delayed and
+then catching up at the end of the episode. In addition learning can occur and a↵ect
+behavior immediately after a state is encountered rather than being delayed n steps.
+Eligibility traces illustrate that a learning algorithm can sometimes be implemented in
+a di↵erent way to obtain computational advantages. Many algorithms are most naturally
+formulated and understood as an update of a state’s value based on events that follow
+that state over multiple future time steps. For example, Monte Carlo methods (Chapter 5)
+update a state based on all the future rewards, and n-step TD methods (Chapter 7)
+
+--- Page 310 ---
+288
+Chapter 12: Eligibility Traces
+update based on the next n rewards and state n steps in the future. Such formulations,
+based on looking forward from the updated state, are called forward views. Forward views
+are always somewhat complex to implement because the update depends on later things
+that are not available at the time. However, as we show in this chapter it is often possible
+to achieve nearly the same updates—and sometimes exactly the same updates—with an
+algorithm that uses the current TD error, looking backward to recently visited states
+using an eligibility trace. These alternate ways of looking at and implementing learning
+algorithms are called backward views. Backward views, transformations between forward
+views and backward views, and equivalences between them, date back to the introduction
+of temporal di↵erence learning but have become much more powerful and sophisticated
+since 2014. Here we present the basics of the modern view.
+As usual, ﬁrst we fully develop the ideas for state values and prediction, then extend
+them to action values and control. We develop them ﬁrst for the on-policy case then
+extend them to o↵-policy learning. Our treatment pays special attention to the case of
+linear function approximation, for which the results with eligibility traces are stronger.
+All these results apply also to the tabular and state aggregation cases because these are
+special cases of linear function approximation.
+12.1
+The λ-return
+In Chapter 7 we deﬁned an n-step return as the sum of the ﬁrst n rewards plus the
+estimated value of the state reached in n steps, each appropriately discounted (7.1). The
+general form of that equation, for any parameterized function approximator, is
+Gt:t+n .= Rt+1 +γRt+2 +· · ·+γn−1Rt+n +γnˆv(St+n,wt+n−1), 0 t T −n, (12.1)
+where ˆv(s,w) is the approximate value of state s given weight vector w (Chapter 9), and
+T is the time of episode termination, if any. We noted in Chapter 7 that each n-step
+return, for n ≥1, is a valid update target for a tabular learning update, just as it is for
+an approximate SGD learning update such as (9.7).
+Now we note that a valid update can be done not just toward any n-step return, but
+toward any average of n-step returns for di↵erent ns. For example, an update can be
+done toward a target that is half of a two-step return and half of a four-step return:
+1
+2Gt:t+2 + 1
+2Gt:t+4. Any set of n-step returns can be averaged in this way, even an inﬁnite
+set, as long as the weights on the component returns are positive and sum to 1. The
+composite return possesses an error reduction property similar to that of individual n-step
+returns (7.3) and thus can be used to construct updates with guaranteed convergence
+properties. Averaging produces a substantial new range of algorithms. For example, one
+could average one-step and inﬁnite-step returns to obtain another way of interrelating TD
+and Monte Carlo methods. In principle, one could even average experience-based updates
+with DP updates to get a simple combination of experience-based and model-based
+methods (cf. Chapter 8).
+An update that averages simpler component updates is called a compound update. The
+backup diagram for a compound update consists of the backup diagrams for each of the
+component updates with a horizontal line above them and the weighting fractions below.
+
+--- Page 311 ---
+12.1. The λ-return
+289
+1
+2
+1
+2
+For example, the compound update for the case mentioned at the start of
+this section, mixing half of a two-step return and half of a four-step return,
+has the diagram shown to the right. A compound update can only be done
+when the longest of its component updates is complete. The update at the
+right, for example, could only be done at time t+4 for the estimate formed at
+time t. In general one would like to limit the length of the longest component
+update because of the corresponding delay in the updates.
+The TD(λ) algorithm can be understood as one particular way of averaging
+n-step updates. This average contains all the n-step updates, each weighted
+proportionally to λn−1 (where λ 2 [0, 1)), and is normalized by a factor of
+1−λ to ensure that the weights sum to 1 (Figure 12.1). The resulting update
+is toward a return, called the λ-return, deﬁned in its state-based form by
+Gλ
+t
+.= (1 −λ)
+1
+X
+n=1
+λn−1Gt:t+n.
+(12.2)
+Figure 12.2 further illustrates the weighting on the sequence of n-step returns in the
+λ-return. The one-step return is given the largest weight, 1 −λ; the two-step return is
+given the next largest weight, (1−λ)λ; the three-step return is given the weight (1−λ)λ2;
+and so on. The weight fades by λ with each additional step. After a terminal state has
+been reached, all subsequent n-step returns are equal to the conventional return, Gt. If
+1 −λ
+(1 −λ)λ
+(1 −λ)λ2
+λT −t−1
+· · ·
+· · ·
+St
+At
+At+1
+AT −1
+St+1 Rt+1
+ST RT
+· · ·
+St+2 Rt+2
+At+2
+TD(λ)
+X
+= 1
+Figure 12.1: The backup diagram for TD(λ). If λ = 0, then the overall update reduces to its
+ﬁrst component, the one-step TD update, whereas if λ = 1, then the overall update reduces to
+its last component, the Monte Carlo update.
+
+--- Page 312 ---
+290
+Chapter 12: Eligibility Traces
+1!"
+weight given to
+the 3-step return
+decay by "
+weight given to
+actual, final return
+t
+T
+Time
+Weight
+total area = 1
+is (1 −λ)λ2
+is λT −t−1
+Weighting
+Figure 12.2: Weighting given in the λ-return to each of the n-step returns.
+we want, we can separate these post-termination terms from the main sum, yielding
+Gλ
+t
+=
+(1 −λ)
+T −t−1
+X
+n=1
+λn−1Gt:t+n
++
+λT −t−1Gt,
+(12.3)
+as indicated in the ﬁgures. This equation makes it clearer what happens when λ = 1. In
+this case the main sum goes to zero, and the remaining term reduces to the conventional
+return. Thus, for λ = 1, updating according to the λ-return is a Monte Carlo algorithm.
+On the other hand, if λ = 0, then the λ-return reduces to Gt:t+1, the one-step return.
+Thus, for λ = 0, updating according to the λ-return is a one-step TD method.
+Exercise 12.1 Just as the return can be written recursively in terms of the ﬁrst reward and
+itself one-step later (3.9), so can the λ-return. Derive the analogous recursive relationship
+from (12.2) and (12.1).
+⇤
+Exercise 12.2
+The parameter λ characterizes how fast the exponential weighting in
+Figure 12.2 falls o↵, and thus how far into the future the λ-return algorithm looks in
+determining its update. But a rate factor such as λ is sometimes an awkward way of
+characterizing the speed of the decay. For some purposes it is better to specify a time
+constant, or half-life. What is the equation relating λ and the half-life, ⌧λ, the time by
+which the weighting sequence will have fallen to half of its initial value?
+⇤
+We are now ready to deﬁne our ﬁrst learning algorithm based on the λ-return: the
+o↵-line λ-return algorithm. As an o↵-line algorithm, it makes no changes to the weight
+vector during the episode. Then, at the end of the episode, a whole sequence of o↵-line
+updates are made according to our usual semi-gradient rule, using the λ-return as the
+target:
+wt+1 .= wt + ↵
+h
+Gλ
+t −ˆv(St,wt)
+i
+rˆv(St,wt),
+t = 0, . . . , T −1.
+(12.4)
+
+--- Page 313 ---
+12.1. The λ-return
+291
+The λ-return gives us an alternative way of moving smoothly between Monte Carlo
+and one-step TD methods that can be compared with the n-step bootstrapping way
+developed in Chapter 7. There we assessed e↵ectiveness on a 19-state random walk task
+(Example 7.1, page 144). Figure 12.3 shows the performance of the o↵-line λ-return
+algorithm on this task alongside that of the n-step methods (repeated from Figure 7.2).
+The experiment was just as described earlier except that for the λ-return algorithm we
+varied λ instead of n. The performance measure used is the estimated root-mean-square
+error between the correct and estimated values of each state measured at the end of
+the episode, averaged over the ﬁrst 10 episodes and the 19 states. Note that overall
+performance of the o↵-line λ-return algorithms is comparable to that of the n-step
+algorithms. In both cases we get best performance with an intermediate value of the
+bootstrapping parameter, n for n-step methods and λ for the o↵-line λ-return algorithm.
+n-step TD methods
+(from Chapter 7)
+↵
+Average
+RMS error
+over 19 states
+and ﬁrst 10 
+episodes
+n=1
+n=2
+n=4
+n=8
+n=16
+n=32
+n=32
+n=64
+128
+512
+256
+0.55
+0.5
+0.45
+0.35
+0.3
+0.25
+0.4
+0.4
+0.2
+0
+0.8
+0.6
+1
+0.55
+0.5
+0.45
+0.35
+0.3
+0.25
+0.4
+0.4
+0.2
+0
+0.8
+0.6
+1
+Offline λ-return algorithm
+↵
+RMS error
+at the end 
+of the episode
+over the ﬁrst
+10 episodes
+λ=0
+λ=.4
+λ=.8
+λ=.9
+λ=.95
+λ=.975
+λ=.99
+λ=1
+λ=.95
+-
+Figure 12.3: 19-state Random walk results (Example 7.1): Performance of the o↵-line λ-return
+algorithm alongside that of the n-step TD methods. In both case, intermediate values of the
+bootstrapping parameter (λ or n) performed best. The results with the o↵-line λ-return algorithm
+are slightly better at the best values of ↵and λ, and at high ↵.
+The approach that we have been taking so far is what we call the theoretical, or
+forward, view of a learning algorithm. For each state visited, we look forward in time to
+all the future rewards and decide how best to combine them. We might imagine ourselves
+riding the stream of states, looking forward from each state to determine its update, as
+suggested by Figure 12.4. After looking forward from and updating one state, we move
+on to the next and never have to work with the preceding state again. Future states,
+on the other hand, are viewed and processed repeatedly, once from each vantage point
+preceding them.
+
+--- Page 314 ---
+292
+Chapter 12: Eligibility Traces
+Time
+rt+3
+rt+2
+rt+1
+rT
+st+1
+st+2
+st+3
+st
+St+1
+St
+St+2
+St+3
+Rt+3
+Rt+2
+Rt+1
+RT
+Figure 12.4: The forward view. We decide how to update each state by looking forward to
+future rewards and states.
+12.2
+TD(λ)
+TD(λ) is one of the oldest and most widely used algorithms in reinforcement learning.
+It was the ﬁrst algorithm for which a formal relationship was shown between a more
+theoretical forward view and a more computationally-congenial backward view using
+eligibility traces. Here we will show empirically that it approximates the o↵-line λ-return
+algorithm presented in the previous section.
+TD(λ) improves over the o↵-line λ-return algorithm in three ways. First it updates
+the weight vector on every step of an episode rather than only at the end, and thus
+its estimates may be better sooner. Second, its computations are equally distributed
+in time rather than all at the end of the episode.
+And third, it can be applied to
+continuing problems rather than just to episodic problems. In this section we present the
+semi-gradient version of TD(λ) with function approximation.
+With function approximation, the eligibility trace is a vector zt 2 Rd with the same
+number of components as the weight vector wt. Whereas the weight vector is a long-term
+memory, accumulating over the lifetime of the system, the eligibility trace is a short-term
+memory, typically lasting less time than the length of an episode. Eligibility traces assist
+in the learning process; their only consequence is that they a↵ect the weight vector, and
+then the weight vector determines the estimated value.
+In TD(λ), the eligibility trace vector is initialized to zero at the beginning of the
+episode, is incremented on each time step by the value gradient, and then fades away by
+γλ:
+z−1 .= 0,
+zt .= γλzt−1 + rˆv(St,wt),
+0 t T,
+(12.5)
+where γ is the discount rate and λ is the parameter introduced in the previous section,
+which we henceforth call the trace-decay parameter. The eligibility trace keeps track
+of which components of the weight vector have contributed, positively or negatively, to
+recent state valuations, where “recent” is deﬁned in terms of γλ. (Recall that in linear
+function approximation, rˆv(St,wt) is the feature vector, xt, in which case the eligibility
+trace vector is just a sum of past, fading, input vectors.) The trace is said to indicate
+the eligibility of each component of the weight vector for undergoing learning changes
+
+--- Page 315 ---
+12.2. TD(λ)
+293
+should a reinforcing event occur. The reinforcing events we are concerned with are the
+moment-by-moment one-step TD errors. The TD error for state-value prediction is
+δt
+.= Rt+1 + γˆv(St+1,wt) −ˆv(St,wt).
+(12.6)
+In TD(λ), the weight vector is updated on each step proportional to the scalar TD error
+and the vector eligibility trace:
+wt+1 .= wt + ↵δtzt.
+(12.7)
+Semi-gradient TD(λ) for estimating ˆv ⇡v⇡
+Input: the policy ⇡to be evaluated
+Input: a di↵erentiable function ˆv : S+ ⇥Rd ! R such that ˆv(terminal,·) = 0
+Algorithm parameters: step size ↵> 0, trace decay rate λ 2 [0, 1]
+Initialize value-function weights w arbitrarily (e.g., w = 0)
+Loop for each episode:
+Initialize S
+z  0
+(a d-dimensional vector)
+Loop for each step of episode:
+|
+Choose A ⇠⇡(·|S)
+|
+Take action A, observe R, S0
+|
+z  γλz + rˆv(S,w)
+|
+δ  R + γˆv(S0,w) −ˆv(S,w)
+|
+w  w + ↵δz
+|
+S  S0
+until S0 is terminal
+!t
+et
+et
+et
+et
+Time
+st
+st+1
+st-1
+st-2
+st-3
+St
+St+1
+St-1
+St-2
+St-3
+δt
+zt
+zt
+zt
+zt
+Figure 12.5: The backward or mechanistic view of TD(λ). Each update depends on the current
+TD error combined with the current eligibility traces of past events.
+
+--- Page 316 ---
+294
+Chapter 12: Eligibility Traces
+TD(λ) is oriented backward in time. At each moment we look at the current TD error
+and assign it backward to each prior state according to how much that state contributed
+to the current eligibility trace at that time. We might imagine ourselves riding along the
+stream of states, computing TD errors, and shouting them back to the previously visited
+states, as suggested by Figure 12.5. Where the TD error and traces come together, we
+get the update given by (12.7), changing the values of those past states for when they
+occur again in the future.
+To better understand the backward view of TD(λ), consider what happens at various
+values of λ.
+If λ = 0, then by (12.5) the trace at t is exactly the value gradient
+corresponding to St. Thus the TD(λ) update (12.7) reduces to the one-step semi-gradient
+TD update treated in Chapter 9 (and, in the tabular case, to the simple TD rule (6.2)).
+This is why that algorithm was called TD(0). In terms of Figure 12.5, TD(0) is the
+case in which only the one state preceding the current one is updated by the TD error
+(other states may have their value estimates changed by generalization due to function
+approximation). For larger values of λ, but still λ < 1, more of the preceding states are
+updated, but each more temporally distant state is updated less because the corresponding
+eligibility trace is smaller, as suggested by the ﬁgure. We say that the earlier states are
+given less credit for the TD error.
+If λ = 1, then the credit given to earlier states falls only by γ per step. This turns out
+to be just the right thing to do to achieve Monte Carlo behavior. For example, remember
+that the TD error, δt, includes an undiscounted term of Rt+1. In passing this back k
+steps it needs to be discounted, like any reward in a return, by γk, which is just what
+the falling eligibility trace achieves. If λ = 1 and γ = 1, then the eligibility traces do not
+decay at all with time. In this case the method behaves like a Monte Carlo method for
+an undiscounted, episodic task. If λ = 1, the algorithm is also known as TD(1).
+TD(1) is a way of implementing Monte Carlo algorithms that is more general than those
+presented earlier and that signiﬁcantly increases their range of applicability. Whereas
+the earlier Monte Carlo methods were limited to episodic tasks, TD(1) can be applied to
+discounted continuing tasks as well. Moreover, TD(1) can be performed incrementally
+and online. One disadvantage of Monte Carlo methods is that they learn nothing from
+an episode until it is over. For example, if a Monte Carlo control method takes an action
+that produces a very poor reward but does not end the episode, then the agent’s tendency
+to repeat the action will be undiminished during the episode. Online TD(1), on the other
+hand, learns in an n-step TD way from the incomplete ongoing episode, where the n
+steps are all the way up to the current step. If something unusually good or bad happens
+during an episode, control methods based on TD(1) can learn immediately and alter their
+behavior on that same episode.
+It is revealing to revisit the 19-state random walk example (Example 7.1) to see how
+well TD(λ) does in approximating the o↵-line λ-return algorithm. The results for both
+algorithms are shown in Figure 12.6. For each λ value, if ↵is selected optimally for it (or
+smaller), then the two algorithms perform virtually identically. If ↵is chosen larger than
+is optimal, however, then the λ-return algorithm is only a little worse whereas TD(λ)
+is much worse and may even be unstable. This is not catastrophic for TD(λ) on this
+problem, as these higher parameter values are not what one would want to use anyway,
+but for other problems it can be a signiﬁcant weakness.
+
+--- Page 317 ---
+12.3. n-step Truncated λ-return Methods
+295
+Offline λ-return algorithm
+(from the previous section)
+↵
+λ=0
+λ=.4
+λ=.8
+λ=.9
+λ=.95
+.975
+.99
+1
+TD(λ)
+↵
+λ=.8
+λ=.9
+RMS error
+at the end 
+of the episode
+over the ﬁrst
+10 episodes
+0.4
+0.2
+0
+0.8
+0.6
+1
+λ=0
+λ=.4
+λ=.8
+λ=.9
+λ=.95
+λ=.975
+λ=.99
+λ=1
+λ=.95
+0.55
+0.5
+0.45
+0.35
+0.3
+0.25
+0.4
+0.4
+0.2
+0
+0.8
+0.6
+1
+-
+Figure 12.6: 19-state Random walk results (Example 7.1): Performance of TD(λ) alongside
+that of the o↵-line λ-return algorithm. The two algorithms performed virtually identically at
+low (less than optimal) ↵values, but TD(λ) was worse at high ↵values.
+Linear TD(λ) has been proved to converge in the on-policy case if the step-size
+parameter is reduced over time according to the usual conditions (2.7). Just as discussed
+in Section 9.4, convergence is not to the minimum-error weight vector, but to a nearby
+weight vector that depends on λ. The bound on solution quality presented in that section
+(9.14) can now be generalized to apply for any λ. For the continuing discounted case,
+VE(w1)
+
+1 −γλ
+1 −γ min
+w VE(w).
+(12.8)
+That is, the asymptotic error is no more than 1−γλ
+1−γ times the smallest possible error. As
+λ approaches 1, the bound approaches the minimum error (and it is loosest at λ = 0).
+In practice, however, λ = 1 is often the poorest choice, as will be illustrated later in
+Figure 12.14.
+Exercise 12.3 Some insight into how TD(λ) can closely approximate the o↵-line λ-return
+algorithm can be gained by seeing that the latter’s error term (in brackets in (12.4)) can
+be written as the sum of TD errors (12.6) for a single ﬁxed w. Show this, following the
+pattern of (6.6), and using the recursive relationship for the λ-return you obtained in
+Exercise 12.1.
+⇤
+Exercise 12.4 Use your result from the preceding exercise to show that, if the weight
+updates over an episode were computed on each step but not actually used to change the
+weights (w remained ﬁxed), then the sum of TD(λ)’s weight updates would be the same
+as the sum of the o↵-line λ-return algorithm’s updates.
+⇤
+12.3
+n-step Truncated λ-return Methods
+The o↵-line λ-return algorithm is an important ideal, but it is of limited utility because
+it uses the λ-return (12.2), which is not known until the end of the episode. In the
+
+--- Page 318 ---
+296
+Chapter 12: Eligibility Traces
+continuing case, the λ-return is technically never known, as it depends on n-step returns
+for arbitrarily large n, and thus on rewards arbitrarily far in the future. However, the
+dependence becomes weaker for longer-delayed rewards, falling by γλ for each step of
+delay. A natural approximation, then, would be to truncate the sequence after some
+number of steps. Our existing notion of n-step returns provides a natural way to do this
+in which the missing rewards are replaced with estimated values.
+In general, we deﬁne the truncated λ-return for time t, given data only up to some
+later horizon, h, as
+Gλ
+t:h
+.=
+(1 −λ)
+h−t−1
+X
+n=1
+λn−1Gt:t+n
++
+λh−t−1Gt:h,
+0 t < h T.
+(12.9)
+If you compare this equation with the λ-return (12.3), it is clear that the horizon h is
+playing the same role as was previously played by T, the time of termination. Whereas
+in the λ-return there is a residual weight given to the conventional return Gt, here it is
+given to the longest available n-step return, Gt:h (Figure 12.2).
+The truncated λ-return immediately gives rise to a family of n-step λ-return algorithms
+similar to the n-step methods of Chapter 7. In all of these algorithms, updates are
+delayed by n steps and only take into account the ﬁrst n rewards, but now all the k-step
+returns are included for 1 k n (whereas the earlier n-step algorithms used only the
+n-step return), weighted geometrically as in Figure 12.2. In the state-value case, this
+family of algorithms is known as Truncated TD(λ), or TTD(λ). The compound backup
+diagram, shown in Figure 12.7, is similar to that for TD(λ) (Figure 12.1) except that the
+longest component update is at most n steps rather than always going all the way to the
+1 −λ
+(1 −λ)λ
+(1 −λ)λ2
+λT −t−1
+or,
+if t + n≥T
+· · ·
+· · ·
+· · ·
+λn−1
+St
+At
+At+1
+AT −1
+St+n Rt+n
+St+1 Rt+1
+ST RT
+At+n−1
+n-step truncated TD(λ)
+Figure 12.7: The backup diagram for Truncated TD(λ).
+
+--- Page 319 ---
+12.4. Redoing Updates: Online λ-return Algorithm
+297
+end of the episode. TTD(λ) is deﬁned by (cf. (9.15)):
+wt+n .= wt+n−1 + ↵
+⇥
+Gλ
+t:t+n −ˆv(St,wt+n−1)
+⇤
+rˆv(St,wt+n−1),
+0 t < T.
+This algorithm can be implemented eﬃciently so that per-step computation does not scale
+with n (though of course memory must). Much as in n-step TD methods, no updates are
+made on the ﬁrst n −1 time steps of each episode, and n −1 additional updates are made
+upon termination. Eﬃcient implementation relies on the fact that the k-step λ-return
+can be written exactly as
+Gλ
+t:t+k = ˆv(St,wt−1) +
+t+k−1
+X
+i=t
+(γλ)i−tδ0
+i,
+(12.10)
+where
+δ0
+t
+.= Rt+1 + γˆv(St+1,wt) −ˆv(St,wt−1).
+Exercise 12.5 Several times in this book (often in exercises) we have established that
+returns can be written as sums of TD errors if the value function is held constant. Why
+is (12.10) another instance of this? Prove (12.10).
+⇤
+12.4
+Redoing Updates: Online λ-return Algorithm
+Choosing the truncation parameter n in Truncated TD(λ) involves a tradeo↵. n should
+be large so that the method closely approximates the o↵-line λ-return algorithm, but it
+should also be small so that the updates can be made sooner and can inﬂuence behavior
+sooner. Can we get the best of both? Well, yes, in principle we can, albeit at the cost of
+computational complexity.
+The idea is that, on each time step as you gather a new increment of data, you go back
+and redo all the updates since the beginning of the current episode. The new updates
+will be better than the ones you previously made because now they can take into account
+the time step’s new data. That is, the updates are always towards an n-step truncated
+λ-return target, but they always use the latest horizon. In each pass over that episode
+you can use a slightly longer horizon and obtain slightly better results. Recall that the
+truncated λ-return is deﬁned in (12.9) as
+Gλ
+t:h
+.=
+(1 −λ)
+h−t−1
+X
+n=1
+λn−1Gt:t+n
++
+λh−t−1Gt:h.
+Let us step through how this target could ideally be used if computational complexity was
+not an issue. The episode begins with an estimate at time 0 using the weights w0 from
+the end of the previous episode. Learning begins when the data horizon is extended to
+time step 1. The target for the estimate at step 0, given the data up to horizon 1, could
+only be the one-step return G0:1, which includes R1 and bootstraps from the estimate
+ˆv(S1,w0). Note that this is exactly what Gλ
+0:1 is, with the sum in the ﬁrst term of the
+
+--- Page 320 ---
+298
+Chapter 12: Eligibility Traces
+equation degenerating to zero. Using this update target, we construct w1. Then, after
+advancing the data horizon to step 2, what do we do? We have new data in the form of
+R2 and S2, as well as the new w1, so now we can construct a better update target Gλ
+0:2
+for the ﬁrst update from S0 as well as a better update target Gλ
+1:2 for the second update
+from S1. Using these improved targets, we redo the updates at S1 and S2, starting again
+from w0, to produce w2. Now we advance the horizon to step 3 and repeat, going all the
+way back to produce three new targets, redoing all updates starting from the original w0
+to produce w3, and so on. Each time the horizon is advanced, all the updates are redone
+starting from w0 using the weight vector from the preceding horizon.
+This conceptual algorithm involves multiple passes over the episode, one at each
+horizon, each generating a di↵erent sequence of weight vectors. To describe it clearly we
+have to distinguish between the weight vectors computed at the di↵erent horizons. Let us
+use wh
+t to denote the weights used to generate the value at time t in the sequence up to
+horizon h. The ﬁrst weight vector wh
+0 in each sequence is that inherited from the previous
+episode (so they are the same for all h), and the last weight vector wh
+h in each sequence
+deﬁnes the ultimate weight-vector sequence of the algorithm. At the ﬁnal horizon h = T
+we obtain the ﬁnal weights wT
+T which will be passed on to form the initial weights of the
+next episode. With these conventions, the three ﬁrst sequences described in the previous
+paragraph can be given explicitly:
+h = 1 :
+w1
+1
+.= w1
+0 + ↵
+⇥
+Gλ
+0:1 −ˆv(S0,w1
+0)
+⇤
+rˆv(S0,w1
+0),
+h = 2 :
+w2
+1
+.= w2
+0 + ↵
+⇥
+Gλ
+0:2 −ˆv(S0,w2
+0)
+⇤
+rˆv(S0,w2
+0),
+w2
+2
+.= w2
+1 + ↵
+⇥
+Gλ
+1:2 −ˆv(S1,w2
+1)
+⇤
+rˆv(S1,w2
+1),
+h = 3 :
+w3
+1
+.= w3
+0 + ↵
+⇥
+Gλ
+0:3 −ˆv(S0,w3
+0)
+⇤
+rˆv(S0,w3
+0),
+w3
+2
+.= w3
+1 + ↵
+⇥
+Gλ
+1:3 −ˆv(S1,w3
+1)
+⇤
+rˆv(S1,w3
+1),
+w3
+3
+.= w3
+2 + ↵
+⇥
+Gλ
+2:3 −ˆv(S2,w3
+2)
+⇤
+rˆv(S2,w3
+2).
+The general form for the update is
+wh
+t+1
+.= wh
+t + ↵
+⇥
+Gλ
+t:h −ˆv(St,wh
+t )
+⇤
+rˆv(St,wh
+t ),
+0 t < h T.
+This update, together with wt .= wt
+t deﬁnes the online λ-return algorithm.
+The online λ-return algorithm is fully online, determining a new weight vector wt
+at each step t during an episode, using only information available at time t. Its main
+drawback is that it is computationally complex, passing over the portion of the episode
+experienced so far on every step. Note that it is strictly more complex than the o↵-line
+λ-return algorithm, which passes through all the steps at the time of termination but does
+not make any updates during the episode. In return, the online algorithm can be expected
+to perform better than the o↵-line one, not only during the episode when it makes an
+update while the o↵-line algorithm makes none, but also at the end of the episode because
+the weight vector used in bootstrapping (in Gλ
+t:h) has had a larger number of informative
+
+--- Page 321 ---
+12.5. True Online TD(λ)
+299
+updates. This e↵ect can be seen if one looks carefully at Figure 12.8, which compares the
+two algorithms on the 19-state random walk task.
+Offline λ-return algorithm
+(from Section 12.1)
+↵
+↵
+RMS error
+at the end 
+of the episode
+over the ﬁrst
+10 episodes
+0.4
+0.2
+0
+0.8
+0.6
+1
+λ=0
+λ=.4
+λ=.8
+λ=.9
+λ=.95
+λ=.975
+λ=.99
+λ=1
+λ=.95
+0.55
+0.5
+0.45
+0.35
+0.3
+0.25
+0.4
+0.4
+0.2
+0
+0.8
+0.6
+1
+On-line λ-return algorithm
+= true online TD(λ)
+λ=0
+λ=.4
+λ=.8
+λ=.9
+λ=.95
+λ=.975
+λ=.99
+λ=1
+λ=.95
+-
+Figure 12.8: 19-state Random walk results (Example 7.1): Performance of online and o↵-line
+λ-return algorithms. The performance measure here is the VE at the end of the episode, which
+should be the best case for the o↵-line algorithm. Nevertheless, the online algorithm performs
+subtly better. For comparison, the λ=0 line is the same for both methods.
+12.5
+True Online TD(λ)
+The online λ-return algorithm just presented is currently the best performing temporal-
+di↵erence algorithm. It is an ideal which online TD(λ) only approximates. As presented,
+however, the online λ-return algorithm is very complex. Is there a way to invert this
+forward-view algorithm to produce an eﬃcient backward-view algorithm using eligibility
+traces? It turns out that there is indeed an exact computationally congenial implementa-
+tion of the online λ-return algorithm for the case of linear function approximation. This
+implementation is known as the true online TD(λ) algorithm because it is “truer” to the
+ideal of the online λ-return algorithm than the TD(λ) algorithm is.
+The derivation of true online TD(λ) is a little too complex to present here (see the
+next section and the appendix to the paper by van Seijen et al., 2016) but its strategy is
+simple. The sequence of weight vectors produced by the online λ-return algorithm can
+be arranged in a triangle:
+w0
+0
+w1
+0
+w1
+1
+w2
+0
+w2
+1
+w2
+2
+w3
+0
+w3
+1
+w3
+2
+w3
+3
+...
+...
+...
+...
+...
+wT
+0
+wT
+1
+wT
+2
+wT
+3
+· · ·
+wT
+T
+One row of this triangle is produced on each time step. It turns out that the weight vectors
+on the diagonal, the wt
+t, are the only ones really needed. The ﬁrst, w0
+0, is the initial weight
+
+--- Page 322 ---
+300
+Chapter 12: Eligibility Traces
+vector of the episode, the last, wT
+T , is the ﬁnal weight vector, and each weight vector
+along the way, wt
+t, plays a role in bootstrapping in the n-step returns of the updates.
+In the ﬁnal algorithm the diagonal weight vectors are renamed without a superscript,
+wt .= wt
+t. The strategy then is to ﬁnd a compact, eﬃcient way of computing each wt
+t
+from the one before. If this is done, for the linear case in which ˆv(s,w) = w>x(s), then
+we arrive at the true online TD(λ) algorithm:
+wt+1 .= wt + ↵δtzt + ↵
+#
+w>
+t xt −w>
+t−1xt
+$
+(zt −xt),
+where we have used the shorthand xt .= x(St), δt is deﬁned as in TD(λ) (12.6), and zt is
+deﬁned by
+zt .= γλzt−1 +
+#
+1 −↵γλz>
+t−1xt
+$
+xt.
+(12.11)
+This algorithm has been proven to produce exactly the same sequence of weight vectors,
+wt, 0 t T, as the online λ-return algorithm (van Seijen et al. 2016). Thus the results
+on the random walk task on the left of Figure 12.8 are also its results on that task. Now,
+however, the algorithm is much less expensive. The memory requirements of true online
+TD(λ) are identical to those of conventional TD(λ), while the per-step computation is
+increased by about 50% (there is one more inner product in the eligibility-trace update).
+Overall, the per-step computational complexity remains of O(d), the same as TD(λ).
+Pseudocode for the complete algorithm is given in the box.
+True online TD(λ) for estimating w>x ⇡v⇡
+Input: the policy ⇡to be evaluated
+Input: a feature function x : S+ ! Rd such that x(terminal, ·) = 0
+Algorithm parameters: step size ↵> 0, trace decay rate λ 2 [0, 1]
+Initialize value-function weights w 2 Rd (e.g., w = 0)
+Loop for each episode:
+Initialize state and obtain initial feature vector x
+z  0
+(a d-dimensional vector)
+Vold  0
+(a temporary scalar variable)
+Loop for each step of episode:
+|
+Choose A ⇠⇡
+|
+Take action A, observe R, x0 (feature vector of the next state)
+|
+V  w>x
+|
+V 0  w>x0
+|
+δ  R + γV 0 −V
+|
+z  γλz +
+#
+1 −↵γλz>x
+$
+x
+|
+w  w + ↵(δ + V −Vold)z −↵(V −Vold)x
+|
+Vold  V 0
+|
+x  x0
+until x0 = 0 (signaling arrival at a terminal state)
+The eligibility trace (12.11) used in true online TD(λ) is called a dutch trace to
+distinguish it from the trace (12.5) used in TD(λ), which is called an accumulating trace.
+
+--- Page 323 ---
+12.6. *Dutch Traces in Monte Carlo Learning
+301
+Earlier work often used a third kind of trace called the replacing trace, deﬁned only for
+the tabular case or for binary feature vectors such as those produced by tile coding. The
+replacing trace is deﬁned on a component-by-component basis depending on whether the
+component of the feature vector was 1 or 0:
+zi,t .=
+⇢1
+if xi,t = 1
+γλzi,t−1
+otherwise.
+(12.12)
+Nowadays, we see replacing traces as crude approximations to dutch traces, which largely
+supersede them. Dutch traces usually perform better than replacing traces and have a
+clearer theoretical basis. Accumulating traces remain of interest for nonlinear function
+approximations where dutch traces are not available.
+12.6
+*Dutch Traces in Monte Carlo Learning
+Although eligibility traces are closely associated historically with TD learning, in fact
+they have nothing to do with it. In fact, eligibility traces arise even in Monte Carlo
+learning, as we show in this section. We show that the linear MC algorithm (Chapter 9),
+taken as a forward view, can be used to derive an equivalent yet computationally cheaper
+backward-view algorithm using dutch traces. This is the only equivalence of forward- and
+backward-views that we explicitly demonstrate in this book. It gives some of the ﬂavor
+of the proof of equivalence of true online TD(λ) and the online λ-return algorithm, but is
+much simpler.
+The linear version of the gradient Monte Carlo prediction algorithm (page 202) makes
+the following sequence of updates, one for each time step of the episode:
+wt+1 .= wt + ↵
+⇥
+G −w>
+t xt
+⇤
+xt,
+0 t < T.
+(12.13)
+To simplify the example, we assume here that the return G is a single reward received at
+the end of the episode (this is why G is not subscripted by time) and that there is no
+discounting. In this case the update is also known as the Least Mean Square (LMS) rule.
+As a Monte Carlo algorithm, all the updates depend on the ﬁnal reward/return, so none
+can be made until the end of the episode. The MC algorithm is an o↵-line algorithm and
+we do not seek to improve this aspect of it. Rather we seek merely an implementation of
+this algorithm with computational advantages. We will still update the weight vector
+only at the end of the episode, but we will do some computation during each step of the
+episode and less at its end. This will give a more equal distribution of computation—O(d)
+per step—and also remove the need to store the feature vectors at each step for use later
+at the end of each episode. Instead, we will introduce an additional vector memory, the
+eligibility trace, keeping in it a summary of all the feature vectors seen so far. This will
+be suﬃcient to eﬃciently recreate exactly the same overall update as the sequence of MC
+
+--- Page 324 ---
+302
+Chapter 12: Eligibility Traces
+updates (12.13), by the end of the episode:
+wT = wT −1 + ↵
+#
+G −w>
+T −1xT −1
+$
+xT −1
+= wT −1 + ↵xT −1
+#
+−x>
+T −1wT −1
+$
++ ↵GxT −1
+=
+#
+I −↵xT −1x>
+T −1
+$
+wT −1 + ↵GxT −1
+= FT −1wT −1 + ↵GxT −1
+where Ft .= I −↵xtx>
+t is a forgetting, or fading, matrix. Now, recursing,
+= FT −1 (FT −2wT −2 + ↵GxT −2) + ↵GxT −1
+= FT −1FT −2wT −2 + ↵G (FT −1xT −2 + xT −1)
+= FT −1FT −2 (FT −3wT −3 + ↵GxT −3) + ↵G (FT −1xT −2 + xT −1)
+= FT −1FT −2FT −3wT −3 + ↵G (FT −1FT −2xT −3 + FT −1xT −2 + xT −1)
+...
+= FT −1FT −2 · · · F0w0
+|
+{z
+}
+aT −1
++
+↵G
+T −1
+X
+k=0
+FT −1FT −2 · · · Fk+1xk
+|
+{z
+}
+zT −1
+= aT −1 + ↵GzT −1,
+(12.14)
+where aT −1 and zT −1 are the values at time T −1 of two auxiliary memory vectors that
+can be updated incrementally without knowledge of G and with O(d) complexity per time
+step. The zt vector is in fact a dutch-style eligibility trace. It is initialized to z0 = x0
+and then updated according to
+zt .=
+t
+X
+k=0
+FtFt−1 · · · Fk+1xk,
+1 t < T
+=
+t−1
+X
+k=0
+FtFt−1 · · · Fk+1xk + xt
+= Ft
+t−1
+X
+k=0
+Ft−1Ft−2 · · · Fk+1xk + xt
+= Ftzt−1 + xt
+=
+#
+I −↵xtx>
+t
+$
+zt−1 + xt
+= zt−1 −↵xtx>
+t zt−1 + xt
+= zt−1 −↵
+#
+z>
+t−1xt
+$
+xt + xt
+= zt−1 +
+#
+1 −↵z>
+t−1xt
+$
+xt,
+which is the dutch trace for the case of γλ=1 (cf. Eq. 12.11). The at auxiliary vector is
+initialized to a0 = w0 and then updated according to
+at
+.= FtFt−1 · · · F0w0 = Ftat−1 = at−1 −↵xtx>
+t at−1,
+1 t < T.
+
+--- Page 325 ---
+12.7. Sarsa(λ)
+303
+The auxiliary vectors, at and zt, are updated on each time step t < T and then, at time
+T when G is observed, they are used in (12.14) to compute wT . In this way we achieve
+exactly the same ﬁnal result as the MC/LMS algorithm that has poor computational
+properties (12.13), but now with an incremental algorithm whose time and memory
+complexity per step is O(d). This is surprising and intriguing because the notion of
+an eligibility trace (and the dutch trace in particular) has arisen in a setting without
+temporal-di↵erence (TD) learning (in contrast to van Seijen and Sutton, 2014). It seems
+eligibility traces are not speciﬁc to TD learning at all; they are more fundamental than
+that. The need for eligibility traces seems to arise whenever one tries to learn long-term
+predictions in an eﬃcient manner.
+12.7
+Sarsa(λ)
+Very few changes in the ideas already presented in this chapter are required in order to
+extend eligibility-traces to action-value methods. To learn approximate action values,
+ˆq(s, a, w), rather than approximate state values, ˆv(s,w), we need to use the action-value
+form of the n-step return, from Chapter 10:
+Gt:t+n .= Rt+1 + · · · + γn−1Rt+n + γnˆq(St+n, At+n, wt+n−1),
+t + n < T,
+with Gt:t+n .= Gt if t + n ≥T. Using this, we can form the action-value form of the
+λ-return, which is otherwise identical to the state-value form (12.3). The action-value
+form of the o↵-line λ-return algorithm (12.4) simply uses ˆq rather than ˆv:
+wt+1 .= wt + ↵
+h
+Gλ
+t −ˆq(St, At, wt)
+i
+rˆq(St, At, wt),
+t = 0, . . . , T −1,
+(12.15)
+where Gλ
+t
+.= Gλ
+t:1. The compound backup diagram for this forward view is shown in
+Figure 12.9. Notice the similarity to the diagram of the TD(λ) algorithm (Figure 12.1).
+The ﬁrst update looks ahead one full step, to the next state–action pair, the second looks
+ahead two steps, to the second state–action pair, and so on. A ﬁnal update is based on
+the complete return. The weighting of each n-step update in the λ-return is just as in
+TD(λ) and the λ-return algorithm (12.3).
+The temporal-di↵erence method for action values, known as Sarsa(λ), approximates
+this forward view. It has the same update rule as given earlier for TD(λ):
+wt+1 .= wt + ↵δtzt,
+except, naturally, using the action-value form of the TD error:
+δt .= Rt+1 + γˆq(St+1, At+1, wt) −ˆq(St, At, wt),
+(12.16)
+and the action-value form of the eligibility trace:
+z−1 .= 0,
+zt .= γλzt−1 + rˆq(St, At, wt),
+0 t T.
+
+--- Page 326 ---
+304
+Chapter 12: Eligibility Traces
+1 −λ
+(1 −λ)λ
+(1 −λ)λ2
+λT −t−1
+· · ·
+· · ·
+St At
+At+1
+AT −1
+St+1 Rt+1
+ST RT
+· · ·
+St+2 Rt+2
+At+2
+X
+= 1
+Sarsa(λ)
+Figure 12.9: Sarsa(λ)’s backup diagram. Compare with Figure 12.1.
+Complete pseudocode for Sarsa(λ) with linear function approximation, binary features,
+and either accumulating or replacing traces is given in the box on the next page. This
+pseudocode highlights a few optimizations possible in the special case of binary features
+(features are either active (=1) or inactive (=0)).
+Example 12.1: Traces in Gridworld
+The use of eligibility traces can substantially
+increase the eﬃciency of control algorithms over one-step methods and even over n-step
+methods. The reason for this is illustrated by the gridworld example below.
+Path taken
+Action values increased
+by one-step Sarsa
+Action values increased
+by Sarsa( ) with =0.9
+G
+G
+G
+Path taken
+Action values increased
+by one-step Sarsa
+Action values increased
+by Sarsa( ) with  =0.9
+by 10-step Sarsa
+G
+G
+G
+Path taken
+Action values increased
+by one-step Sarsa
+Action values increased
+ by 10-step Sarsa
+G
+G
+G
+h
+h
+The ﬁrst panel shows the path taken by an agent in a single episode. The initial estimated
+values were zero, and all rewards were zero except for a positive reward at the goal
+location marked by G. The arrows in the other panels show, for various algorithms, which
+action-values would be increased, and by how much, upon reaching the goal. A one-step
+method would increment only the last action value, whereas an n-step method would
+equally increment the last n actions’ values (assuming γ = 1), and an eligibility trace
+method would update all the action values up to the beginning of the episode, to di↵erent
+degrees, fading with recency. The fading strategy is often the best.
+
+--- Page 327 ---
+12.7. Sarsa(λ)
+305
+Sarsa(λ) with binary features and linear function approximation
+for estimating w>x ⇡q⇡or q⇤
+Input: a function F(s, a) returning the set of (indices of) active features for s, a
+Input: a policy ⇡
+Algorithm parameters: step size ↵> 0, trace decay rate λ 2 [0, 1], small " > 0
+Initialize: w = (w1, . . . , wd)> 2 Rd (e.g., w = 0), z = (z1, . . . , zd)> 2 Rd
+Loop for each episode:
+Initialize S
+Choose A ⇠⇡(·|S) or "-greedy according to ˆq(S, ·, w)
+z  0
+Loop for each step of episode:
+Take action A, observe R, S0
+δ  R
+Loop for i in F(S, A):
+δ  δ −wi
+zi  zi + 1
+(accumulating traces)
+or zi  1
+(replacing traces)
+If S0 is terminal then:
+w  w + ↵δz
+Go to next episode
+Choose A0 ⇠⇡(·|S0) or "-greedy according to ˆq(S0, ·, w)
+Loop for i in F(S0, A0): δ  δ + γwi
+w  w + ↵δz
+z  γλz
+S  S0; A  A0
+Exercise 12.6 Modify the pseudocode for Sarsa(λ) to use dutch traces (12.11) without the
+other distinctive features of a true online algorithm. Assume linear function approximation
+and binary features.
+⇤
+Example 12.2: Sarsa(λ) on Mountain Car Figure 12.10 (left) on the next page
+shows results with Sarsa(λ) on the Mountain Car task introduced in Example 10.1. The
+function approximation, action selection, and environmental details were exactly as in
+Chapter 10, and thus it is appropriate to numerically compare these results with the
+Chapter 10 results for n-step Sarsa (right side of the ﬁgure). The earlier results varied the
+update length n whereas here for Sarsa(λ) we vary the trace parameter λ, which plays
+a similar role. The fading-trace bootstrapping strategy of Sarsa(λ) appears to result in
+more eﬃcient learning on this problem.
+There is also an action-value version of our ideal TD method, the online λ-return algo-
+rithm (Section 12.4) and its eﬃcient implementation as true online TD(λ) (Section 12.5).
+Everything in Section 12.4 goes through without change other than to use the action-value
+form of the n-step return given at the beginning of the current section. The analyses in
+Sections 12.5 and 12.6 also carry through for action values, the only change being the use
+
+--- Page 328 ---
+306
+Chapter 12: Eligibility Traces
+220
+240
+260
+300
+0
+0.5
+1
+1.5
+Mountain Car
+Steps per episode
+averaged over
+ﬁrst 50 episodes
+and 100 runs
+280
+200
+180
+×  number of tilings (8)
+↵
+λ=.96
+λ=.92
+λ=.99
+λ=.84
+λ=.68
+λ=0
+220
+240
+260
+300
+0
+0.5
+1
+1.5
+280
+0
+0.5
+1
+1.5
+n=1
+n=2
+n=4
+n=8
+n=16
+n=8
+n=4
+n=2
+n=16
+n=1
+λ=.98
+×  number of tilings (8)
+↵
+Sarsa(λ) with replacing traces
+n-step Sarsa
+λ=.92
+λ=.84
+Figure 12.10: Early performance on the Mountain Car task of Sarsa(λ) with replacing traces
+and n-step Sarsa (copied from Figure 10.4) as a function of the step size, ↵.
+of state–action feature vectors xt = x(St, At) instead of state feature vectors xt = x(St).
+Pseudocode for the resulting eﬃcient algorithm, called true online Sarsa(λ) is given in
+the box on the next page. The ﬁgure below compares the performance of various versions
+of Sarsa(λ) on the Mountain Car example.
+0.2
+0.4
+0.6
+0.8
+1
+1.2
+1.4
+1.6
+1.8
+2
+−550
+−500
+−450
+−400
+−350
+−300
+−250
+−200
+−150
+Sarsa(λ), replacing, clearing
+Sarsa(λ), replacing, no clearing
+Sarsa(λ), accumulating
+Mountain Car
+Reward per episode
+averaged over
+ﬁrst 20 episodes
+and 100 runs
+×  number of tilings (8)
+↵
+7UXHRQOLQH6DUVDλ
+Sarsa(λ) with replacing traces
+Sarsa(λ) with replacing traces
+and clearing the traces of other actions
+Sarsa(λ) with accumulating traces
+Figure 12.11: Summary comparison of Sarsa(λ) algorithms on the Mountain Car task. True
+online Sarsa(λ) performed better than regular Sarsa(λ) with both accumulating and replacing
+traces. Also included is a version of Sarsa(λ) with replacing traces in which, on each time step,
+the traces for the state and the actions not selected were set to zero.
+
+--- Page 329 ---
+12.8. Variable λ and γ
+307
+True online Sarsa(λ) for estimating w>x ⇡q⇡or q⇤
+Input: a feature function x : S+ ⇥A ! Rd such that x(terminal, ·) = 0
+Input: a policy ⇡(if estimating q⇡)
+Algorithm parameters: step size ↵> 0, trace decay rate λ 2 [0, 1], small " > 0
+Initialize: w 2 Rd (e.g., w = 0)
+Loop for each episode:
+Initialize S
+Choose A ⇠⇡(·|S) or "-greedy according to ˆq(S, ·, w)
+x  x(S, A)
+z  0
+Qold  0
+Loop for each step of episode:
+|
+Take action A, observe R, S0
+|
+Choose A0 ⇠⇡(·|S0) or "-greedy according to ˆq(S0, ·, w)
+|
+x0  x(S0, A0)
+|
+Q  w>x
+|
+Q0  w>x0
+|
+δ  R + γQ0 −Q
+|
+z  γλz +
+#
+1 −↵γλz>x
+$
+x
+|
+w  w + ↵(δ + Q −Qold)z −↵(Q −Qold)x
+|
+Qold  Q0
+|
+x  x0
+|
+A  A0
+until S0 is terminal
+Finally, there is also a truncated version of Sarsa(λ), called forward Sarsa(λ) (van
+Seijen, 2016), which appears to be a particularly e↵ective model-free control method for
+use in conjunction with multi-layer artiﬁcial neural networks.
+12.8
+Variable λ and γ
+We are starting now to reach the end of our development of fundamental TD learning
+algorithms. To present the ﬁnal algorithms in their most general forms, it is useful to
+generalize the degree of bootstrapping and discounting beyond constant parameters to
+functions potentially dependent on the state and action. That is, each time step will have
+a di↵erent λ and γ, denoted λt and γt. We change notation now so that λ : S⇥A ! [0, 1]
+is now a function from states and actions to the unit interval such that λt .= λ(St, At), and
+similarly, γ : S ! [0, 1] is a function from states to the unit interval such that γt
+.= γ(St).
+Introducing the function γ, the termination function, is particularly signiﬁcant because
+it changes the return, the fundamental random variable whose expectation we seek to
+
+--- Page 330 ---
+308
+Chapter 12: Eligibility Traces
+estimate. Now the return is deﬁned more generally as
+Gt .= Rt+1 + γt+1Gt+1
+= Rt+1 + γt+1Rt+2 + γt+1γt+2Rt+3 + γt+1γt+2γt+3Rt+4 + · · ·
+=
+1
+X
+k=t
+ 
+k
+Y
+i=t+1
+γi
+!
+Rk+1,
+(12.17)
+where, to assure the sums are ﬁnite, we require that Q1
+k=t γk = 0 with probability one for
+all t. One convenient aspect of this deﬁnition is that it enables the episodic setting and
+its algorithms to be presented in terms of a single stream of experience, without special
+terminal states, start distributions, or termination times. An erstwhile terminal state
+becomes a state at which γ(s) = 0 and which transitions to the start distribution. In that
+way (and by choosing γ(·) as a constant in all other states) we can recover the classical
+episodic setting as a special case. State dependent termination includes other prediction
+cases such as pseudo termination, in which we seek to predict a quantity without altering
+the ﬂow of the Markov process. Discounted returns can be thought of as such a quantity,
+in which case state-dependent termination uniﬁes the episodic and discounted-continuing
+cases. (The undiscounted-continuing case still needs some special treatment.)
+The generalization to variable bootstrapping is not a change in the problem, like
+discounting, but a change in the solution strategy. The generalization a↵ects the λ-
+returns for states and actions. The new state-based λ-return can be written recursively
+as
+Gλs
+t
+.= Rt+1 + γt+1
+#
+(1 −λt+1)ˆv(St+1,wt) + λt+1Gλs
+t+1
+$
+,
+(12.18)
+where now we have added the “s” to the superscript λ to remind us that this is a return
+that bootstraps from state values, distinguishing it from returns that bootstrap from
+action values, which we present below with “a” in the superscript. This equation says
+that the λ-return is the ﬁrst reward, undiscounted and una↵ected by bootstrapping, plus
+possibly a second term to the extent that we are not discounting at the next state (that
+is, according to γt+1; recall that this is zero if the next state is terminal). To the extent
+that we aren’t terminating at the next state, we have a second term which is itself divided
+into two cases depending on the degree of bootstrapping in the state. To the extent we
+are bootstrapping, this term is the estimated value at the state, whereas, to the extent
+that we are not bootstrapping, the term is the λ-return for the next time step. The
+action-based λ-return is either the Sarsa form
+Gλa
+t
+.= Rt+1 + γt+1
+⇣
+(1 −λt+1)ˆq(St+1, At+1, wt) + λt+1Gλa
+t+1
+⌘
+,
+(12.19)
+or the Expected Sarsa form,
+Gλa
+t
+.= Rt+1 + γt+1
+⇣
+(1 −λt+1) ¯Vt(St+1) + λt+1Gλa
+t+1
+⌘
+,
+(12.20)
+where (7.8) is generalized to function approximation as
+¯Vt(s) .=
+X
+a
+⇡(a|s)ˆq(s, a, wt).
+(12.21)
+
+--- Page 331 ---
+12.9. O↵-policy Traces with Control Variates
+309
+Exercise 12.7 Generalize the three recursive equations above to their truncated versions,
+deﬁning Gλs
+t:h and Gλa
+t:h.
+⇤
+12.9
+O↵-policy Traces with Control Variates
+The ﬁnal step is to incorporate importance sampling. For methods using non-truncated
+λ-returns, there is not a practical option in which the importance-sampling weighting is
+applied to the target return (as there is for n-step methods as explained in Section 7.3).
+Instead, we move directly to the bootstrapping generalization of per-decision importance
+sampling with control variates (Section 7.4).
+In the state case, our ﬁnal deﬁnition of the λ-return generalizes (12.18), after the model
+of (7.13), to
+Gλs
+t
+.= ⇢t
+⇣
+Rt+1 +γt+1
+#
+(1−λt+1)ˆv(St+1,wt)+λt+1Gλs
+t+1
+$⌘
++(1−⇢t)ˆv(St,wt), (12.22)
+where ⇢t = ⇡(At|St)
+b(At|St) is the usual single-step importance sampling ratio. Much like the
+other returns we have seen in this book, this ﬁnal λ-return can be approximated simply
+in terms of sums of the state-based TD error,
+δs
+t
+.= Rt+1 + γt+1ˆv(St+1,wt) −ˆv(St,wt),
+(12.23)
+as
+Gλs
+t
+⇡ˆv(St,wt) + ⇢t
+1
+X
+k=t
+δs
+k
+k
+Y
+i=t+1
+γiλi⇢i,
+(12.24)
+with the approximation becoming exact if the approximate value function does not change.
+Exercise 12.8 Prove that (12.24) becomes exact if the value function does not change.
+To save writing, consider the case of t = 0, and use the notation Vk .= ˆv(Sk,w).
+⇤
+Exercise 12.9 The truncated version of the general o↵-policy return is denoted Gλs
+t:h.
+Guess the correct equation, based on (12.24).
+⇤
+The above form of the λ-return (12.24) is convenient to use in a forward-view update,
+wt+1 = wt + ↵
+#
+Gλs
+t
+−ˆv(St,wt)
+$
+rˆv(St,wt)
+⇡wt + ↵⇢t
+ 1
+X
+k=t
+δs
+k
+k
+Y
+i=t+1
+γiλi⇢i
+!
+rˆv(St,wt),
+which to the experienced eye looks like an eligibility-based TD update—the product is
+like an eligibility trace and it is multiplied by TD errors. But this is just one time step of
+a forward view. The relationship that we are looking for is that the forward-view update,
+summed over time, is approximately equal to a backward-view update, summed over
+time (this relationship is only approximate because again we ignore changes in the value
+
+--- Page 332 ---
+310
+Chapter 12: Eligibility Traces
+function). The sum of the forward-view update over time is
+1
+X
+t=0
+(wt+1 −wt) ⇡
+1
+X
+t=0
+1
+X
+k=t
+↵⇢tδs
+krˆv(St,wt)
+k
+Y
+i=t+1
+γiλi⇢i
+=
+1
+X
+k=0
+k
+X
+t=0
+↵⇢trˆv(St,wt)δs
+k
+k
+Y
+i=t+1
+γiλi⇢i
+(using the summation rule: Py
+t=x
+Py
+k=t = Py
+k=x
+Pk
+t=x)
+=
+1
+X
+k=0
+↵δs
+k
+k
+X
+t=0
+⇢trˆv(St,wt)
+k
+Y
+i=t+1
+γiλi⇢i,
+which would be in the form of the sum of a backward-view TD update if the entire
+expression from the second sum on could be written and updated incrementally as an
+eligibility trace, which we now show can be done. That is, we show that if this expression
+was the trace at time k, then we could update it from its value at time k −1 by:
+zk =
+k
+X
+t=0
+⇢trˆv(St,wt)
+k
+Y
+i=t+1
+γiλi⇢i
+=
+k−1
+X
+t=0
+⇢trˆv(St,wt)
+k
+Y
+i=t+1
+γiλi⇢i
++
+⇢krˆv(Sk,wk)
+= γkλk⇢k
+k−1
+X
+t=0
+⇢trˆv(St,wt)
+k−1
+Y
+i=t+1
+γiλi⇢i
+|
+{z
+}
+zk−1
++
+⇢krˆv(Sk,wk)
+= ⇢k
+#
+γkλkzk−1 + rˆv(Sk,wk)
+$
+,
+which, changing the index from k to t, is the general accumulating trace update for state
+values:
+zt .= ⇢t
+#
+γtλtzt−1 + rˆv(St,wt)
+$
+,
+(12.25)
+This eligibility trace, together with the usual semi-gradient parameter-update rule for
+TD(λ) (12.7), forms a general TD(λ) algorithm that can be applied to either on-policy or
+o↵-policy data. In the on-policy case, the algorithm is exactly TD(λ) because ⇢t is alway
+1 and (12.25) becomes the usual accumulating trace (12.5) (extended to variable λ and
+γ). In the o↵-policy case, the algorithm often works well but, as a semi-gradient method,
+is not guaranteed to be stable. In the next few sections we will consider extensions of it
+that do guarantee stability.
+A very similar series of steps can be followed to derive the o↵-policy eligibility traces
+for action-value methods and corresponding general Sarsa(λ) algorithms. One could start
+with either recursive form for the general action-based λ-return, (12.19) or (12.20), but
+the latter (the Expected Sarsa form) works out to be simpler. We extend (12.20) to the
+
+--- Page 333 ---
+12.9. O↵-policy Traces with Control Variates
+311
+o↵-policy case after the model of (7.14) to produce
+Gλa
+t
+.= Rt+1+γt+1
+⇣
+(1−λt+1) ¯Vt(St+1)+λt+1
+⇥
+⇢t+1Gλa
+t+1+ ¯Vt(St+1)−⇢t+1ˆq(St+1, At+1, wt)
+⇤⌘
+= Rt+1 + γt+1
+⇣
+¯Vt(St+1) + λt+1⇢t+1
+⇥
+Gλa
+t+1 −ˆq(St+1, At+1, wt)
+⇤⌘
+(12.26)
+where ¯Vt(St+1) is as given by (12.21). Again the λ-return can be written approximately
+as the sum of TD errors,
+Gλa
+t
+⇡ˆq(St, At, wt) +
+1
+X
+k=t
+δa
+k
+k
+Y
+i=t+1
+γiλi⇢i,
+(12.27)
+using the expectation form of the action-based TD error:
+δa
+t = Rt+1 + γt+1 ¯Vt(St+1) −ˆq(St, At, wt).
+(12.28)
+As before, the approximation becomes exact if the approximate value function does not
+change.
+Exercise 12.10 Prove that (12.27) becomes exact if the value function does not change.
+To save writing, consider the case of t = 0, and use the notation Qk = ˆq(Sk, Ak, w). Hint:
+Start by writing out δa
+0 and Gλa
+0 , then Gλa
+0 −Q0.
+⇤
+Exercise 12.11 The truncated version of the general o↵-policy return is denoted Gλa
+t:h.
+Guess the correct equation for it, based on (12.27).
+⇤
+Using steps entirely analogous to those for the state case, one can write a forward-view
+update based on (12.27), transform the sum of the updates using the summation rule,
+and ﬁnally derive the following form for the eligibility trace for action values:
+zt .= γtλt⇢tzt−1 + rˆq(St, At, wt).
+(12.29)
+This eligibility trace, together with the expectation-based TD error (12.28) and the usual
+semi-gradient parameter-update rule (12.7), forms an elegant, eﬃcient Expected Sarsa(λ)
+algorithm that can be applied to either on-policy or o↵-policy data. It is probably the
+best algorithm of this type at the current time (though of course it is not guaranteed to
+be stable until combined in some way with one of the methods presented in the following
+sections). In the on-policy case with constant λ and γ, and the usual state–action TD
+error (12.16), the algorithm would be identical to the Sarsa(λ) algorithm presented in
+Section 12.7.
+Exercise 12.12 Show in detail the steps outlined above for deriving (12.29) from (12.27).
+Start with the update (12.15), substitute Gλa
+t
+from (12.26) for Gλ
+t , then follow similar
+steps as led to (12.25).
+⇤
+At λ = 1, these algorithms become closely related to corresponding Monte Carlo
+algorithms. One might expect that an exact equivalence would hold for episodic problems
+and o↵-line updating, but in fact the relationship is subtler and slightly weaker than that.
+Under these most favorable conditions still there is not an episode by episode equiva-
+lence of updates, only of their expectations. This should not be surprising as these methods
+
+--- Page 334 ---
+312
+Chapter 12: Eligibility Traces
+make irrevocable updates as a trajectory unfolds, whereas true Monte Carlo methods
+would make no update for a trajectory if any action within it has zero probability under
+the target policy. In particular, all of these methods, even at λ = 1, still bootstrap in
+the sense that their targets depend on the current value estimates—it’s just that the
+dependence cancels out in expected value. Whether this is a good or bad property in
+practice is another question. Recently, methods have been proposed that do achieve an
+exact equivalence (Sutton, Mahmood, Precup and van Hasselt, 2014). These methods
+require an additional vector of “provisional weights” that keep track of updates which
+have been made but may need to be retracted (or emphasized) depending on the actions
+taken later. The state and state–action versions of these methods are called PTD(λ) and
+PQ(λ) respectively, where the ‘P’ stands for Provisional.
+The practical consequences of all these new o↵-policy methods have not yet been
+established. Undoubtedly, issues of high variance will arise as they do in all o↵-policy
+methods using importance sampling (Section 11.9).
+If λ < 1, then all these o↵-policy algorithms involve bootstrapping and the deadly
+triad applies (Section 11.3), meaning that they can be guaranteed stable only for the
+tabular case, for state aggregation, and for other limited forms of function approximation.
+For linear and more-general forms of function approximation the parameter vector may
+diverge to inﬁnity as in the examples in Chapter 11. As we discussed there, the challenge
+of o↵-policy learning has two parts. O↵-policy eligibility traces deal e↵ectively with the
+ﬁrst part of the challenge, correcting for the expected value of the targets, but not at
+all with the second part of the challenge, having to do with the distribution of updates.
+Algorithmic strategies for meeting the second part of the challenge of o↵-policy learning
+with eligibility traces are summarized in Section 12.11.
+Exercise 12.13
+What are the dutch-trace and replacing-trace versions of o↵-policy
+eligibility traces for state-value and action-value methods?
+⇤
+12.10
+Watkins’s Q(λ) to Tree-Backup(λ)
+Several methods have been proposed over the years to extend Q-learning to eligibility
+traces. The original is Watkins’s Q(λ), which decays its eligibility traces in the usual way
+as long as a greedy action was taken, then cuts the traces to zero after the ﬁrst non-greedy
+action. The backup diagram for Watkins’s Q(λ) is shown in Figure 12.12. In Chapter 6,
+we uniﬁed Q-learning and Expected Sarsa in the o↵-policy version of the latter, which
+includes Q-learning as a special case, and generalizes it to arbitrary target policies, and
+in the previous section of this chapter we completed our treatment of Expected Sarsa by
+generalizing it to o↵-policy eligibility traces. In Chapter 7, however, we distinguished
+n-step Expected Sarsa from n-step Tree Backup, where the latter retained the property
+of not using importance sampling. It remains then to present the eligibility trace version
+of Tree Backup, which we will call Tree-Backup(λ), or TB(λ) for short. This is arguably
+the true successor to Q-learning because it retains its appealing absence of importance
+sampling even though it can be applied to o↵-policy data.
+
+--- Page 335 ---
+12.10.
+Watkins’s Q(λ) to Tree-Backup(λ)
+313
+1 −λ
+(1 −λ)λ
+(1 −λ)λ2
+λT −t−1
+· · ·
+St At
+At+1
+St+1 Rt+1
+ST RT
+· · ·
+St+2 Rt+2
+At+2
+X
+= 1
+OR
+· · ·
+· · ·
+St+n Rt+n
+First non-greedy action
+λn−1
+Watkins’s Q(λ)
+Figure 12.12: The backup diagram for Watkins’s Q(λ). The series of component updates ends
+either with the end of the episode or with the ﬁrst nongreedy action, whichever comes ﬁrst.
+The concept of TB(λ) is straightforward. As shown in its backup diagram in Fig-
+ure 12.13, the tree-backup updates of each length (from Section 7.5) are weighted in the
+usual way dependent on the bootstrapping parameter λ. To get the detailed equations,
+with the right indices on the general bootstrapping and discounting parameters, it is
+best to start with a recursive form (12.20) for the λ-return using action values, and then
+expand the bootstrapping case of the target after the model of (7.16):
+Gλa
+t
+.= Rt+1+γt+1
+✓
+(1−λt+1) ¯Vt(St+1)+λt+1
+h X
+a6=At+1
+⇡(a|St+1)ˆq(St+1, a, wt)+⇡(At+1|St+1)Gλa
+t+1
+i◆
+= Rt+1 + γt+1
+✓
+¯Vt(St+1) + λt+1⇡(At+1|St+1)
+⇣
+Gλa
+t+1 −ˆq(St+1, At+1, wt)
+⌘◆
+As per the usual pattern, it can also be written approximately (ignoring changes in the
+approximate value function) as a sum of TD errors,
+Gλa
+t
+⇡ˆq(St, At, wt) +
+1
+X
+k=t
+δa
+k
+k
+Y
+i=t+1
+γiλi⇡(Ai|Si),
+using the expectation form of the action-based TD error (12.28).
+Following the same steps as in the previous section, we arrive at a special eligibility
+trace update involving the target-policy probabilities of the selected actions,
+zt .= γtλt⇡(At|St)zt−1 + rˆq(St, At, wt).
+
+--- Page 336 ---
+314
+Chapter 12: Eligibility Traces
+1 −λ
+(1 −λ)λ
+(1 −λ)λ2
+λT −t−1
+· · ·
+St At
+At+1
+AT −1
+St+1 Rt+1
+ST RT
+· · ·
+St+2 Rt+2
+At+2
+X
+= 1
+· · ·
+Tree Backup(λ)
+ST −1
+Figure 12.13: The backup diagram for the λ version of the Tree Backup algorithm.
+This, together with the usual parameter-update rule (12.7), deﬁnes the TB(λ) algorithm.
+Like all semi-gradient algorithms, TB(λ) is not guaranteed to be stable when used with
+o↵-policy data and with a powerful function approximator. To obtain those assurances,
+TB(λ) would have to be combined with one of the methods presented in the next section.
+⇤Exercise 12.14 How might Double Expected Sarsa be extended to eligibility traces? ⇤
+12.11
+Stable O↵-policy Methods with Traces
+Several methods using eligibility traces have been proposed that achieve guarantees
+of stability under o↵-policy training, and here we present four of the most important
+using this book’s standard notation, including general bootstrapping and discounting
+functions. All are based on either the Gradient-TD or the Emphatic-TD ideas presented
+in Sections 11.7 and 11.8. All the algorithms assume linear function approximation,
+though extensions to nonlinear function approximation can also be found in the literature.
+GTD(λ) is the eligibility-trace algorithm analogous to TDC, the better of the two
+state-value Gradient-TD prediction algorithms discussed in Section 11.7. Its goal is to
+learn a parameter wt such that ˆv(s,w) .= w>
+t x(s) ⇡v⇡(s), even from data that is due to
+following another policy b. Its update is
+wt+1 .= wt + ↵δs
+t zt −↵γt+1(1 −λt+1)
+#
+z>
+t vt
+$
+xt+1,
+
+--- Page 337 ---
+12.11.
+Stable O↵-policy Methods with Traces
+315
+with δs
+t , zt, and ⇢t deﬁned in the usual ways for state values (12.23) (12.25) (11.1), and
+vt+1 .= vt + βδs
+t zt −β
+#
+v>
+t xt
+$
+xt,
+(12.30)
+where, as in Section 11.7, v 2 Rd is a vector of the same dimension as w, initialized to
+v0 = 0, and β > 0 is a second step-size parameter.
+GQ(λ) is the Gradient-TD algorithm for action values with eligibility traces. Its goal
+is to learn a parameter wt such that ˆq(s, a, wt) .= w>
+t x(s, a) ⇡q⇡(s, a) from o↵-policy
+data. If the target policy is "-greedy, or otherwise biased toward the greedy policy for ˆq,
+then GQ(λ) can be used as a control algorithm. Its update is
+wt+1 .= wt + ↵δa
+t zt −↵γt+1(1 −λt+1)
+#
+z>
+t vt
+$ ¯xt+1,
+where ¯xt is the average feature vector for St under the target policy,
+¯xt .=
+X
+a
+⇡(a|St)x(St, a),
+δa
+t is the expectation form of the TD error, which can be written
+δa
+t
+.= Rt+1 + γt+1w>
+t ¯xt+1 −w>
+t xt,
+zt is deﬁned in the usual way for action values (12.29), and the rest is as in GTD(λ),
+including the update for vt (12.30).
+HTD(λ) is a hybrid state-value algorithm combining aspects of GTD(λ) and TD(λ). Its
+most appealing feature is that it is a strict generalization of TD(λ) to o↵-policy learning,
+meaning that if the behavior policy happens to be the same as the target policy, then
+HTD(λ) becomes the same as TD(λ), which is not true for GTD(λ). This is appealing
+because TD(λ) is often faster than GTD(λ) when both algorithms converge, and TD(λ)
+requires setting only a single step size. HTD(λ) is deﬁned by
+wt+1 .= wt + ↵δs
+t zt + ↵
+#
+(zt −zb
+t)>vt
+$
+(xt −γt+1xt+1),
+vt+1 .= vt + βδs
+t zt −β
+⇣
+zb
+t
+>vt
+⌘
+(xt −γt+1xt+1),
+with v0 .= 0,
+zt .= ⇢t
+#
+γtλtzt−1 + xt
+$
+,
+with z−1 .= 0,
+zb
+t
+.= γtλtzb
+t−1 + xt,
+with zb
+−1
+.= 0,
+where β > 0 again is a second step-size parameter. In addition to the second set of
+weights, vt, HTD(λ) also has a second set of eligibility traces, zb
+t. These are conventional
+accumulating eligibility traces for the behavior policy and become equal to zt if all the ⇢t
+are 1, which causes the last term in the wt update to be zero and the overall update to
+reduce to TD(λ).
+Emphatic TD(λ) is the extension of the one-step Emphatic-TD algorithm (Sections
+9.11 and 11.8) to eligibility traces. The resultant algorithm retains strong o↵-policy
+convergence guarantees while enabling any degree of bootstrapping, albeit at the cost of
+
+--- Page 338 ---
+316
+Chapter 12: Eligibility Traces
+high variance and potentially slow convergence. Emphatic TD(λ) is deﬁned by
+wt+1 .= wt + ↵δtzt
+δt .= Rt+1 + γt+1w>
+t xt+1 −w>
+t xt
+zt .= ⇢t
+#
+γtλtzt−1 + Mtxt
+$
+,
+with z−1 .= 0,
+Mt .= λtIt + (1 −λt)Ft
+Ft .= ⇢t−1γtFt−1 + It,
+with F0 .= i(S0),
+where Mt ≥0 is the general form of emphasis, Ft ≥0 is termed the followon trace, and
+It ≥0 is the interest, as described in Section 11.8. Note that Mt, like δt, is not really an
+additional memory variable. It can be removed from the algorithm by substituting its
+deﬁnition into the eligibility-trace equation. Pseudocode and software for the true online
+version of Emphatic-TD(λ) are available on the web (Sutton, 2015b).
+In the on-policy case (⇢t = 1, for all t), Emphatic-TD(λ) is similar to conventional
+TD(λ), but still signiﬁcantly di↵erent. In fact, whereas Emphatic-TD(λ) is guaranteed
+to converge for all state-dependent λ functions, TD(λ) is not. TD(λ) is guaranteed
+convergent only for all constant λ. See Yu’s counterexample (Ghiassian, Raﬁee, and
+Sutton, 2016).
+12.12
+Implementation Issues
+It might at ﬁrst appear that tabular methods using eligibility traces are much more
+complex than one-step methods. A naive implementation would require every state (or
+state–action pair) to update both its value estimate and its eligibility trace on every time
+step. This would not be a problem for implementations on single-instruction, multiple-
+data, parallel computers or in plausible artiﬁcial neural network (ANN) implementations,
+but it is a problem for implementations on conventional serial computers. Fortunately,
+for typical values of λ and γ the eligibility traces of almost all states are almost always
+nearly zero; only those states that have recently been visited will have traces signiﬁcantly
+greater than zero and only these few states need to be updated to closely approximate
+these algorithms.
+In practice, then, implementations on conventional computers may keep track of and
+update only the few traces that are signiﬁcantly greater than zero. Using this trick, the
+computational expense of using traces in tabular methods is typically just a few times
+that of a one-step method. The exact multiple of course depends on λ and γ and on the
+expense of the other computations. Note that the tabular case is in some sense the worst
+case for the computational complexity of eligibility traces. When function approximation
+is used, the computational advantages of not using traces generally decrease. For example,
+if ANNs and backpropagation are used, then eligibility traces generally cause only a
+doubling of the required memory and computation per step. Truncated λ-return methods
+(Section 12.3) can be computationally eﬃcient on conventional computers though they
+always require some additional memory.
+
+--- Page 339 ---
+12.13.
+Conclusions
+317
+12.13
+Conclusions
+Eligibility traces in conjunction with TD errors provide an eﬃcient, incremental way of
+shifting and choosing between Monte Carlo and TD methods. The n-step methods of
+Chapter 7 also enabled this, but eligibility trace methods are more general, often faster to
+learn, and o↵er di↵erent computational complexity tradeo↵s. This chapter has o↵ered an
+introduction to the elegant, emerging theoretical understanding of eligibility traces for on-
+and o↵-policy learning and for variable bootstrapping and discounting. One aspect of this
+elegant theory is true online methods, which exactly reproduce the behavior of expensive
+ideal methods while retaining the computational congeniality of conventional TD methods.
+Another aspect is the possibility of derivations that automatically convert from intuitive
+forward-view methods to more eﬃcient incremental backward-view algorithms.
+We
+illustrated this general idea in a derivation that started with a classical, expensive Monte
+Carlo algorithm and ended with a cheap incremental non-TD implementation using the
+same novel eligibility trace used in true online TD methods.
+As we mentioned in Chapter 5, Monte Carlo methods may have advantages in non-
+Markov tasks because they do not bootstrap. Because eligibility traces make TD methods
+more like Monte Carlo methods, they also can have advantages in these cases. If one
+wants to use TD methods because of their other advantages, but the task is at least
+partially non-Markov, then the use of an eligibility trace method is indicated. Eligibility
+traces are the ﬁrst line of defense against both long-delayed rewards and non-Markov
+tasks.
+By adjusting λ, we can place eligibility trace methods anywhere along a continuum
+from Monte Carlo to one-step TD methods. Where shall we place them? We do not yet
+have a good theoretical answer to this question, but a clear empirical answer appears to
+be emerging. On tasks with many steps per episode, or many steps within the half-life of
+discounting, it appears signiﬁcantly better to use eligibility traces than not to (e.g., see
+Figure 12.14). On the other hand, if the traces are so long as to produce a pure Monte
+Carlo method, or nearly so, then performance degrades sharply. An intermediate mixture
+appears to be the best choice. Eligibility traces should be used to bring us toward Monte
+Carlo methods, but not all the way there. In the future it may be possible to more ﬁnely
+vary the trade-o↵between TD and Monte Carlo methods by using variable λ, but at
+present it is not clear how this can be done reliably and usefully.
+Methods using eligibility traces require more computation than one-step methods, but
+in return they o↵er signiﬁcantly faster learning, particularly when rewards are delayed by
+many steps. Thus it often makes sense to use eligibility traces when data are scarce and
+cannot be repeatedly processed, as is often the case in online applications. On the other
+hand, in o↵-line applications in which data can be generated cheaply, perhaps from an
+inexpensive simulation, then it often does not pay to use eligibility traces. In these cases
+the objective is not to get more out of a limited amount of data, but simply to process as
+much data as possible as quickly as possible. In these cases the speedup per datum due to
+traces is typically not worth their computational cost, and one-step methods are favored.
+
+--- Page 340 ---
+318
+Chapter 12: Eligibility Traces
+accumulating
+traces  
+0.2
+0.3
+0.4
+0.5
+0
+0.2
+0.4
+0.6
+0.8
+1
+!
+RANDOM WALK
+50
+100
+150
+200
+250
+300
+Failures per
+100,000 steps
+0
+0.2
+0.4
+0.6
+0.8
+1
+!
+CART AND POLE
+400
+450
+500
+550
+600
+650
+700
+ Steps per
+episode
+0
+0.2
+0.4
+0.6
+0.8
+1
+!
+MOUNTAIN CAR
+replacing
+traces
+150
+160
+170
+180
+190
+200
+210
+220
+230
+240
+Cost per
+episode
+0
+0.2
+0.4
+0.6
+0.8
+1
+!
+PUDDLE WORLD
+replacing
+traces
+accumulating
+traces 
+replacing
+traces
+accumulating
+traces
+RMS error
+Figure 12.14: The e↵ect of λ on reinforcement learning performance in four di↵erent test
+problems. In all cases, performance is generally best (a lower number in the graph) at an
+intermediate value of λ. The two left panels are applications to simple continuous-state control
+tasks using the Sarsa(λ) algorithm and tile coding, with either replacing or accumulating traces
+(Sutton, 1996). The upper-right panel is for policy evaluation on a random walk task using TD(λ)
+(Singh and Sutton, 1996). The lower right panel is unpublished data for the pole-balancing task
+(Example 3.4) from an earlier study (Sutton, 1984).
+
+--- Page 341 ---
+12.13.
+Conclusions
+319
+Bibliographical and Historical Remarks
+Eligibility traces came into reinforcement learning via the fecund ideas of Klopf (1972).
+Our use of eligibility traces is based on Klopf’s work (Sutton, 1978a, 1978b, 1978c; Barto
+and Sutton, 1981a, 1981b; Sutton and Barto, 1981a; Barto, Sutton, and Anderson, 1983;
+Sutton, 1984). We may have been the ﬁrst to use the term “eligibility trace” (Sutton
+and Barto, 1981a). The idea that stimuli produce after e↵ects in the nervous system
+that are important for learning is very old (see Chapter 14). Some of the earliest uses of
+eligibility traces were in the actor–critic methods discussed in Chapter 13 (Barto, Sutton,
+and Anderson, 1983; Sutton, 1984).
+12.1
+Compound updates were called “complex backups” in the ﬁrst edition of this
+book.
+The λ-return and its error-reduction properties were introduced by Watkins (1989)
+and further developed by Jaakkola, Jordan, and Singh (1994). The random walk
+results in this and subsequent sections are new to this text, as are the terms
+“forward view” and “backward view.” The notion of a λ-return algorithm was
+introduced in the ﬁrst edition of this text. The more reﬁned treatment presented
+here was developed in conjunction with Harm van Seijen (e.g., van Seijen and
+Sutton, 2014).
+12.2
+TD(λ) with accumulating traces was introduced by Sutton (1988, 1984). Con-
+vergence in the mean was proved by Dayan (1992), and with probability 1 by
+many researchers, including Peng (1993), Dayan and Sejnowski (1994), Tsitsiklis
+(1994), and Gurvits, Lin, and Hanson (1994). The bound on the error of the
+asymptotic λ-dependent solution of linear TD(λ) is due to Tsitsiklis and Van
+Roy (1997).
+12.3
+Truncated TD methods were developed by Cichosz (1995) and van Seijen (2016).
+12.4
+The idea of redoing updates was extensively developed by van Seijen, originally
+under the name “best-match learning” (van Seijen, 2011; van Seijen, Whiteson,
+van Hasselt, and Weiring, 2011).
+12.5
+True online TD(λ) is primarily due to Harm van Seijen (van Seijen and Sutton,
+2014; van Seijen et al., 2016) though some of its key ideas were discovered
+independently by Hado van Hasselt (personal communication). The name “dutch
+traces” is in recognition of the contributions of both scientists. Replacing traces
+are due to Singh and Sutton (1996).
+12.6
+The material in this section is from van Hasselt and Sutton (2015).
+12.7
+Sarsa(λ) with accumulating traces was ﬁrst explored as a control method by
+Rummery and Niranjan (1994; Rummery, 1995). True Online Sarsa(λ) was
+
+--- Page 342 ---
+320
+Chapter 12: Eligibility Traces
+introduced by van Seijen and Sutton (2014). The algorithm on page 307 was
+adapted from van Seijen et al. (2016). The Mountain Car results were made for
+this text, except for Figure 12.11 which is adapted from van Seijen and Sutton
+(2014).
+12.8
+Perhaps the ﬁrst published discussion of variable λ was by Watkins (1989), who
+pointed out that the cutting o↵of the update sequence (Figure 12.12) in his
+Q(λ) when a nongreedy action was selected could be implemented by temporarily
+setting λ to 0.
+Variable λ was introduced in the ﬁrst edition of this text. The roots of variable γ
+are in the work on options (Sutton, Precup, and Singh, 1999) and its precursors
+(Sutton, 1995a), becoming explicit in the GQ(λ) paper (Maei and Sutton, 2010),
+which also introduced some of these recursive forms for the λ-returns.
+A di↵erent notion of variable λ has been developed by Yu (2012).
+12.9
+O↵-policy eligibility traces were introduced by Precup et al. (2000, 2001), then
+further developed by Bertsekas and Yu (2009), Maei (2011; Maei and Sutton,
+2010), Yu (2012), and by Sutton, Mahmood, Precup, and van Hasselt (2014).
+The last reference in particular gives a powerful forward view for o↵-policy TD
+methods with general state-dependent λ and γ. The presentation here seems to
+be new.
+This section ends with an elegant Expected Sarsa(λ) algorithm. Although it is
+a natural algorithm, to our knowledge it has not previously been described or
+tested in the literature.
+12.10
+Watkins’s Q(λ) is due to Watkins (1989). The tabular, episodic, o↵-line version
+has been proven convergent by Munos, Stepleton, Harutyunyan, and Bellemare
+(2016). Alternative Q(λ) algorithms were proposed by Peng and Williams (1994,
+1996) and by Sutton, Mahmood, Precup, and van Hasselt (2014). Tree Backup(λ)
+is due to Precup, Sutton, and Singh (2000).
+12.11
+GTD(λ) is due to Maei (2011).
+GQ(λ) is due to Maei and Sutton (2010).
+HTD(λ) is due to White and White (2016) based on the one-step HTD algorithm
+introduced by Hackman (2012).
+The latest developments in the theory of
+Gradient-TD methods are by Yu (2017). Emphatic TD(λ) was introduced by
+Sutton, Mahmood, and White (2016), who proved its stability. Yu (2015, 2016)
+proved its convergence, and the algorithm was developed further by Hallak et
+al. (2015, 2016).
+
+--- Page 343 ---
+Chapter 13
+Policy Gradient Methods
+In this chapter we consider something new. So far in this book almost all the methods
+have been action-value methods; they learned the values of actions and then selected
+actions based on their estimated action values1; their policies would not even exist without
+the action-value estimates. In this chapter we consider methods that instead learn a
+parameterized policy that can select actions without consulting a value function. A value
+function may still be used to learn the policy parameter, but is not required for action
+selection. We use the notation ✓2 Rd0 for the policy’s parameter vector. Thus we write
+⇡(a|s, ✓) = Pr{At =a | St =s, ✓t =✓} for the probability that action a is taken at time t
+given that the environment is in state s at time t with parameter ✓. If a method uses a
+learned value function as well, then the value function’s weight vector is denoted w 2 Rd
+as usual, as in ˆv(s,w).
+In this chapter we consider methods for learning the policy parameter based on the
+gradient of some scalar performance measure J(✓) with respect to the policy parameter.
+These methods seek to maximize performance, so their updates approximate gradient
+ascent in J:
+✓t+1 = ✓t + ↵\
+rJ(✓t),
+(13.1)
+where \
+rJ(✓t) 2 Rd0 is a stochastic estimate whose expectation approximates the gradient
+of the performance measure with respect to its argument ✓t. All methods that follow
+this general schema we call policy gradient methods, whether or not they also learn an
+approximate value function. Methods that learn approximations to both policy and value
+functions are often called actor–critic methods, where ‘actor’ is a reference to the learned
+policy, and ‘critic’ refers to the learned value function, usually a state-value function.
+First we treat the episodic case, in which performance is deﬁned as the value of the start
+state under the parameterized policy, before going on to consider the continuing case, in
+1The lone exception is the gradient bandit algorithms of Section 2.8. In fact, that section goes through
+many of the same steps, in the single-state bandit case, as we go through here for full MDPs. Reviewing
+that section would be good preparation for fully understanding this chapter.
+
+--- Page 344 ---
+322
+Chapter 13: Policy Gradient Methods
+which performance is deﬁned as the average reward rate, as in Section 10.3. In the end,
+we are able to express the algorithms for both cases in very similar terms.
+13.1
+Policy Approximation and its Advantages
+In policy gradient methods, the policy can be parameterized in any way, as long as
+⇡(a|s, ✓) is di↵erentiable with respect to its parameters, that is, as long as r⇡(a|s, ✓) (the
+column vector of partial derivatives of ⇡(a|s, ✓) with respect to the components of ✓) exists
+and is ﬁnite for all s 2 S, a 2 A(s), and ✓2 Rd0. In practice, to ensure exploration we
+generally require that the policy never becomes deterministic (i.e., that ⇡(a|s, ✓) 2 (0, 1),
+for all s, a, ✓). In this section we introduce the most common parameterization for
+discrete action spaces and point out the advantages it o↵ers over action-value methods.
+Policy-based methods also o↵er useful ways of dealing with continuous action spaces, as
+we describe later in Section 13.7.
+If the action space is discrete and not too large, then a natural and common kind of
+parameterization is to form parameterized numerical preferences h(s, a, ✓) 2 R for each
+state–action pair. The actions with the highest preferences in each state are given the
+highest probabilities of being selected, for example, according to an exponential soft-max
+distribution:
+⇡(a|s, ✓) .=
+eh(s,a,✓)
+P
+b eh(s,b,✓) ,
+(13.2)
+where e ⇡2.71828 is the base of the natural logarithm. Note that the denominator here
+is just what is required so that the action probabilities in each state sum to one. We call
+this kind of policy parameterization soft-max in action preferences.
+The action preferences themselves can be parameterized arbitrarily. For example, they
+might be computed by a deep artiﬁcial neural network (ANN), where ✓is the vector
+of all the connection weights of the network (as in the AlphaGo system described in
+Section 16.6). Or the preferences could simply be linear in features,
+h(s, a, ✓) = ✓>x(s, a),
+(13.3)
+using feature vectors x(s, a) 2 Rd0 constructed by any of the methods described in
+Section 9.5.
+One advantage of parameterizing policies according to the soft-max in action preferences
+is that the approximate policy can approach a deterministic policy, whereas with "-greedy
+action selection over action values there is always an " probability of selecting a random
+action. Of course, one could select according to a soft-max distribution based on action
+values, but this alone would not allow the policy to approach a deterministic policy.
+Instead, the action-value estimates would converge to their corresponding true values,
+which would di↵er by a ﬁnite amount, translating to speciﬁc probabilities other than 0 and
+1. If the soft-max distribution included a temperature parameter, then the temperature
+could be reduced over time to approach determinism, but in practice it would be diﬃcult
+to choose the reduction schedule, or even the initial temperature, without more prior
+knowledge of the true action values than we would like to assume. Action preferences
+
+--- Page 345 ---
+13.1. Policy Approximation and its Advantages
+323
+are di↵erent because they do not approach speciﬁc values; instead they are driven to
+produce the optimal stochastic policy. If the optimal policy is deterministic, then the
+preferences of the optimal actions will be driven inﬁnitely higher than all suboptimal
+actions (if permitted by the parameterization).
+A second advantage of parameterizing policies according to the soft-max in action
+preferences is that it enables the selection of actions with arbitrary probabilities. In
+problems with signiﬁcant function approximation, the best approximate policy may be
+stochastic. For example, in card games with imperfect information the optimal play is
+often to do two di↵erent things with speciﬁc probabilities, such as when bluﬃng in Poker.
+Action-value methods have no natural way of ﬁnding stochastic optimal policies, whereas
+policy approximating methods can, as shown in Example 13.1.
+Example 13.1 Short corridor with switched actions
+Consider the small corridor gridworld shown inset in the graph below. The reward
+is −1 per step, as usual. In each of the three nonterminal states there are only
+two actions, right and left. These actions have their usual consequences in the
+ﬁrst and third states (left causes no movement in the ﬁrst state), but in the
+second state they are reversed, so that right moves to the left and left moves to
+the right. The problem is diﬃcult because all the states appear identical under
+the function approximation.
+In particular, we deﬁne x(s, right) = [1, 0]> and
+x(s, left) = [0, 1]>, for all s. An action-value method with "-greedy action selection
+is forced to choose between just two policies: choosing right with high probability
+1 −"/2 on all steps or choosing left with the same high probability on all time
+steps.
+If " = 0.1, then these two policies achieve a value (at the start state)
+of less than −44 and −82, respectively, as shown in the graph. A method can
+do signiﬁcantly better if it can learn a speciﬁc probability with which to select
+right. The best probability is about 0.59, which achieves a value of about −11.6.
+probability of right action
+-11.6
+0.1
+0.2
+-20
+-40
+-60
+-80
+-100
+0.3
+0.4
+0
+0.6
+0.7
+0.8
+0.9
+0.5
+1
+휀-greedy left 
+휀-greedy right 
+optimal
+stochastic
+policy 
+J(✓) = v⇡✓(S)
+G
+S
+
+--- Page 346 ---
+324
+Chapter 13: Policy Gradient Methods
+Perhaps the simplest advantage that policy parameterization may have over action-
+value parameterization is that the policy may be a simpler function to approximate.
+Problems vary in the complexity of their policies and action-value functions. For some,
+the action-value function is simpler and thus easier to approximate. For others, the policy
+is simpler. In the latter case a policy-based method will typically learn faster and yield a
+superior asymptotic policy (as in Tetris; see S¸im¸sek, Alg´orta, and Kothiyal, 2016).
+Finally, we note that the choice of policy parameterization is sometimes a good way
+of injecting prior knowledge about the desired form of the policy into the reinforcement
+learning system. This is often the most important reason for using a policy-based learning
+method.
+Exercise 13.1 Use your knowledge of the gridworld and its dynamics to determine an
+exact symbolic expression for the optimal probability of selecting the right action in
+Example 13.1.
+⇤
+13.2
+The Policy Gradient Theorem
+In addition to the practical advantages of policy parameterization over "-greedy action
+selection, there is also an important theoretical advantage. With continuous policy
+parameterization the action probabilities change smoothly as a function of the learned
+parameter, whereas in "-greedy selection the action probabilities may change dramatically
+for an arbitrarily small change in the estimated action values, if that change results in a
+di↵erent action having the maximal value. Largely because of this, stronger convergence
+guarantees are available for policy-gradient methods than for action-value methods. In
+particular, it is the continuity of the policy dependence on the parameters that enables
+policy-gradient methods to approximate gradient ascent (13.1).
+The episodic and continuing cases deﬁne the performance measure, J(✓), di↵erently
+and thus have to be treated separately to some extent. Nevertheless, we will try to
+present both cases uniformly, and we develop a notation so that the major theoretical
+results can be described with a single set of equations.
+In this section we treat the episodic case, for which we deﬁne the performance measure
+as the value of the start state of the episode. We can simplify the notation without
+losing any meaningful generality by assuming that every episode starts in some particular
+(non-random) state s0. Then, in the episodic case we deﬁne performance as
+J(✓) .= v⇡✓(s0),
+(13.4)
+where v⇡✓is the true value function for ⇡✓, the policy determined by ✓. From here on in
+our discussion we will assume no discounting (γ = 1) for the episodic case, although for
+completeness we do include the possibility of discounting in the boxed algorithms.
+With function approximation it may seem challenging to change the policy parameter
+in a way that ensures improvement. The problem is that performance depends on both
+the action selections and the distribution of states in which those selections are made,
+and that both of these are a↵ected by the policy parameter. Given a state, the e↵ect of
+the policy parameter on the actions, and thus on reward, can be computed in a relatively
+straightforward way from knowledge of the parameterization. But the e↵ect of the policy
+
+--- Page 347 ---
+13.2. The Policy Gradient Theorem
+325
+Proof of the Policy Gradient Theorem (episodic case)
+With just elementary calculus and re-arranging of terms, we can prove the policy
+gradient theorem from ﬁrst principles. To keep the notation simple, we leave it
+implicit in all cases that ⇡is a function of ✓, and all gradients are also implicitly
+with respect to ✓. First note that the gradient of the state-value function can be
+written in terms of the action-value function as
+rv⇡(s) = r
+"X
+a
+⇡(a|s)q⇡(s, a)
+#
+,
+for all s 2 S
+(Exercise 3.18)
+=
+X
+a
+h
+r⇡(a|s)q⇡(s, a) + ⇡(a|s)rq⇡(s, a)
+i
+(product rule of calculus)
+=
+X
+a
+h
+r⇡(a|s)q⇡(s, a) + ⇡(a|s)r
+X
+s0,r
+p(s0, r|s, a)
+#
+r + v⇡(s0)
+$i
+(Exercise 3.19 and Equation 3.2)
+=
+X
+a
+h
+r⇡(a|s)q⇡(s, a) + ⇡(a|s)
+X
+s0
+p(s0|s, a)rv⇡(s0)
+i
+(Eq. 3.4)
+=
+X
+a
+h
+r⇡(a|s)q⇡(s, a) + ⇡(a|s)
+X
+s0
+p(s0|s, a)
+(unrolling)
+X
+a0
+⇥
+r⇡(a0|s0)q⇡(s0, a0) + ⇡(a0|s0)
+X
+s00
+p(s00|s0, a0)rv⇡(s00)
+⇤i
+=
+X
+x2S
+1
+X
+k=0
+Pr(s!x, k, ⇡)
+X
+a
+r⇡(a|x)q⇡(x, a),
+after repeated unrolling, where Pr(s ! x, k, ⇡) is the probability of transitioning
+from state s to state x in k steps under policy ⇡. It is then immediate that
+rJ(✓) = rv⇡(s0)
+=
+X
+s
+ 1
+X
+k=0
+Pr(s0 !s, k, ⇡)
+! X
+a
+r⇡(a|s)q⇡(s, a)
+=
+X
+s
+⌘(s)
+X
+a
+r⇡(a|s)q⇡(s, a)
+(box page 199)
+=
+X
+s0
+⌘(s0)
+X
+s
+⌘(s)
+P
+s0 ⌘(s0)
+X
+a
+r⇡(a|s)q⇡(s, a)
+=
+X
+s0
+⌘(s0)
+X
+s
+µ(s)
+X
+a
+r⇡(a|s)q⇡(s, a)
+(Eq. 9.3)
+/
+X
+s
+µ(s)
+X
+a
+r⇡(a|s)q⇡(s, a)
+(Q.E.D.)
+
+--- Page 348 ---
+326
+Chapter 13: Policy Gradient Methods
+on the state distribution is a function of the environment and is typically unknown. How
+can we estimate the performance gradient with respect to the policy parameter when the
+gradient depends on the unknown e↵ect of policy changes on the state distribution?
+Fortunately, there is an excellent theoretical answer to this challenge in the form of
+the policy gradient theorem, which provides an analytic expression for the gradient of
+performance with respect to the policy parameter (which is what we need to approximate
+for gradient ascent (13.1)) that does not involve the derivative of the state distribution.
+The policy gradient theorem for the episodic case establishes that
+rJ(✓) /
+X
+s
+µ(s)
+X
+a
+q⇡(s, a)r⇡(a|s, ✓),
+(13.5)
+where the gradients are column vectors of partial derivatives with respect to the compo-
+nents of ✓, and ⇡denotes the policy corresponding to parameter vector ✓. The symbol /
+here means “proportional to”. In the episodic case, the constant of proportionality is the
+average length of an episode, and in the continuing case it is 1, so that the relationship is
+actually an equality. The distribution µ here (as in Chapters 9 and 10) is the on-policy
+distribution under ⇡(see page 199). The policy gradient theorem is proved for the
+episodic case in the box on the previous page.
+13.3
+REINFORCE: Monte Carlo Policy Gradient
+We are now ready to derive our ﬁrst policy-gradient learning algorithm. Recall our overall
+strategy of stochastic gradient ascent (13.1), which requires a way to obtain samples such
+that the expectation of the sample gradient is proportional to the actual gradient of the
+performance measure as a function of the parameter. The sample gradients need only be
+proportional to the gradient because any constant of proportionality can be absorbed
+into the step size ↵, which is otherwise arbitrary. The policy gradient theorem gives an
+exact expression proportional to the gradient; all that is needed is some way of sampling
+whose expectation equals or approximates this expression. Notice that the right-hand
+side of the policy gradient theorem is a sum over states weighted by how often the states
+occur under the target policy ⇡; if ⇡is followed, then states will be encountered in these
+proportions. Thus
+rJ(✓) /
+X
+s
+µ(s)
+X
+a
+q⇡(s, a)r⇡(a|s, ✓)
+= E⇡
+"X
+a
+q⇡(St, a)r⇡(a|St, ✓)
+#
+.
+(13.6)
+We could stop here and instantiate our stochastic gradient-ascent algorithm (13.1) as
+✓t+1 .= ✓t + ↵
+X
+a
+ˆq(St, a, w)r⇡(a|St, ✓),
+(13.7)
+where ˆq is some learned approximation to q⇡. This algorithm, which has been called
+an all-actions method because its update involves all of the actions, is promising and
+
+--- Page 349 ---
+13.3. REINFORCE: Monte Carlo Policy Gradient
+327
+deserving of further study, but our current interest is the classical REINFORCE algorithm
+(Willams, 1992) whose update at time t involves just At, the one action actually taken at
+time t.
+We continue our derivation of REINFORCE by introducing At in the same way as we
+introduced St in (13.6)—by replacing a sum over the random variable’s possible values
+by an expectation under ⇡, and then sampling the expectation. Equation (13.6) involves
+an appropriate sum over actions, but each term is not weighted by ⇡(a|St, ✓) as is needed
+for an expectation under ⇡. So we introduce such a weighting, without changing the
+equality, by multiplying and then dividing the summed terms by ⇡(a|St, ✓). Continuing
+from (13.6), we have
+rJ(✓) / E⇡
+"X
+a
+⇡(a|St, ✓)q⇡(St, a)r⇡(a|St, ✓)
+⇡(a|St, ✓)
+#
+= E⇡
+
+q⇡(St, At)r⇡(At|St, ✓)
+⇡(At|St, ✓)
+3
+(replacing a by the sample At ⇠⇡)
+= E⇡
+
+Gt
+r⇡(At|St, ✓)
+⇡(At|St, ✓)
+3
+,
+(because E⇡[Gt|St, At] = q⇡(St, At))
+where Gt is the return as usual. The ﬁnal expression in brackets is exactly what is needed,
+a quantity that can be sampled on each time step whose expectation is proportional
+to the gradient. Using this sample to instantiate our generic stochastic gradient ascent
+algorithm (13.1) yields the REINFORCE update:
+✓t+1 .= ✓t + ↵Gt
+r⇡(At|St, ✓t)
+⇡(At|St, ✓t) .
+(13.8)
+This update has an intuitive appeal. Each increment is proportional to the product of a
+return Gt and a vector, the gradient of the probability of taking the action actually taken
+divided by the probability of taking that action. The vector is the direction in parameter
+space that most increases the probability of repeating the action At on future visits
+to state St. The update increases the parameter vector in this direction proportional
+to the return, and inversely proportional to the action probability. The former makes
+sense because it causes the parameter to move most in the directions that favor actions
+that yield the highest return. The latter makes sense because otherwise actions that are
+selected frequently are at an advantage (the updates will be more often in their direction)
+and might win out even if they do not yield the highest return.
+Note that REINFORCE uses the complete return from time t, which includes all
+future rewards up until the end of the episode. In this sense REINFORCE is a Monte
+Carlo algorithm and is well deﬁned only for the episodic case with all updates made in
+retrospect after the episode is completed (like the Monte Carlo algorithms in Chapter 5).
+This is shown explicitly in the boxed algorithm on the next page.
+Notice that the update in the last line of pseudocode appears rather di↵erent from
+the REINFORCE update rule (13.8). One di↵erence is that the pseudocode uses the
+compact expression r ln ⇡(At|St, ✓t) for the fractional vector r⇡(At|St,✓t)
+⇡(At|St,✓t) in (13.8). That
+these two expressions for the vector are equivalent follows from the identity r ln x = rx
+x .
+
+--- Page 350 ---
+328
+Chapter 13: Policy Gradient Methods
+This vector has been given several names and notations in the literature; we will refer
+to it simply as the eligibility vector.
+Note that it is the only place that the policy
+parameterization appears in the algorithm.
+REINFORCE: Monte-Carlo Policy-Gradient Control (episodic) for ⇡⇤
+Input: a di↵erentiable policy parameterization ⇡(a|s, ✓)
+Algorithm parameter: step size ↵> 0
+Initialize policy parameter ✓2 Rd0 (e.g., to 0)
+Loop forever (for each episode):
+Generate an episode S0, A0, R1, . . . , ST −1, AT −1, RT , following ⇡(·|·, ✓)
+Loop for each step of the episode t = 0, 1, . . . , T −1:
+G  PT
+k=t+1 γk−t−1Rk
+(Gt)
+✓ ✓+ ↵γtGr ln ⇡(At|St, ✓)
+The second di↵erence between the pseudocode update and the REINFORCE update
+equation (13.8) is that the former includes a factor of γt. This is because, as mentioned
+earlier, in the text we are treating the non-discounted case (γ =1) while in the boxed
+algorithms we are giving the algorithms for the general discounted case. All of the ideas
+go through in the discounted case with appropriate adjustments (including to the box on
+page 199) but involve additional complexity that distracts from the main ideas.
+⇤Exercise 13.2 Generalize the box on page 199, the policy gradient theorem (13.5), the
+proof of the policy gradient theorem (page 325), and the steps leading to the REINFORCE
+update equation (13.8), so that (13.8) ends up with a factor of γt and thus aligns with
+the general algorithm given in the pseudocode.
+⇤
+Figure 13.1 shows the performance of REINFORCE on the short-corridor gridworld
+from Example 13.1.
+↵= 2−13
+↵= 2−12
+Episode
+1000
+800
+600
+400
+200
+1
+-80
+-90
+-60
+-40
+-20
+-10
+Total reward
+on episode
+averaged over 100 runs
+G0
+v⇤(s0)
+↵= 2−14
+Figure 13.1: REINFORCE on the short-corridor gridworld (Example 13.1). With a good step
+size, the total reward per episode approaches the optimal value of the start state.
+

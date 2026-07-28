@@ -1,0 +1,725 @@
+--- Page 275 ---
+
+
+### 10.4 Deprecating the Discounted Setting
+
+The continuing, discounted problem formulation has been very useful in the tabular case, in which the returns from each state can be separately identified and averaged. But in the approximate case it is questionable whether one should ever use this problem formulation.
+
+To see why, consider an infinite sequence of returns with no beginning or end, and no clearly identified states. The states might be represented only by feature vectors, which may do little to distinguish the states from each other. As a special case, all of the feature vectors may be the same. Thus one really has only the reward sequence (and the actions), and performance has to be assessed purely from these. How could it be done? One way is by averaging the rewards over a long interval--this is the idea of the average-reward setting. How could discounting be used? Well, for each time step we could measure the discounted return. Some returns would be small and some big, so again we would have to average them over a sufficiently large time interval. In the continuing setting there are no starts and ends, and no special time steps, so there is nothing else that could be done. However, if you do this, it turns out that the average of the discounted returns is proportional to the average reward. In fact, for policy \(\pi\), the average of the discounted returns is always \(r(\pi)/(1-\gamma)\), that is, it is essentially the average reward, \(r(\pi)\). In particular, the _ordering_ of all policies in the average discounted return setting would be exactly the same as in the average-reward setting. The discount rate \(\gamma\) thus has no effect on the problem formulation. It could in fact be _zero_ and the ranking would be unchanged.
+
+This surprising fact is proven in the box on the next page, but the basic idea can be seen via a symmetry argument. Each time step is exactly the same as every other. With discounting, every reward will appear exactly once in each position in some return. The \(t\)th reward will appear undiscounted in the \(t-1\)st return, discounted once in the \(t-2\)nd return, and discounted 999 times in the \(t-1000\)th return. The weight on the \(t\)th reward is thus \(1+\gamma+\gamma^{2}+\gamma^{3}+\cdots=1/(1-\gamma)\). Because all states are the same, they are all weighted by this, and thus the average of the returns will be this times the average reward, or \(r(\pi)/(1-\gamma)\).
+
+This example and the more general argument in the box show that if we optimized discounted value over the on-policy distribution, then the effect would be identical to optimizing _undiscounted_ average reward; the actual value of \(\gamma\) would have no effect. This strongly suggests that discounting has no role to play in the definition of the control problem with function approximation. One can nevertheless go ahead and use discounting in solution methods. The discounting parameter \(\gamma\) changes from a problem parameter to a solution method parameter! Unfortunately, discounting algorithms with function approximation do not optimize discounted value over the on-policy distribution, and thus are not guaranteed to optimize average reward.
+
+The root cause of the difficulties with the discounted control setting is that with function approximation we have lost the policy improvement theorem (Section 4.2). It is no longer true that if we change the policy to improve the discounted value of one state then we are guaranteed to have improved the overall policy in any useful sense. That guarantee was key to the theory of our reinforcement learning control methods. With
+
+--- Page 276 ---
+function approximation we have lost it!
+
+In fact, the lack of a policy improvement theorem is also a theoretical lacuna for the total-episodic and average-reward settings. Once we introduce function approximation we can no longer guarantee improvement for any setting. In Chapter 13 we introduce an alternative class of reinforcement learning algorithms based on parameterized policies, and there we have a theoretical guarantee called the "policy-gradient theorem" which plays a similar role as the policy improvement theorem. But for methods that learn action values we seem to be currently without a local improvement guarantee (possibly the approach taken by Perkins and Precup (2003) may provide a part of the answer). We do know that \(\varepsilon\)-greedification may sometimes result in an inferior policy, as policies may chatter among good policies rather than converge (Gordon, 1996a). This is an area with multiple open theoretical questions.
+
+
+
+--- Page 277 ---
+
+
+### 10.5 Differential Semi-gradient _n_-step Sarsa
+
+In order to generalize to _n-step_ bootstrapping, we need an _n_-step version of the TD error. We begin by generalizing the _n_-step return (7.4) to its differential form, with function approximation:
+
+\[G_{t:t+n}\doteq R_{t+1}-\bar{R}_{t+n-1}+\cdots+R_{t+n}-\bar{R}_{t+n-1}+\hat{q}(S_ {t+n},A_{t+n},\mathbf{w}_{t+n-1}), \tag{10.14}\]
+
+where \(\bar{R}\) is an estimate of \(r(\pi)\), \(n\geq 1\), and \(t+n<T\). If \(t+n\geq T\), then we define \(G_{t:t+n}\doteq G_{t}\) as usual. The _n_-step TD error is then
+
+\[\delta_{t}\doteq G_{t:t+n}-\hat{q}(S_{t},A_{t},\mathbf{w}), \tag{10.15}\]
+
+after which we can apply our usual semi-gradient Sarsa update (10.12). Pseudocode for the complete algorithm is given in the box.
+
+Differential semi-gradient _n_-step Sarsa for estimating \(\hat{q}\approx q_{n}\) or \(q_{n}\)
+
+Input: a differentiable function \(\hat{q}:\mathcal{S}\times\mathcal{A}\times\mathbb{R}^{d}\rightarrow\mathbb{R}\), a policy \(\pi\)
+
+Initialize value-function weights \(\mathbf{w}\in\mathbb{R}^{d}\) arbitrarily (e.g., \(\mathbf{w}=\mathbf{0}\))
+
+Initialize average-reward estimate \(\bar{R}\in\mathbb{R}\) arbitrarily (e.g., \(\bar{R}=0\))
+
+Algorithm parameters: step sizes \(\alpha,\beta>0\), small \(\varepsilon>0\), a positive integer \(n\)
+
+All store and access operations (\(S_{t}\), \(A_{t}\), and \(R_{t}\)) can take their index mod \(n+1\)
+
+Initialize and store \(S_{0}\) and \(A_{0}\)
+
+Loop for each step, \(t=0,1,2,\ldots\) :
+
+Take action \(A_{t}\)
+
+Observe and store the next reward as \(R_{t+1}\) and the next state as \(S_{t+1}\)
+
+Select and store an action \(A_{t+1}\sim\pi(\cdot|S_{t+1})\), or \(\varepsilon\)-greedy wrt \(\hat{q}(S_{t+1},\cdot,\mathbf{w})\)
+
+\(\tau\gets t-n+1\) (\(\tau\) is the time whose estimate is being updated)
+
+If \(\tau\geq 0\):
+
+\(\delta\leftarrow\sum_{i=\tau+1}^{\tau+n}(R_{i}-\bar{R})+\hat{q}(S_{\tau+n},A_ {\tau+n},\mathbf{w})-\hat{q}(S_{\tau},A_{\tau},\mathbf{w})\)
+
+\(\bar{R}\leftarrow\bar{R}+\beta\delta\)
+
+\(\mathbf{w}\leftarrow\mathbf{w}+\alpha\delta\nabla\hat{q}(S_{\tau},A_{\tau}, \mathbf{w})\)
+
+Exercise 10.9: In the differential semi-gradient \(n\)-step Sarsa algorithm, the step-size parameter on the average reward, \(\beta\), needs to be quite small so that \(\bar{R}\) becomes a good long-term estimate of the average reward. Unfortunately, \(\bar{R}\) will then be biased by its initial value for many steps, which may make learning inefficient. Alternatively, one could use a sample average of the observed rewards for \(\bar{R}\). That would initially adapt rapidly but in the long run would also adapt slowly. As the policy slowly changed, \(\bar{R}\) would also change; the potential for such long-term nonstationarity makes sample-average methods ill-suited. In fact, the step-size parameter on the average reward is a perfect place to use the unbiased constant-step-size trick from Exercise 2.7. Describe the specific changes needed to the boxed algorithm for differential semi-gradient \(n\)-step Sarsa to use this trick.
+
+
+
+--- Page 278 ---
+
+
+### 10.6 Summary
+
+In this chapter we have extended the ideas of parameterized function approximation and semi-gradient descent, introduced in the previous chapter, to control. The extension is immediate for the episodic case, but for the continuing case we have to introduce a whole new problem formulation based on maximizing the _average reward setting_ per time step. Surprisingly, the discounted formulation cannot be carried over to control in the presence of approximations. In the approximate case most policies cannot be represented by a value function. The arbitrary policies that remain need to be ranked, and the scalar average reward \(r(\pi)\) provides an effective way to do this.
+
+The average reward formulation involves new _differential_ versions of value functions, Bellman equations, and TD errors, but all of these parallel the old ones, and the conceptual changes are small. There is also a new parallel set of differential algorithms for the average-reward case.
+
+## Bibliographical and Historical Remarks
+
+* Semi-gradient Sarsa with function approximation was first explored by Rummery and Niranjan (1994). Linear semi-gradient Sarsa with \(\varepsilon\)-greedy action selection does not converge in the usual sense, but does enter a bounded region near the best solution (Gordon, 1996a, 2001). Precup and Perkins (2003) showed convergence in a differentiable action selection setting. See also Perkins and Pendrith (2002) and Melo, Meyn, and Ribeiro (2008). The mountain-car example is based on a similar task studied by Moore (1990), but the exact form used here is from Sutton (1996).
+* Episodic _n_-step semi-gradient Sarsa is based on the forward Sarsa(\(\lambda\)) algorithm of van Seijen (2016). The empirical results shown here are new to the second edition of this text.
+* The average-reward formulation has been described for dynamic programming (e.g., Puterman, 1994) and from the point of view of reinforcement learning (Mahadevan, 1996; Tadepalli and Ok, 1994; Bertsekas and Tsitsiklis, 1996; Tsitsiklis and Van Roy, 1999). The algorithm described here is the on-policy analog of the "R-learning" algorithm introduced by Schwartz (1993). The name R-learning was probably meant to be the alphabetic successor to Q-learning, but we prefer to think of it as a reference to the learning of differential or _relative_ values. The access-control queuing example was suggested by the work of Carlstrom and Nordstrom (1997).
+* The recognition of the limitations of discounting as a formulation of the reinforcement learning problem with function approximation became apparent to the authors shortly after the publication of the first edition of this text. Singh, Jaakkola, and Jordan (1994) may have been the first to observe it in print.
+
+
+
+--- Page 279 ---
+
+
+## Chapter 11 "Off-policy Methods with Approximation
+
+This book has treated on-policy and off-policy learning methods since Chapter 5 primarily as two alternative ways of handling the conflict between exploitation and exploration inherent in learning forms of generalized policy iteration. The two chapters preceding this have treated the _on_-policy case with function approximation, and in this chapter we treat the _off_-policy case with function approximation. The extension to function approximation turns out to be significantly different and harder for off-policy learning than it is for on-policy learning. The tabular off-policy methods developed in Chapters 6 and 7 readily extend to semi-gradient algorithms, but these algorithms do not converge as robustly as they do under on-policy training. In this chapter we explore the convergence problems, take a closer look at the theory of linear function approximation, introduce a notion of learnability, and then discuss new algorithms with stronger convergence guarantees for the off-policy case. In the end we will have improved methods, but the theoretical results will not be as strong, nor the empirical results as satisfying, as they are for on-policy learning. Along the way, we will gain a deeper understanding of approximation in reinforcement learning for on-policy learning as well as off-policy learning.
+
+Recall that in off-policy learning we seek to learn a value function for a _target policy_\(\pi\), given data due to a different _behavior policy_\(b\). In the prediction case, both policies are static and given, and we seek to learn either state values \(\hat{v}\approx v_{\pi}\) or action values \(\hat{q}\approx q_{\pi}\). In the control case, action values are learned, and both policies typically change during learning--\(\pi\) being the greedy policy with respect to \(\hat{q}\), and \(b\) being something more exploratory
+
+--- Page 280 ---
+tabular and approximate. The extension of these techniques to function approximation are quickly dealt with in the first section of this chapter.
+
+Something more is needed for the second part of the challenge of off-policy learning with function approximation because the distribution of updates in the off-policy case is not according to the on-policy distribution. The on-policy distribution is important to the stability of semi-gradient methods. Two general approaches have been explored to deal with this. One is to use importance sampling methods again, this time to warp the update distribution back to the on-policy distribution, so that semi-gradient methods are guaranteed to converge (in the linear case). The other is to develop true gradient methods that do not rely on any special distribution for stability. We present methods based on both approaches. This is a cutting-edge research area, and it is not clear which of these approaches is most effective in practice.
+
+### 11.1 Semi-gradient Methods
+
+We begin by describing how the methods developed in earlier chapters for the off-policy case extend readily to function approximation as semi-gradient methods. These methods address the first part of the challenge of off-policy learning (changing the update targets) but not the second part (changing the update distribution). Accordingly, these methods may diverge in some cases, and in that sense are not sound, but still they are often successfully used. Remember that these methods _are_ guaranteed stable and asymptotically unbiased for the tabular case, which corresponds to a special case of function approximation. So it may still be possible to combine them with feature selection methods in such a way that the combined system could be assured stable. In any event, these methods are simple and thus a good place to start.
+
+In Chapter 7 we described a variety of tabular off-policy algorithms. To convert them to semi-gradient form, we simply replace the update to an array (\(V\) or \(Q\)) to an update to a weight vector (\(\mathbf{w}\)), using the approximate value function (\(\hat{v}\) or \(\hat{q}\)) and its gradient. Many of these algorithms use the per-step importance sampling ratio:
+
+\[\rho_{t}\doteq\rho_{t:t}=\frac{\pi(A_{t}|S_{t})}{b(A_{t}|S_{t})}. \tag{11.1}\]
+
+For example, the one-step, state-value algorithm is semi-gradient off-policy TD(0), which is just like the corresponding on-policy algorithm (page 203) except for the addition of \(\rho_{t}\):
+
+\[\mathbf{w}_{t+1}\doteq\mathbf{w}_{t}+\alpha\rho_{t}\delta_{t}\nabla\hat{v}(S_{ t},\mathbf{w}_{t}), \tag{11.2}\]
+
+where \(\delta_{t}\) is defined appropriately depending on whether the problem is episodic and discounted, or continuing and undiscounted using average reward:
+
+\[\delta_{t}\doteq R_{t+1}+\gamma\hat{v}(S_{t+1},\mathbf{w}_{t})-\hat{v}(S_{t}, \mathbf{w}_{t}),\text{ or} \tag{11.3}\]
+
+\[\delta_{t}\doteq R_{t+1}-\bar{R}_{t}+\hat{v}(S_{t+1},\mathbf{w}_{t})-\hat{v}(S_ {t},\mathbf{w}_{t}). \tag{11.4}\]
+
+--- Page 281 ---
+For action values, the one-step algorithm is semi-gradient Expected Sarsa:
+
+\[\mathbf{w}_{t+1} \doteq\mathbf{w}_{t}+\alpha\delta_{t}\nabla\hat{q}(S_{t},A_{t}, \mathbf{w}_{t}),\text{ with }\] (11.5) \[\delta_{t} \doteq R_{t+1}+\gamma\sum_{a}\pi(a|S_{t+1})\hat{q}(S_{t+1},a, \mathbf{w}_{t})-\hat{q}(S_{t},A_{t},\mathbf{w}_{t}),\text{ or }\] (episodic) \[\delta_{t} \doteq R_{t+1}-\bar{R}_{t}+\sum_{a}\pi(a|S_{t+1})\hat{q}(S_{t+1},a, \mathbf{w}_{t})-\hat{q}(S_{t},A_{t},\mathbf{w}_{t}).\] (continuing)
+
+Note that this algorithm does not use importance sampling. In the tabular case it is clear that this is appropriate because the only sample action is \(A_{t}\), and in learning its value we do not have to consider any other actions. With function approximation it is less clear because we might want to weight different state-action pairs differently once they all contribute to the same overall approximation. Proper resolution of this issue awaits a more thorough understanding of the theory of function approximation in reinforcement learning.
+
+In the multi-step generalizations of these algorithms, both the state-value and action-value algorithms involve importance sampling. The \(n\)-step version of semi-gradient Sarsa is
+
+\[\mathbf{w}_{t+n} \doteq\mathbf{w}_{t+n-1}+\alpha\rho_{t+1}\cdots\rho_{t+n}\left[G_ {t:t+n}-\hat{q}(S_{t},A_{t},\mathbf{w}_{t+n-1})\right]\nabla\hat{q}(S_{t},A_{ t},\mathbf{w}_{t+n-1}) \tag{11.6}\]
+
+with
+
+\[G_{t:t+n} \doteq R_{t+1}+\cdots+\gamma^{n-1}R_{t+n}+\gamma^{n}\hat{q}(S_{t+ n},A_{t+n},\mathbf{w}_{t+n-1}),\text{ or }\] (episodic) \[G_{t:t+n} \doteq R_{t+1}-\bar{R}_{t}+\cdots+R_{t+n}-\bar{R}_{t+n-1}+\hat{q}(S_{t+ n},A_{t+n},\mathbf{w}_{t+n-1}),\text{ (continuing)}\]
+
+where here we are being slightly informal in our treatment of the ends of episodes. In the first equation, the \(\rho_{k}\)s for \(k\geq T\) (where \(T\) is the last time step of the episode) should be taken to be 1, and \(G_{t:t+n}\) should be taken to be \(G_{t}\) if \(t+n\geq T\).
+
+Recall that we also presented in Chapter 7 an off-policy algorithm that does not involve importance sampling at all: the \(n\)-step tree-backup algorithm. Here is its semi-gradient version:
+
+\[\mathbf{w}_{t+n} \doteq\mathbf{w}_{t+n-1}+\alpha\left[G_{t:t+n}-\hat{q}(S_{t},A_{t },\mathbf{w}_{t+n-1})\right]\nabla\hat{q}(S_{t},A_{t},\mathbf{w}_{t+n-1}), \tag{11.7}\] \[G_{t:t+n} \doteq\hat{q}(S_{t},A_{t},\mathbf{w}_{t+n-1})+\sum_{k=t}^{t+n-1} \delta_{k}\prod_{i=t+1}^{k}\gamma\pi(A_{i}|S_{i}), \tag{11.8}\]
+
+with \(\delta_{t}\) as defined at the top of this page for Expected Sarsa. We also defined in Chapter 7 an algorithm that unifies all action-value algorithms: \(n\)-step \(Q(\sigma)\). We leave the semi-gradient form of that algorithm, and also of the \(n\)-step state-value algorithm, as exercises for the reader.
+
+_Exercise 11.1_ Convert the equation of \(n\)-step off-policy TD (7.9) to semi-gradient form. Give accompanying definitions of the return for both the episodic and continuing cases. \(\square\)
+
+\({}^{\star}\)_Exercise 11.2_ Convert the equations of \(n\)-step \(Q(\sigma)\) (7.11 and 7.17) to semi-gradient form. Give definitions that cover both the episodic and continuing cases. \(\square\)
+
+--- Page 282 ---
+
+
+### 11.2 Examples of Off-policy Divergence
+
+In this section we begin to discuss the second part of the challenge of off-policy learning with function approximation--that the distribution of updates does not match the on-policy distribution. We describe some instructive counterexamples to off-policy learning--cases where semi-gradient and other simple algorithms are unstable and diverge.
+
+To establish intuitions, it is best to consider first a very simple example. Suppose, perhaps as part of a larger MDP, there are two states whose estimated values are of the functional form \(w\) and \(2w\), where the parameter vector \(\mathbf{w}\) consists of only a single component \(w\). This occurs under linear function approximation if the feature vectors for the two states are each simple numbers (single
+
+--- Page 283 ---
+[Empty page]
+
+--- Page 284 ---
+overall weight vector \(\mathbf{w}\in\mathbb{R}^{8}\); this corresponds to a feature vector for the first state being \(\mathbf{x}(1)=(2,0,0,0,0,0,0,1)^{\top}\). The reward is zero on all transitions, so the true value function is \(v_{\pi}(s)=0\), for all \(s\), which can be exactly approximated if \(\mathbf{w}=\mathbf{0}\). In fact, there are many solutions, as there are more components to the weight vector (8) than there are nonterminal states (7). Moreover, the set of feature vectors, \(\{\mathbf{x}(s):s\in\mathcal{S}\}\), is a linearly independent set. In all these ways this task seems a favorable case for linear function approximation.
+
+If we apply semi-gradient TD(0) to this problem (11.2), then the weights diverge to infinity, as shown in Figure 11.2 (left). The instability occurs for any positive step size, no matter how small. In fact, it even occurs if an expected update is done as in dynamic programming (DP), as shown in Figure 11.2 (right). That is, if the weight vector, \(\mathbf{w}_{k}\), is updated for all states at the same time in a semi-gradient way, using the DP (expectation-based) target:
+
+\[\mathbf{w}_{k+1}\doteq\mathbf{w}_{k}+\frac{\alpha}{|\mathcal{S}|}\sum_{s} \Bigl{(}\mathbb{E}_{\pi}[R_{t+1}+\gamma\hat{v}(S_{t+1,}\mathbf{w}_{k})\ |\ S_{t} \!=\!s]-\hat{v}(s,\!\mathbf{w}_{k})\Bigr{)}\nabla\hat{v}(s,\!\mathbf{w}_{k}). \tag{11.9}\]
+
+In this case, there is no randomness and no asynchrony, just as in a classical DP update. The method is conventional except in its use of semi-gradient function approximation. Yet still the system is unstable.
+
+If we alter just the distribution of DP updates in Baird's counterexample, from the uniform distribution to the on-policy distribution (which generally requires asynchronous updating), then convergence is guaranteed to a solution with error bounded by (9.14). This example is striking because the TD and DP methods used are arguably the simplest
+
+Figure 11.2: Demonstration of instability on Baird’s counterexample. Shown are the evolution of the components of the parameter vector \(\mathbf{w}\) of the two semi-gradient algorithms. The step size was \(\alpha=0.01\), and the initial weights were \(\mathbf{w}=(1,1,1,1,1,1,10,1)^{\top}\).
+
+
+
+--- Page 285 ---
+and best-understood bootstrapping methods, and the linear, semi-descent method used is arguably the simplest and best-understood kind of function approximation. The example shows that even the simplest combination of bootstrapping and function approximation can be unstable if the updates are not done according to the on-policy distribution.
+
+There are also counterexamples similar to Baird's showing divergence for Q-learning. This is cause for concern because otherwise Q-learning has the best convergence guarantees of all control methods. Considerable effort has gone into trying to find a remedy to this problem or to obtain some weaker, but still workable, guarantee. For example, it may be possible to guarantee convergence of Q-learning as long as the behavior policy is sufficiently close to the target policy, for example, when it is the \(\varepsilon\)-greedy policy. To the best of our knowledge, Q-learning has never been found to diverge in this case, but there has been no theoretical analysis. In the rest of this section we present several other ideas that have been explored.
+
+Suppose that instead of taking just a step toward the expected one-step return on each iteration, as in Baird's counterexample, we actually change the value function all the way to the best, least-squares approximation. Would this solve the instability problem? Of course it would if the feature vectors, \(\{\mathbf{x}(s)\,:\,s\in\mathcal{S}\}\), formed a linearly independent set, as they do in Baird's counterexample, because then exact approximation is possible on each iteration and the method reduces to standard tabular DP. But of course the point here is to consider the case when an exact solution is _not_ possible. In this case stability is not guaranteed even when forming the best approximation at each iteration, as shown in the example.
+
+**Example 11.1: Tsitsiklis and Van Roy's Counterexample** This example shows that linear function approximation would not work with DP even if the least-squares solution was found at each step. The counterexample is formed by extending the \(w\)-to-\(2w\) example (from earlier in this section) with a terminal state, as shown to the right. As before, the estimated value of the first state is \(w\), and the estimated value of the second state is \(2w\). The reward is zero on all transitions, so the true values are zero at both states, which is exactly representable with \(w=0\). If we set \(w_{
+
+--- Page 286 ---
+Another way to try to prevent instability is to use special methods for function approximation. In particular, stability is guaranteed for function approximation methods that do not extrapolate from the observed targets. These methods, called _averagers_, include nearest neighbor methods and locally weighted regression, but not popular methods such as tile coding and artificial neural networks (ANNs).
+
+_Exercise 11.3 (programming)_ Apply one-step semi-gradient Q-learning to Baird's counterexample and show empirically that its weights diverge. \(\Box\)
+
+### 11.3 The Deadly Triad
+
+Our discussion so far can be summarized by saying that the danger of instability and divergence arises whenever we combine all of the following three elements, making up what we call _the deadly triad_:
+
+**Function approximation**: A powerful, scalable way of generalizing from a state space much larger than the memory and computational resources (e.g., linear function approximation or ANNs).
+**Bootstrapping**: Update targets that include existing estimates (as in dynamic programming or TD methods) rather than relying exclusively on actual rewards and complete returns (as in MC methods).
+**Off-policy training**: Training on a distribution of transitions other than that produced by the target policy. Sweeping through the state space and updating all states uniformly, as in dynamic programming, does not respect the target policy and is an example of off-policy training.
+
+In particular, note that the danger is _not_ due to control or to generalized policy iteration. Those cases are more complex to analyze, but the instability arises in the simpler prediction case whenever it includes all three elements of the deadly triad. The danger is also _not_ due to learning or to uncertainties about the environment, because it occurs just as strongly in planning methods, such as dynamic programming, in which the environment is completely known.
+
+If any two elements of the deadly triad are present, but not all three, then instability can be avoided. It is natural, then, to go through the three and see if there is any one that can be given up.
+
+Of the three, _function approximation_ most clearly cannot be given up. We need methods that scale to large problems and to great expressive power. We need at least linear function approximation with many features and parameters. State aggregation or nonparametric methods whose complexity grows with data are too weak or too expensive. Least-squares methods such as LSTD are of quadratic complexity and are therefore too expensive for large problems.
+
+Doing without _bootstrapping_ is possible, at the cost of computational and data efficiency. Perhaps most important are the losses in computational efficiency. Monte Carlo (non-bootstrapping) methods require memory to save everything that happens between making 
+
+--- Page 287 ---
+each prediction and obtaining the final return, and all their computation is done once the final return is obtained. The cost of these computational issues is not apparent on serial von Neumann computers, but would be on specialized hardware. With bootstrapping and eligibility traces (Chapter 12), data can be dealt with when and where it is generated, then need never be used again. The savings in communication and memory made possible by bootstrapping are great.
+
+The losses in data efficiency by giving up _bootstrapping_ are also significant. We have seen this repeatedly, such as in Chapters 7 (Figure 7.2) and 9 (Figure 9.2), where some degree of bootstrapping performed much better than Monte Carlo methods on the random-walk prediction task, and in Chapter 10 where the same was seen on the Mountain-Car control task (Figure 10.4). Many other problems show much faster learning with bootstrapping (e.g., see Figure 12.14). Bootstrapping often results in faster learning because it allows learning to take advantage of the state property, the ability to recognize a state upon returning to it. On the other hand, bootstrapping can impair learning on problems where the state representation is poor and causes poor generalization (e.g., this seems to be the case on Tetris, see Simsek, Algorta, and Kothiyal, 2016). A poor state representation can also result in bias; this is the reason for the poorer bound on the asymptotic approximation quality of bootstrapping methods (Equation 9.14). On balance, the ability to bootstrap has to be considered extremely valuable. One may sometimes choose not to use it by selecting long _n_-step updates (or a large bootstrapping parameter, \(\lambda\approx 1\); see Chapter 12) but often bootstrapping greatly increases efficiency. It is an ability that we would very much like to keep in our toolkit.
+
+Finally, there is _off-policy learning_; can we give that up? On-policy methods are often adequate. For model-free reinforcement learning, one can simply use Sarsa rather than Q-learning. Off-policy methods free behavior from the target policy. This could be considered an appealing convenience but not a necessity. However, off-policy learning _is essential_ to other anticipated use cases, cases that we have not yet mentioned in this book but may be important to the larger goal of creating a powerful intelligent agent.
+
+In these use cases, the agent learns not just a single value function and single policy, but large numbers of them in parallel. There is extensive psychological evidence that people and animals learn to predict many different sensory events, not just rewards. We can be surprised by unusual events, and correct our predictions about them, even if they are of neutral valence (neither good nor bad). This kind of prediction presumably underlies predictive models of the world such as are used in planning. We predict what we will see after eye movements, how long it will take to walk home, the probability of making a jump shot in basketball, and the satisfaction we will get from taking on a new project. In all these cases, the events we would like to predict depend on our acting in a certain way. To learn them all, in parallel, requires learning from the one stream of experience. There are many target policies, and thus the one behavior policy cannot equal all of them. Yet parallel learning is conceptually possible because the behavior policy may overlap in part with many of the target policies. To take full advantage of this requires off-policy learning.
+
+
+
+--- Page 288 ---
+
+
+### 11.4 Linear Value-function Geometry
+
+To better understand the stability challenge of off-policy learning, it is helpful to think about value function approximation more abstractly and independently of how learning is done. We can imagine the space of all possible state-value functions--all functions from states to real numbers \(v:\mathcal{S}\to\mathbb{R}\). Most of these value functions do not correspond to any policy. More important for our purposes is that most are not representable by the function approximator, which by design has far fewer parameters than there are states.
+
+Given an enumeration of the state space \(\mathcal{S}=\{s_{1},s_{2},\ldots,s_{|\mathcal{S}|}\}\), any value function \(v\) corresponds to a vector listing the value of each state in order \([v(s_{1}),v(s_{2}),\ldots,v(s_{|\mathcal{S}|})]^{\top}\). This vector representation of a value function has as many components as there are states. In most cases where we want to use function approximation, this would be far too many components to represent the vector explicitly. Nevertheless, the idea of this vector is conceptually useful. In the following, we treat a value function and its vector representation interchangeably.
+
+To develop intuitions, consider the case with three states \(\mathcal{S}=\{s_{1},s_{2},s_{3}\}\) and two parameters \(\mathbf{w}=(w_{1},w_{2})^{\top}\). We can then view all value functions/vectors as points in a three-dimensional space. The parameters provide an alternative coordinate system over a two-dimensional subspace. Any weight vector \(\mathbf{w}=(w_{1},w_{2})^{\top}\) is a point in the two-dimensional subspace and thus also a complete value function \(v_{\mathbf{w}}\) that assigns values to all three states. With general function approximation the relationship between the full space and the subspace of representable functions could be complex, but in the case of _linear_ value-function approximation the subspace is a simple plane, as suggested by Figure 11.3.
+
+Now consider a single fixed policy \(\pi\). We assume that its true value function, \(v_{\pi}\), is too complex to be represented exactly as an approximation. Thus \(v_{\pi}\) is not in the subspace; in the figure it is depicted as being above the planar subspace of representable functions.
+
+If \(v_{\pi}\) cannot be represented exactly, what representable value function is closest to it? This turns out to be a subtle question with multiple answers. To begin, we need a measure of the distance between two value functions. Given two value functions \(v_{1}\) and \(v_{2}\), we can talk about the vector difference between them, \(v=v_{1}-v_{2}\). If \(v\) is small, then the two value functions are close to each other. But how are we to measure the size of this difference vector? The conventional Euclidean norm is not appropriate because, as discussed in Section 9.2, some states are more important than others because they occur more frequently or because we are more interested in them (Section 9.11). As in Section 9.2, let us use the distribution \(\mu:\mathcal{S}\to[0,1]\) to specify the degree to which we care about different states being accurately valued (often taken to be the on-policy distribution). We can then define the distance between value functions using the norm
+
+\[\left\|v\right\|_{\mu}^{2}\doteq\sum_{s\in\mathcal{S}}\mu(s)v(s)^{2}. \tag{11.11}\]
+
+Note that the \(\overline{\mathrm{VE}}\) from Section 9.2 can be written simply using this norm as \(\overline{\mathrm{VE}}(\mathbf{w})=\left\|v_{\mathbf{w}}-v_{\pi}\right\|_{\mu}^ {2}\). For any value function \(v\), the operation of finding its closest value function in the subspace of representable value functions is a projection operation. We define a
+
+--- Page 289 ---
+projection operator \(\Pi\) that takes an arbitrary value function to the representable function that is closest in our norm:
+
+\[\Pi v\doteq v_{\mathbf{w}}\ \ \text{where}\ \ \mathbf{w}=\operatorname*{argmin}_{ \mathbf{w}\in\mathbb{R}^{d}}\left\|v-v_{\mathbf{w}}\right\|_{\mu}^{2}. \tag{11.12}\]
+
+The representable value function that is closest to the true value function \(v_{\pi}\) is thus its projection, \(\Pi v_{\pi}\), as suggested in Figure 11.3. This is the solution asymptotically found by Monte Carlo methods, albeit often very slowly. The projection operation is discussed more fully in the box on the next page.
+
+TD methods find different solutions. To understand their rationale, recall that the Bellman equation for value function \(v_{\pi}\) is
+
+\[v_{\pi}(s)=\sum_{a}\pi(a|s)\sum_{s^{\prime},r}p(s^{\prime},r|s,a)\left[r+\gamma v _{\pi}(s^{\prime})\right],\qquad\text{for all}\ s\in\mathbb{S}. \tag{11.16}\]
+
+Figure 11.3: The geometry of linear value-function approximation. Shown is the three-dimensional space of all value functions over three states, while shown as a plane is the subspace of all value functions representable by a linear function approximator with parameter \(\mathbf{w}=(w_{1},w_{2})^{\top}\). The true value function \(v_{\pi}\) is in the larger space and can be projected down (into the subspace, using a projection operator \(\Pi\)) to its best approximation in the value error (VE) sense. The best approximators in the Bellman error (BE), projected Bellman error (PBE), and temporal difference error (TDE) senses are all potentially different and are shown in the lower right. (VE, BE, and PBE are all treated as the corresponding vectors in this figure.) The Bellman operator takes a value function in the plane to one outside, which can then be projected back. If you iteratively applied the Bellman operator outside the space (shown in gray above) you would reach the true value function, as in conventional dynamic programming. If instead you kept projecting back into the subspace at each step, as in the lower step shown in gray, then the fixed point would be the point of vector-zero PBE.
+
+
+
+--- Page 290 ---
+[Empty page]
+
+--- Page 291 ---
+defined by
+
+\[(B_{\pi}v)(s)\doteq\sum_{a}\pi(a|s)\sum_{s^{\prime},r}p(s^{\prime},r\,|\,s,a)\left[r +\gamma v(s^{\prime})\right], \tag{11.20}\]
+
+for all \(s\in\mathscr{S}\), \(v:\mathscr{S}\to\mathbb{R}\). The Bellman error vector for \(v_{\mathbf{w}}\) can be written \(\bar{\delta}_{\mathbf{w}}=B_{\pi}v_{\mathbf{w}}-v_{\mathbf{w}}\).
+
+If the Bellman operator is applied to a value function in the representable subspace, then, in general, it will produce a new value function that is outside the subspace, as suggested in the figure. In dynamic programming (without function approximation), this operator is applied repeatedly to the points outside the representable space, as suggested by the gray arrows in the top of Figure 11.3. Eventually that process converges to the true value function \(v_{\pi}\), the only fixed point for the Bellman operator, the only value function for which
+
+\[v_{\pi}=B_{\pi}v_{\pi}, \tag{11.21}\]
+
+which is just another way of writing the Bellman equation for \(\pi\) (11.16).
+
+With function approximation, however, the intermediate value functions lying outside the subspace cannot be represented. The gray arrows in the upper part of Figure 11.3 cannot be followed because after the first update (dark line) the value function must be projected back into something representable. The next iteration then begins within the subspace; the value function is again taken outside of the subspace by the Bellman operator and then mapped back by the projection operator, as suggested by the lower gray arrow and line. Following these arrows is a DP-like process with approximation.
+
+In this case we are interested in the projection of the Bellman error vector back into the representable space. This is the projected Bellman error vector \(\Pi\bar{\delta}_{\mathbf{w}}\), shown in Figure 11.3 as PBE. The size of this vector, in the norm, is another measure of error in the approximate value function. For any approximate value function \(v_{\mathbf{w}}\), we define the _mean square Projected Bellman error_, denoted \(\overline{\text{PBE}}\), as
+
+\[\overline{\text{PBE}}(\mathbf{w})=\left\|\Pi\bar{\delta}_{\mathbf{w}}\right\| _{\mu}^{2}. \tag{11.22}\]
+
+With linear function approximation there always exists an approximate value function (within the subspace) with zero \(\overline{\text{PBE}}\); this is the TD fixed point, \(\mathbf{w}_{\text{TD}}\), introduced in Section 9.4. As we have seen, this point is not always stable under semi-gradient TD methods and off-policy training. As shown in the figure, this value function is generally different from those minimizing \(\overline{\text{VE}}\) or \(\overline{\text{BE}}\). Methods that are guaranteed to converge to it are discussed in Sections 11.7 and 11.8.
+
+### 11.5 Gradient Descent in the Bellman Error
+
+Armed with a better understanding of value function approximation and its various objectives, we return now to the challenge of stability in off-policy learning. We would like to apply the approach of stochastic gradient descent (SGD, Section 9.3), in which updates are made that in expectation are equal to the negative gradient of an objective 
+
+--- Page 292 ---
+function. These methods always go downhill (in expectation) in the objective and because of this are typically stable with excellent convergence properties. Among the algorithms investigated so far in this book, only the Monte Carlo methods are true SGD methods. These methods converge robustly under both on-policy and off-policy training as well as for general nonlinear (differentiable) function approximators, though they are often slower than semi-gradient methods with bootstrapping, which are not SGD methods. Semi-gradient methods may diverge under off-policy training, as we have seen earlier in this chapter, and under contrived cases of nonlinear function approximation (Tsitsiklis and Van Roy, 1997). With a true SGD method such divergence would not be possible.
+
+The appeal of SGD is so strong that great effort has gone into finding a practical way of harnessing it for reinforcement learning. The starting place of all such efforts is the choice of an error or objective function to optimize. In this and the next section we explore the origins and limits of the most popular proposed objective function, that based on the _Bellman error_ introduced in the previous section. Although this has been a popular and influential approach, the conclusion that we reach here is that it is a misstep and yields no good learning algorithms. On the other hand, this approach fails in an interesting way that offers insight into what might constitute a good approach.
+
+To begin, let us consider not the Bellman error, but something more immediate and naive. Temporal difference learning is driven by the TD error. Why not take the minimization of the expected square of the TD error as the objective? In the general function-approximation case, the one-step TD error with discounting is
+
+\[\delta_{t}=R_{t+1}+\gamma\hat{v}(S_{t+1},\mathbf{w}_{t})-\hat{v}(S_{t},\mathbf{ w}_{t}).\]
+
+A possible objective function then is what one might call the _mean square TD error_:
+
+\[\overline{\mathrm{TDE}}(\mathbf{w}) =\sum_{s\in\mathcal{S}}\mu(s)\mathbb{E}\big{[}\delta_{t}^{2}\ \big{|}\ S_{t}\!=\!s,A_{t}\!\sim\!\pi\big{]}\] \[=\sum_{s\in\mathcal{S}}\mu(s)\mathbb{E}\big{[}\rho_{t}\delta_{t}^ {2}\ \big{|}\ S_{t}\!=\!s,A_{t}\!\sim\!b\big{]}\] \[=\mathbb{E}_{b}\big{[}\rho_{t}\delta_{t}^{2}\big{]}\,.\qquad\qquad \qquad\qquad\text{ (if $\mu$ is the distribution encountered under $b$)}\]
+
+The last equation is of the form needed for SGD; it gives the objective as an expectation that can be sampled from experience (remember the experience is due to the behavior policy \(b\)). Thus, following the standard SGD approach, one can derive the per-step update based on a sample of this expected value:
+
+\[\mathbf{w}_{t+1} =\mathbf{w}_{t}-\frac{1}{2}\alpha\nabla(\rho_{t}\delta_{t}^{2})\] \[=\mathbf{w}_{t}-\alpha\rho_{t}\delta_{t}\nabla\delta_{t}\] \[=\mathbf{w}_{t}+\alpha\rho_{t}\delta_{t}\big{(}\nabla\hat{v}(S_{t },\mathbf{w}_{t})-\gamma\nabla\hat{v}(S_{t+1}
+
+
+
+--- Page 293 ---
+residual-gradient_ algorithm (after Baird, 1995). Although the naive residual-gradient algorithm converges robustly, it does not necessarily converge to a desirable place.
+
+[breakable,colback=white!5!white,colframe=black!5!black,title=Example 11-28: A-split example]
+
+Sticoving the network of the naive residual-gradient algorithm
+
+Consider the three-state episodic MRP shown to the right. Episodes begin in state A and then'split' stochastically, half the time going to B (and then invariably going on to terminate with a reward of 1) and half the time going to state C (and then invariably terminating with a reward of zero). Reward for the first transition, out of A, is always zero whichever way the episode goes. As this is an episodic problem, we can take \(\gamma\) to be 1. We also assume on-policy training, so that \(\rho_{t}\) is always 1, and tabular function approximation, so that the learning algorithms are free to give arbitrary, independent values to all three states. Thus, this should be an easy problem.
+
+What should the values be? From A, half the time the return is 1, and half the time the return is 0; A should have value \(\frac{1}{2}\). From B the return 
+
+--- Page 294 ---
+A tabular representation is used in the A-split example, so the true state values can be exactly represented, yet the naive residual-gradient algorithm finds different values, and these values have lower \(\overline{\text{TDE}}\) than do the true values. Minimizing the \(\overline{\text{TDE}}\) is naive; by penalizing all TD errors it achieves something more like temporal smoothing than accurate prediction.
+
+A better idea would seem to be minimizing the mean square Bellman error (\(\overline{\text{BE}}\)). If the exact values are learned, the Bellman error is zero everywhere. Thus, a Bellman-error-minimizing algorithm should have no trouble with the A-split example. We cannot expect to achieve zero Bellman error in general, as it would involve finding the true value function, which we presume is outside the space of representable value functions. But getting close to this ideal is a natural-seeming goal. As we have seen, the Bellman error is also closely related to the TD error. The Bellman error for a state is the expected TD error in that state. So let's repeat the derivation above with the expected TD error (all expectations here are implicitly conditional on \(S_{t}\)):
+
+\[\mathbf{w}_{t+1} =\mathbf{w}_{t}-\frac{1}{2}\alpha\nabla(\mathbb{E}_{\pi}[\delta_{ t}]^{2})\] \[=\mathbf{w}_{t}-\frac{1}{2}\alpha\nabla(\mathbb{E}_{b}[\rho_{t} \delta_{t}]^{2})\] \[=\mathbf{w}_{t}-\alpha\mathbb{E}_{b}[\rho_{t}\delta_{t}]\,\nabla \mathbb{E}_{b}[\rho_{t}\delta_{t}]\] \[=\mathbf{w}_{t}-\alpha\mathbb{E}_{b}[\rho_{t}(R_{t+1}+\gamma \hat{v}(S_{t+1,}\mathbf{w})-\hat{v}(S_{t},\mathbf{w}))]\,\mathbb{E}_{b}[\rho_ {t}\nabla\delta_{t}]\] \[=\mathbf{w}_{t}+\alpha\Big{[}\mathbb{E}_{b}\big{[}\rho_{t}(R_{t+ 1}+\gamma\hat{v}(S_{t+1,}\mathbf{w}))\big{]}-\hat{v}(S_{t},\mathbf{w})\Big{]} \Big{[}\nabla\hat{v}(S_{t},\mathbf{w})-\gamma\mathbb{E}_{b}\big{[}\rho_{t} \nabla\hat{v}(S_{t+1,}\mathbf{w})\big{]}\Big{]}.\]
+
+This update and various ways of sampling it are referred to as the _residual-gradient algorithm_. If you simply used the sample values in all the expectations, then the equation above reduces almost exactly to (11.23), the naive residual-gradient algorithm.1 But this is naive, because the equation above involves the next state, \(S_{t+1}\), appearing in two expectations that are multiplied together. To get an unbiased sample of the product, two independent samples of the next state are required, but during normal interaction with an external environment only one is obtained. One expectation or the other can be sampled, but not both.
+
+Footnote 1: For state values there remains a small difference in the treatment of the importance sampling ratio \(\rho_{t}\). In the analagous action-value case (which is the most important case for control algorithms), the residual-gradient algorithm would reduce exactly to the naive version.
+
+There are two ways to make the residual-gradient algorithm work. One is in the case of deterministic environments. If the transition to the next state is deterministic, then the two samples will necessarily be the same, and the naive algorithm is valid. The other way is to obtain _two_ independent samples of the next state, \(S_{t+1}\), from \(S_{t}\), one for the first expectation and another for the second expectation. In real interaction with an environment, this would not seem possible, but when interacting with a simulated environment, it is. One simply rolls back to the previous state and obtains an alternate next state before proceeding forward from the first next state. In either of these cases the residual-gradient algorithm is guaranteed to converge to a minimum of the \(\overline{\text{BE}}\) under the usual conditions on the step-size parameter. As a true SGD method, this convergence is 
+
+--- Page 295 ---
+robust, applying to both linear and nonlinear function approximators. In the linear case, convergence is always to the _unique_\(\mathbf{w}\) that minimizes the \(\overline{\mathrm{BE}}\).
+
+However, there remain at least three ways in which the convergence of the residual-gradient method is unsatisfactory. The first of these is that empirically it is slow, much slower that semi-gradient methods. Indeed, proponents of this method have proposed increasing its speed by combining it with faster semi-gradient methods initially, then gradually switching over to residual gradient for the convergence guarantee (Baird and Moore, 1999). The second way in which the residual-gradient algorithm is unsatisfactory is that it still seems to converge to the wrong values. It does get the right values in all tabular cases, such as the A-split example, as for those an exact solution to the Bellman \(\overline{\mathrm{BE}}\).
+
+Example \(\overline{\mathrm{BE}}\). A one-style example is a counterexample for the \(\overline{\mathrm{BE}}\). Consider the three-state episodic MRP shown to the right: Episodes start in either A1 or A2, with equal probability. These two states look exactly the same to the function approximator, like a single state A whose feature representation is distinct from and unrelated to the feature representation of the other two states, B and C, which are also distinct from each other. Specifically, the parameter of the function approximator has three components, one giving the value of state B, one giving the value of state C, and one giving the value of both states A1 and A2. Other than the selection of the initial state, the system is deterministic. If it starts in A1, then it transitions to B with 
+
+--- Page 296 ---
+equation is possible. But if we examine examples with genuine function approximation, then the residual-gradient algorithm, and indeed the \(\overline{\mathrm{BE}}\) objective, seem to find the wrong value functions. One of the most telling such examples is the variation on the A-split example known as the A-_pre_split example, shown on the preceding page, in which the residual-gradient algorithm finds the same poor solution as its naive version. This example shows intuitively that minimizing the \(\overline{\mathrm{BE}}\) (which the residual-gradient algorithm surely does) may not be a desirable goal.
+
+The third way in which the convergence of the residual-gradient algorithm is not satisfactory is explained in the next section. Like the second way, the third way is also a problem with the \(\overline{\mathrm{BE}}\) objective itself rather than with any particular algorithm for achieving it.
+
+### 11.6 The Bellman Error is Not Learnable
+
+The concept of learnability that we introduce in this section is different from that commonly used in machine learning. There, a hypothesis is said to be "learnable" if it is _efficiently_ learnable, meaning that it can be learned within a polynomial rather than an exponential number of examples. Here we use the term in a more basic way, to mean learnable at all, with any amount of experience. It turns out many quantities of apparent interest in reinforcement learning cannot be learned even from an infinite amount of experiential data. These quantities are well defined and can be computed given knowledge of the internal structure of the environment, but cannot be computed or estimated from the observed sequence of feature vectors, actions, and rewards.2 We say that they are not _learnable_. It will turn out that the Bellman error objective (\(\overline{\mathrm{BE}}\)) introduced in the last two sections is not learnable in this sense. That the Bellman error objective cannot be learned from the observable data is probably the strongest reason not to seek it.
+
+Footnote 2: They would of course be estimated if the _state_ sequence were observed rather than only the corresponding feature vectors.
+
+To make the concept of learnability clear, let's start with some simple examples. Consider the two Markov reward processes3 (MRPs) diagrammed below:
+
+Footnote 3: All MRPs can be considered MDPs with a single action in all states; what we conclude about MRPs here applies as well to MDPs.
+
+Where two edges leave a state, both transitions are assumed to occur with equal probability, and the numbers indicate the reward received. All the states appear the same; they all produce the same single-component feature vector \(x=1\) and have approximated value \(w\). Thus, the only varying part of the data trajectory is the reward sequence. The left MRP stays in the same state and emits an endless stream of 0s and 2s at random, each with 0.5 probability. The right MRP, on every step, either stays in its current state or 
+
+--- Page 297 ---
+switches to the other, with equal probability. The reward is deterministic in this MRP, always a 0 from one state and always a 2 from the other, but because the each state is equally likely on each step, the observable data is again an endless stream of 0s and 2s at random, identical to that produced by the left MRP. (We can assume the right MRP starts in one of two states at random with equal probability.) Thus, even given an infinite amount of data, it would not be possible to tell which of these two MRPs was generating it. In particular, we could not tell if the MRP has one state or two, is stochastic or deterministic. These things are not learnable.
+
+This pair of MRPs also illustrates that the \(\overline{\text{VE}}\) objective (9.1) is not learnable. If \(\gamma=0\), then the true values of the three states (in both MRPs), left to right, are 1, 0, and 2. Suppose \(w=1\). Then the \(\overline{\text{VE}}\) is 0 for the left MRP and 1 for the right MRP. Because the \(\overline{\text{VE}}\) is different in the two problems, yet the data generated has the same distribution, the \(\overline{\text{VE}}\) cannot be learned. The \(\overline{\text{VE}}\) is not a unique function of the data distribution. And if it cannot be learned, then how could the \(\overline{\text{VE}}\) possibly be useful as an objective for learning?
+
+If an objective cannot be learned, it does indeed draw its utility into question. In the case of the \(\overline{\text{VE}}\), however, there is a way out. Note that the same solution, \(w=1\), is optimal for both MRPs above (assuming \(\mu\) is the same for the two indistinguishable states in the right MRP). Is this a coincidence, or could it be generally true that all MDPs with the same data distribution also have the same optimal parameter vector? If this is true--and we will show next that it is--then the \(\overline{\text{VE}}\) remains a usable objective. The \(\overline{\text{VE}}\) is not learnable, but the parameter that optimizes it is!
+
+To understand this, it is useful to bring in another natural objective function, this time one that is clearly learnable. One error that is always observable is that between the value estimate at each time and the return from that time. The _mean square return error_, denoted \(\overline{\text{RE}}\), is the expectation, under \(\mu\), of the square of this error. In the on-policy case the \(\overline{\text{RE}}\) can be written
+
+\[\overline{\text{RE}}(\mathbf{w}) =\mathbb{E}\Big{[}\big{(}G_{t}-\hat{v}(S_{t},\mathbf{w})\big{)}^{ 2}\Big{]}\] \[=\overline{\text{VE}}(\mathbf{w})+\mathbb{E}\Big{[}\big{(}G_{t}-v _{\pi}(S_{t})\big{)}^{2}\Big{]}\,. \tag{11.24}\]
+
+Thus, the two objectives are the same except for a variance term that does not depend on the parameter vector. The two objectives must therefore have the same optimal parameter value \(\mathbf{w}^{*}\). The overall relationships are summarized in the left side of Figure 11.4.
+
+##### Exercise 11.4
+
+Prove (11.24). Hint: Write the \(\overline{\text{RE}}\) as an expectation over possible states \(s\) of the expectation of the squared error given that \(S_{t}=s\). Then add and subtract the true value of state \(s\) from the error (before squaring), grouping the subtracted true value with the return and the added true value with the estimated value. Then, if you expand the square, the most complex term will end up being zero, leaving you with (11.24). 
+
+Now let us return to the \(\overline{\text{BE}}\). The \(\overline{\text{BE}}\) is like the \(\overline{\text{VE}}\) in that it can be computed from knowledge of the MDP but is not learnable from data. But it is not like the \(\overline{\text{VE}}\) in that its minimum solution is not learnable. The box on the next page presents a counterexample--two MRPs that generate the same data distribution but whose minimizing parameter vector is different, proving that the optimal parameter vector is not a function of the 
+
+--- Page 298 ---
+[Empty page]
+
+--- Page 299 ---
+data and thus cannot be learned from it. The other bootstrapping objectives that we have considered, the \(\overline{\mathrm{PBE}}\) and \(\overline{\mathrm{TDE}}\), can be determined from data (are learnable) and determine optimal solutions that are in general different from each other and the \(\overline{\mathrm{BE}}\) minimums. The general case is summarized in the right side of Figure 11.4.
+
+Thus, the \(\overline{\mathrm{BE}}\) is not learnable; it cannot be estimated from feature vectors and other observable data. This limits the \(\overline{\mathrm{BE}}\) to model-based settings. There can be no algorithm that minimizes the \(\overline{\mathrm{BE}}\) without access to the underlying MDP states beyond the feature vectors. The residual-gradient algorithm is only able to minimize \(\overline{\mathrm{BE}}\) because it is allowed to double sample from the same state--not a state that has the same feature vector, but one that is guaranteed to be the same underlying state. We can see now that there is no way around this. Minimizing the \(\overline{\mathrm{BE}}\) requires some such access to the nominal, underlying MDP. This is an important limitation of the \(\overline{\mathrm{BE}}\) beyond that identified in the A-presplit example on page 273. All this directs more attention toward the \(\overline{\mathrm{PBE}}\).
+
+Figure 11.4: Causal relationships among the data distribution, MDPs, and various objectives. **Left, Monte Carlo objectives:** Two different MDPs can produce the same data distribution yet also produce different \(\overline{\mathrm{VEs}}\), proving that the \(\overline{\mathrm{VE}}\) objective cannot be determined from data and is not learnable. However, all such \(\overline{\mathrm{VEs}}\) must have the same optimal parameter vector, \(\mathbf{w}^{*}\)! Moreover, this same \(\mathbf{w}^{*}\) can be determined from another objective, the \(\overline{\mathrm{RE}}\), which _is_ uniquely determined from the data distribution. Thus \(\mathbf{w}^{*}\) and the \(\overline{\mathrm{RE}}\) are learnable even though the \(\overline{\mathrm{VEs}}\) are not. **Right, Bootstrapping objectives:** Two different MDPs can produce the same data distribution yet also produce different \(\overline{\mathrm{BE}}\)s _and_ have different minimizing parameter vectors; these are not learnable from the data distribution. The \(\overline{\mathrm{PBE}}\) and \(\overline{\mathrm{TDE}}\) objectives and their (different) minima can be directly determined from data and thus are learnable.
+
+
+
+--- Page 300 ---
+
+
+### 11.7 Gradient-TD Methods
+
+We now consider SGD methods for minimizing the \(\overline{\mathrm{PBE}}\). As true SGD methods, these _Gradient-TD methods_ have robust convergence properties even under off-policy training and nonlinear function approximation. Remember that in the linear case there is always an exact solution, the TD fixed point \(\mathbf{w}_{\mathrm{TD}}\), at which the \(\overline{\mathrm{PBE}}\) is zero. This solution could be found by least-squares methods (Section 9.8), but only by methods of quadratic \(O(d^{2})\) complexity in the number of parameters. We seek instead an SGD method, which should be \(O(d)\) and have robust convergence properties. Gradient-TD methods come close to achieving these goals, at the cost of a rough doubling of computational complexity.
+
+To derive an SGD method for the \(\overline{\mathrm{PBE}}\) (assuming linear function approximation) we begin by expanding and rewriting the objective (11.2
+
+--- Page 301 ---
+Substituting these expectations for the three factors in our expression for the gradient of the \(\overline{\text{PBE}}\), we get
+
+\[\nabla\overline{\text{PBE}}(\mathbf{w})=2\mathbb{E}\big{[}\rho_{t}(\gamma\mathbf{ x}_{t+1}-\mathbf{x}_{t})\mathbf{x}_{t}^{\top}\big{]}\,\mathbb{E}\big{[}\mathbf{x}_{t }\mathbf{x}_{t}^{\top}\big{]}^{-1}\,\mathbb{E}[\rho_{t}\delta_{t}\mathbf{x}_{t }]\,. \tag{11.27}\]
+
+It might not be obvious that we have made any progress by writing the gradient in this form. It is a product of three expressions and the first and last are not independent. They both depend on the next feature vector \(\mathbf{x}_{t+1}\); we cannot simply sample both of these expectations and then multiply the samples. This would give us a biased estimate of the gradient just as in the residual-gradient algorithm.
+
+Another idea would be to estimate the three expectations separately and then combine them to produce an unbiased estimate of the gradient. This would work, but would require a lot of computational resources, particularly to store the first two expectations, which are \(d\times d\) matrices, and to compute the inverse of the second. This idea can be improved. If two of the three expectations are estimated and stored, then the third could be sampled and used in conjunction with the two stored quantities. For example, you could store estimates of the second two quantities (using the increment inverse-updating techniques in Section 9.8) and then sample the first expression. Unfortunately, the overall algorithm would still be of quadratic complexity (of order \(O(d^{2})\)).
+
+The idea of storing some estimates separately and then combining them with samples is a good one and is also used in Gradient-TD methods. Gradient-TD methods estimate and store _the product_ of the second two factors in (11.27). These factors are a \(d\times d\) matrix and a \(d\)-vector, so their product is just a \(d\)-vector, like \(\mathbf{w}\) itself. We denote this second learned vector as \(\mathbf{v}\):
+
+\[\mathbf{v}\approx\mathbb{E}\big{[}\mathbf{x}_{t}\mathbf{x}_{t}^{\top}\big{]}^ {-1}\,\mathbb{E}[\rho_{t}\delta_{t}\mathbf{x}_{t}]\,. \tag{11.28}\]
+
+This form is familiar to students of linear supervised learning. It is the solution to a linear least-squares problem that tries to approximate \(\rho_{t}\delta_{t}\) from the features. The standard SGD method for incrementally finding the vector \(\mathbf{v}\) that minimizes the expected squared error \(\big{(}\mathbf{v}^{\top}\mathbf{x}_{t}-\rho_{t}\delta_{t}\big{)}^{2}\) is known as the Least Mean Square (LMS) rule (here augmented with an importance sampling ratio):
+
+\[\mathbf{v}_{t+1}\doteq\mathbf{v}_{t}+\beta\rho_{t}\left(\delta_{t}-\mathbf{v} _{t}^{\top}\mathbf{x}_{t}\right)\mathbf{x}_{t},\]
+
+where \(\beta>0\) is another step-size parameter. We can use this method to effectively achieve (11.28) with \(O(d)\) storage and per-step computation.
+
+Given a stored estimate \(\mathbf{v}_{t}\) approximating (11.28), we can update our main parameter vector \(\mathbf{w}_{t}\) using SGD methods based on (11.27). The simplest such rule is
+
+\[\mathbf{w}_{t+1} =\mathbf{w}_{t}-\frac{1}{2}\alpha\nabla\overline{\text{PBE}}( \mathbf{w}_{t})\] (the general SGD rule) \[=\mathbf{w}_{t}-\frac{1}{2}\alpha 2\mathbb{E}\big{[}\rho_{t}( \gamma\mathbf{x}_{t+1}-\mathbf{x}_{t})\mathbf{x}_{t}^{\top}\big{]}\,\mathbb{E} \big{[}\mathbf{x}_{t}\mathbf{x}_{t}^{\top}\big{]}^{-1}\,\mathbb{E}[\rho_{t} \delta_{t}\mathbf{x}_{t}]\] (from (11.27)) \[=\mathbf{w}_{t}+\alpha\mathbb{E}\big{[}\rho_{t}(\mathbf{x}_{t}- \gamma\mathbf{x}_{t+1})\mathbf{x}_{t}^{\top}\big{]}\,\mathbb{E}\big{[}\mathbf{ x}_{t}\mathbf{x}_{t}^{\top}\big{]}^{-1}\,\mathbb{E}[\rho_{t}\delta_{t}\mathbf{x}_{t}]\] (11.29) \[\approx\mathbf{w}_{t}+\alpha\mathbb{E}\big{[}\rho_{t}(\mathbf{x}_{ t}-\gamma\mathbf{x}_{t+1})\mathbf{x}_{t}^{\top}\big{]}\,\mathbf{v}_{t}\] (based on (11.28)) \[\approx\mathbf{w}_{t}+\alpha\rho_{t}\left(\mathbf{x}_{t}-\gamma \mathbf{x}_{t+1}\right)\mathbf{x}_{t}^{\top}\mathbf{v}_{t}.\] (sampling)
+
+--- Page 302 ---
+This algorithm is called _GTD2_. Note that if the final inner product \((\mathbf{x}_{t}^{\top}\mathbf{v}_{t})\) is done first, then the entire algorithm is of \(O(d)\) complexity.
+
+A slightly better algorithm can be derived by doing a few more analytic steps before substituting in \(\mathbf{v}_{t}\). Continuing from (11.29):
+
+\[\mathbf{w}_{t+1} =\mathbf{w}_{t}+\alpha\mathbb{E}\big{[}\rho_{t}(\mathbf{x}_{t}- \gamma\mathbf{x}_{t+1})\mathbf{x}_{t}^{\top}\big{]}\,\mathbb{E}\big{[}\mathbf{ x}_{t}\mathbf{x}_{t}^{\top}\big{]}^{-1}\,\mathbb{E}[\rho_{t}\delta_{t}\mathbf{x}_{t}]\] \[=\mathbf{w}_{t}+\alpha\left(\mathbb{E}\big{[}\rho_{t}\mathbf{x}_{ t}\mathbf{x}_{t}^{\top}\big{]}-\gamma\mathbb{E}\big{[}\rho_{t}\mathbf{x}_{t+1} \mathbf{x}_{t}^{\top}\big{]}\right)\mathbb{E}\big{[}\mathbf{x}_{t}\mathbf{x}_ {t}^{\top}\big{]}^{-1}\,\mathbb{E}[\rho_{t}\delta_{t}\mathbf{x}_{t}]\] \[=\mathbf{w}_{t}+\alpha\left(\mathbb{E}[\rho_{t}\delta_{t}\mathbf{ x}_{t}]-\gamma\mathbb{E}\big{[}\rho_{t}\mathbf{x}_{t+1}\mathbf{x}_{t}^{\top} \big{]}\,\mathbb{E}\big{[}\mathbf{x}_{t}\mathbf{x}_{t}^{\top}\big{]}^{-1}\, \mathbb{E}[\rho_{t}\delta_{t}\mathbf{x}_{t}]\right)\] \[\approx\mathbf{w}_{t}+\alpha\left(\mathbb{E}[\rho_{t}\delta_{t} \mathbf{x}_{t}]-\gamma\mathbb{E}\big{[}\rho_{t}\mathbf{x}_{t+1}\mathbf{x}_{t}^ {\top}\big{]}\,\mathbf{v}_{t}\right)\] (based on (11.28)) \[\approx\mathbf{w}_{t}+\alpha\rho_{t}\left(\delta_{t}\mathbf{x}_{t }-\gamma\mathbf{x}_{t+1}\mathbf{x}_{t}^{\top}\mathbf{v}_{t}\right),\] (sampling)
+
+which again is \(O(d)\) if the final product \((\mathbf{x}_{t}^{\top}\mathbf{v}_{t})\) is done first. This algorithm is known as either _TD(0) with gradient correction (TDC)_ or, alternatively, as _GTD(0)_.
+
+Figure 11.5 shows a sample and the expected behavior of TDC on Baird's counterexample. As intended, the \(\overline{\text{PBE}}\) falls to zero, but note that the individual components of the parameter vector do not approach zero. In fact, these values are still far from
+
+Figure 11.5: The behavior of the TDC algorithm on Baird’s counterexample. On the left is shown a typical single run, and on the right is shown the expected behavior of this algorithm if the updates are done synchronously (analogous to (11.9), except for the two TDC parameter vectors). The step sizes were \(\alpha=0.005\) and \(\beta=0.05\).
+
+
+
+--- Page 303 ---
+an optimal solution, \(\hat{v}(s)=0,\text{for all }s\), for which \(\mathbf{w}\) would have to be proportional to \(\left(1,1,1,1,1,1,4,-2\right)^{\top}\). After 1000 iterations we are still far from an optimal solution, as we can see from the \(\overline{\text{VE}}\), which remains almost 2. The system is actually converging to an optimal solution, but progress is extremely slow because the \(\overline{\text{PBE}}\) is already so close to zero.
+
+GTD2 and TDC both involve two learning processes, a primary one for \(\mathbf{w}\) and a secondary one for \(\mathbf{v}\). The logic of the primary learning process relies on the secondary learning process having finished, at least approximately, whereas the secondary learning process proceeds without being influenced by the first. We call this sort of asymmetrical dependence a _cascade_. In cascades we often assume that the secondary learning process is proceeding faster and thus is always at its asymptotic value, ready and accurate to assist the primary learning process. The convergence proofs for these methods often make this assumption explicitly. These are called _two-time-scale_ proofs. The fast time scale is that of the secondary learning process, and the slower time scale is that of the primary learning process. If \(\alpha\) is the step size of the primary learning process, and \(\beta\) is the step size of the secondary learning process, then these convergence proofs will typically require that in the limit \(\beta\to 0\) and \(\frac{\alpha}{\beta}\to 0\).
+
+Gradient-TD methods are currently the most well understood and widely used stable off-policy methods. There are extensions to action values and control (GQ, Maei et al., 2010), to eligibility traces (GTD(\(\lambda\)) and GQ(\(\lambda\)), Maei, 2011; Maei and Sutton, 2010), and to nonlinear function approximation (Maei et al., 2009). There have also been proposed hybrid algorithms midway between semi-gradient TD and gradient TD (Hackman, 2012; White and White, 2016). Hybrid-TD algorithms behave like Gradient-TD algorithms in states where the target and behavior policies are very different, and behave like semi-gradient algorithms in states where the target and behavior policies are the same. Finally, the Gradient-TD idea has been combined with the ideas of proximal methods and control variates to produce more efficient methods (Mahadevan et al., 2014; Du et al., 2017).
+
+### 11.8 Emphatic-TD Methods
+
+We turn now to the second major strategy that has been extensively explored for obtaining a cheap and efficient off-policy learning method with function approximation. Recall that linear semi-gradient TD methods are efficient and stable when trained under the on-policy distribution, and that we showed in Section 9.4 that this has to do with the positive definiteness of the matrix \(\mathbf{A}\) (9.11)4 and the match between the on-policy state distribution \(\mu_{\pi}\) and the state-transition probabilities \(p(s\!\mid\!s,a)\) under the target policy. In off-policy learning, we reweight the state transitions using importance sampling so that they become appropriate for learning about the target policy, but the state distribution is still that of the behavior policy. There is a mismatch. A natural idea is to somehow reweight the states, emphasizing some and de-emphasizing others, so as to return the distribution of updates to the on-policy distribution. There would then be a match, and stability and convergence would follow from existing results. This is the idea of 
+
+--- Page 304 ---
+Emphatic-TD methods, first introduced for on-policy training in Section 9.11.
+
+Actually, the notion of "the on-policy distribution" is not quite right, as there are many on-policy distributions, and any one of these is sufficient to guarantee stability. Consider an undiscounted episodic problem. The way episodes terminate is fully determined by the transition probabilities, but there may be several different ways the episodes might begin. However the episodes start, if all state transitions are due to the target policy, then the state distribution that results is an on-policy distribution. You might start close to the terminal state and visit only a few states with high probability before ending the episode. Or you might start far away and pass through many states before terminating. Both are on-policy distributions, and training on both with a linear semi-gradient method would be guaranteed to be stable. However the process starts, an on-policy distribution results as long as all states encountered are updated up until termination.
+
+If there is discounting, it can be treated as partial or probabilistic termination for these purposes. If \(\gamma=0.9\), then we can consider that with probability 0.1 the process terminates on every time step and then immediately restarts in the state that is transitioned to. A discounted problem is one that is continually terminating and restarting with probability \(1-\gamma\) on every step. This way of thinking about discounting is an example of a more general notion of _pseudo termination_--termination that does not affect the sequence of state transitions, but does affect the learning process and the quantities being learned. This kind of pseudo termination is important to off-policy learning because the restarting is optional--remember we can start any way we want to--and the termination relieves the need to keep including encountered states within the on-policy distribution. That is, if we don't consider the new states as restarts, then discounting quickly gives us a limited on-policy distribution.
+
+The one-step Emphatic-TD algorithm for learning episodic state values is defined by:
+
+\[\delta_{t}=R_{t+1}+\gamma\hat{v}(S_{t+1},\mathbf{w}_{t})-\hat{v}(S_{t}, \mathbf{w}_{t}),\]
+
+\[\mathbf{w}_{t+1}=\mathbf{w}_{t}+\alpha M_{t}\rho_{t}\delta_{t}\nabla\hat{v}(S_ {t},\mathbf{w}_{t}),\]
+
+\[M_{t}=\gamma\rho_{t-1}M_{t-1}+I_{t},\]
+
+with \(I_{t}\), the _interest_, being arbitrary and \(M_{t}\), the _emphasis_, being initialized to \(M_{-1}=0\). How does this algorithm perform on Baird's counterexample? Figure 11.6 shows the trajectory in expectation of the components of the parameter vector (for the case in which \(I_{t}=1\), for all \(t\)). There are some oscillations but eventually everything converges and the \(\overline{\text{VE}}\) goes to zero. These trajectories are obtained by iteratively computing the expectation of the parameter vector trajectory without any of the variance due to sampling of transitions and rewards. We do not show the results of applying the Emphatic-TD algorithm directly because its variance on Baird's counterexample is so high that it is nigh impossible to get consistent results in computational experiments. The algorithm converges to the optimal solution in theory on this problem, but in practice it does not. We turn to the topic of reducing the variance of all these algorithms in the next section.
+
+
+
+--- Page 305 ---
+
+
+### 11.9 Reducing Variance
+
+Off-policy learning is inherently of greater variance than on-policy learning. This is not surprising; if you receive data less closely related to a policy, you should expect to learn less about the policy's values. In the extreme, one may be able to learn nothing. You can't expect to learn how to drive by cooking dinner, for example. Only if the target and behavior policies are related, if they visit similar states and take similar actions, should one be able to make significant progress in off-policy training.
+
+On the other hand, any policy has many neighbors, many similar policies with considerable overlap in states visited and actions chosen, and yet which are not identical. The raison d'etre of off-policy learning is to enable generalization to this vast number of related-but-not-identical policies. The problem remains of how to make the best use of the experience. Now that we have some methods that are stable in expected value (if the step sizes are set right), attention naturally turns to reducing the variance of the estimates. There are many possible ideas, and we can just touch on a few of them in this introductory text.
+
+Why is controlling variance especially critical in off-policy methods based on importance sampling? As we have seen, importance sampling often involves products of policy ratios. The ratios are always one in expectation (5.13), but their actual values may be very high or as low as zero. Successive ratios are uncorrelated, so their products are also always one in expected value, but they can be of very high variance. Recall that these ratios multiply the step size in SGD methods, so high variance means taking steps that vary greatly in their sizes. This is problematic for SGD because of the occasional very large steps. They must not be so large as to take the parameter to a part of the space with a very different gradient. SGD methods rely on averaging over multiple steps to get a good sense of the gradient, and if they make large moves from single samples they become unreliable. If the step-size parameter is set small enough to prevent this, then the expected step
+
+Figure 11.6: The behavior of the one-step Emphatic-TD algorithm in expectation on Baird’s counterexample. The step size was \(\alpha=0.03\).
+
+
+
+--- Page 306 ---
+can end up being very small, resulting in very slow learning. The notions of momentum (Derthick, 1984), of Polyak-Ruppert averaging (Polyak, 1990; Ruppert, 1988; Polyak and Juditsky, 1992), or further extensions of these ideas may significantly help. Methods for adaptively setting separate step sizes for different components of the parameter vector are also pertinent (e.g., Jacobs, 1988; Sutton, 1992b, c), as are the "importance weight aware" updates of Karampatziakis and Langford (2010).
+
+In Chapter 5 we saw how weighted importance sampling is significantly better behaved, with lower variance updates, than ordinary importance sampling. However, adapting weighted importance sampling to function approximation is challenging and can probably only be done approximately with \(O(d)\) complexity (Mahmood and Sutton, 2015).
+
+The Tree Backup algorithm (Section 7.5) shows that it is possible to perform some off-policy learning without using importance sampling. This idea has been extended to the off-policy case to produce stable and more efficient methods by Munos, Stepleton, Harutyunyan, and Bellemare (2016) and by Mahmood, Yu and Sutton (2017).
+
+Another, complementary strategy is to allow the target policy to be determined in part by the behavior policy, in such a way that it never can be so different from it to create large importance sampling ratios. For example, the target policy can be defined by reference to the behavior policy, as in the "recognizers" proposed by Precup et al. (2006).
+
+### 11.10 Summary
+
+Off-policy learning is a tempting challenge, testing our ingenuity in designing stable and efficient learning algorithms. Tabular Q-learning makes off-policy learning seem easy, and it has natural generalizations to Expected Sarsa and to the Tree Backup algorithm. But as we have seen in this chapter, the extension of these ideas to significant function approximation, even linear function approximation, involves new challenges and forces us to deepen our understanding of reinforcement learning algorithms.
+
+Why go to such lengths? One reason to seek off-policy algorithms is to give flexibility in dealing with the tradeoff between exploration and exploitation. Another is to free behavior from learning, and avoid the tyranny of the target policy. TD learning appears to hold out the possibility of learning about multiple things in parallel, of using one stream of experience to solve many tasks simultaneously. We can certainly do this in special cases, just not in every case that we would like to or as efficiently as we would like to.
+
+In this chapter we divided the challenge of off-policy learning into two parts. The first part, correcting the targets of learning for the behavior policy, is straightforwardly dealt with using the techniques devised earlier for the tabular case, albeit at the cost of increasing the variance of the updates and thereby slowing learning. High variance will probably always remains a challenge for off-policy learning.
+
+The second part of the challenge of off-policy learning emerges as the instability of semi-gradient TD methods that involve bootstrapping. We seek powerful function approximation, off-policy learning, and the efficiency and flexibility of bootstrapping
+
+--- Page 307 ---
+TD methods, but it is challenging to combine all three aspects of this _deadly triad_ in one algorithm without introducing the potential for instability. There have been several attempts. The most popular has been to seek to perform true stochastic gradient descent (SGD) in the Bellman error (a.k.a. the Bellman residual). However, our analysis concludes that this is not an appealing goal in many cases, and that anyway it is impossible to achieve with a learning algorithm--the gradient of the \(\overline{\mbox{BE}}\) is not learnable from experience that reveals only feature vectors and not underlying states. Another approach, Gradient-TD methods, performs SGD in the _projected_ Bellman error. The gradient of the \(\overline{\mbox{PBE}}\) is learnable with \(O(d)\) complexity, but at the cost of a second parameter vector with a second step size. The newest family of methods, Emphatic-TD methods, refine an old idea for reweighting updates, emphasizing some and de-emphasizing others. In this way they restore the special properties that make on-policy learning stable with computationally simple semi-gradient methods.
+
+The whole area of off-policy learning is relatively new and unsettled. Which methods are best or even adequate is not yet clear. Are the complexities of the new methods introduced at the end of this chapter really necessary? Which of them can be combined effectively with variance reduction methods? The potential for off-policy learning remains tantalizing, the best way to achieve it still a mystery.
+
+## Bibliographical and Historical Remarks
+
+* 11.1 The first semi-gradient method was linear TD(\(\lambda\)) (Sutton, 1988). The name "semi-gradient" is more recent (Sutton, 2015a). Semi-gradient off-policy TD(0) with general importance-sampling ratio may not have been explicitly stated until Sutton, Mahmood, and White (2016), but the action-value forms were introduced by Precup, Sutton, and Singh (2000), who also did eligibility trace forms of these algorithms (see Chapter 12). Their continuing, undiscounted forms have not been significantly explored. The _n_-step forms given here are new.
+* 11.2 The earliest \(w\)-to-\(2w\) example was given by Tsitsiklis and Van Roy (1996), who also introduced the specific counterexample in the box on page 263. Baird's counterexample is due to Baird (1995), though the version we present here is slightly modified. Averaging methods for function approximation were developed by Gordon (1995, 1996b). Other examples of instability with off-policy DP methods and more complex methods of function approximation are given by Boyan and Moore (1995). Bradtke (1993) gives an example in which Q-learning using linear function approximation in a linear quadratic regulation problem converges to a destabilizing policy.
+* 11.3 The deadly triad was first identified by Sutton (1995b) and thoroughly analyzed by Tsitsiklis and Van Roy (1997). The name "deadly triad" is due to Sutton (2015a).
+* 11.4 This kind of linear analysis was pioneered by Tsitsiklis and Van Roy (1996; 1997), including the dynamic programming operator. Diagrams like Figure 11.3 were 
+
+--- Page 308 ---
+introduced by Lagoudakis and Parr (2003).
+
+What we have called the Bellman operator, and denoted \(B_{\pi}\), is more commonly denoted \(T^{\pi}\) and called a "dynamic programming operator," while a generalized form, denoted \(T^{(\lambda)}\), is called the "TD(\(\lambda\)) operator" (Tsitsiklis and Van Roy, 1996, 1997).
+
+**11.5**: The \(\overline{\mathrm{BE}}\) was first proposed as an objective function for dynamic programming by Schweitzer and Seidmann (1985). Baird (1995, 1999) extended it to TD learning based on stochastic gradient descent. In the literature, \(\overline{\mathrm{BE}}\) minimization is often referred to as Bellman residual minimization.
+
+The earliest A-split example is due to Dayan (1992). The two forms given here were introduced by Sutton et al. (2009a).
+**11.6**: The contents of this section are new to this text.
+**11.7**: Gradient-TD methods were introduced by Sutton, Szepesvari, and Maei (2009b). The methods highlighted in this section were introduced by Sutton et al. (2009a) and Mahmood et al. (2014). A major extension to proximal TD methods was developed by Mahadevan et al. (2014). The most sensitive empirical investigations to date of Gradient-TD and related methods are given by Geist and Scherrer (2014), Dann, Neumann, and Peters (2014), White (2015), and Ghiassian, Patterson, White, Sutton, and White (2018). Recent developments in the theory of Gradient-TD methods are presented by Yu (2017).
+**11.8**: Emphatic-TD methods were introduced by Sutton, Mahmood, and White (2016). Full convergence proofs and other theory were later established by Yu (2015; 2016; Yu, Mahmood, and Sutton, 2017), Hallak, Tamar, and Mannor (2015), and Hallak, Tamar, Munos, and Mannor (2016).
+
+
+
+--- Page 309 ---
+
+
+## Chapter 12 Eligibility Traces
+
+Eligibility traces are one of the basic mechanisms of reinforcement learning. For example, in the popular TD(\(\lambda\)) algorithm, the \(\lambda\) refers to the use of an eligibility trace. Almost any temporal-difference (TD) method, such as Q-learning or Sarsa, can be combined with eligibility traces to obtain a more general method that may learn more efficiently.
+
+Eligibility traces unify and generalize TD and Monte Carlo methods. When TD methods are augmented with eligibility traces, they produce a family of methods spanning a spectrum that has Monte Carlo methods at one end (\(\lambda\!=\!1\)) and one-step TD methods at the other (\(\lambda\!=\!0\)). In between are intermediate methods that are often better than either extreme method. Eligibility traces also provide a way of implementing Monte Carlo methods online and on continuing problems without episodes.
+
+Of course, we have already seen one way of unifying TD and Monte Carlo methods: the _n_-step TD methods of Chapter 7. What eligibility traces offer beyond these is an elegant algorithmic mechanism with significant computational advantages. The mechanism is a short-term memory vector, the _eligibility trace_\(\mathbf{z}_{t}\in\mathbb{R}^{d}\), that parallels the long-term weight vector \(\mathbf{w}_{t}\in\mathbb{R}^{d}\). The rough idea is that when a component of \(\mathbf{w}_{t}\) participates in producing an estimated value, then the corresponding component of \(\mathbf{z}_{t}\) is bumped up and then begins to fade away. Learning will then occur in that component of \(\mathbf{w}_{t}\) if a nonzero TD error occurs before the trace falls back to zero. The trace-decay parameter \(\lambda\in[0,1]\) determines the rate at which the trace falls.
+
+The primary computational advantage of eligibility traces over _n_-step methods is that only a single trace vector is required rather than a store of the last \(n\) feature vectors. Learning also occurs continually and uniformly in time rather than being delayed and then catching up at the end of the episode. In addition learning can occur and affect behavior immediately after a state is encountered rather than being delayed \(n\) steps.
+
+Eligibility traces illustrate that a learning algorithm can sometimes be implemented in a different way to obtain computational advantages. Many algorithms are most naturally formulated and understood as an update of a state's value based on events that follow that state over multiple future time steps. For example, Monte Carlo methods (Chapter 5) update a state based on all the future rewards, and _n_-step TD methods (Chapter 7)
+
+--- Page 310 ---
+update based on the next \(n\) rewards and state \(n\) steps in the future. Such formulations, based on looking forward from the updated state, are called _forward views_. Forward views are always somewhat complex to implement because the update depends on later things that are not available at the time. However, as we show in this chapter it is often possible to achieve nearly the same updates--and sometimes _exactly_ the same updates--with an algorithm that uses the current TD error, looking backward to recently visited states using an eligibility trace. These alternate ways of looking at and implementing learning algorithms are called _backward views_. Backward views, transformations between forward views and backward views, and equivalences between them, date back to the introduction of temporal difference learning but have become much more powerful and sophisticated since 2014. Here we present the basics of the modern view.
+
+As usual, first we fully develop the ideas for state values and prediction, then extend them to action values and control. We develop them first for the on-policy case then extend them to off-policy learning. Our treatment pays special attention to the case of linear function approximation, for which the results with eligibility traces are stronger. All these results apply also to the tabular and state aggregation cases because these are special cases of linear function approximation.
+
+### 12.1 The \(\lambda\)-return
+
+In Chapter 7 we defined an _n_-step return as the sum of the first \(n\) rewards plus the estimated value of the state reached in \(n\) steps, each appropriately discounted (7.1). The general form of that equation, for any parameterized function approximator, is
+
+\[G_{t:t+n}\doteq R_{t+1}+\gamma R_{t+2}+\cdots+\gamma^{n-1}R_{t+n}+\gamma^{n} \hat{v}(S_{t+n},\mathbf{w}_{t+n-1}),\ \ 0\leq t\leq T-n, \tag{12.1}\]
+
+where \(\hat{v}(s,\mathbf{w})\) is the approximate value of state \(s\) given weight vector \(\mathbf{w}\) (Chapter 9), and \(T\) is the time of episode termination, if any. We noted in Chapter 7 that each _n_-step return, for \(n\geq 1\), is a valid update target for a tabular learning update, just as it is for an approximate SGD learning update such as (9.7).
+
+Now we note that a valid update can be done not just toward any _n_-step return, but toward any _average_ of _n_-step returns for different _n_s. For example, an update can be done toward a target that is half of a two-step return and half of a four-step return: \(\frac{1}{2}G_{t:t+2}+\frac{1}{2}G_{t:t+4}\). Any set of _n_-step returns can be averaged in this way, even an infinite set, as long as the weights on the component returns are positive and sum to 1. The composite return possesses an error reduction property similar to that of individual _n_-step returns (7.3) and thus can be used to construct updates with guaranteed convergence properties. Averaging produces a substantial new range of algorithms. For example, one could average one-step and infinite-step returns to obtain another way of interrelating TD and Monte Carlo methods. In principle, one could even average experience-based updates with DP updates to get a simple combination of experience-based and model-based methods (cf. Chapter 8).
+
+An update that averages simpler component updates is called a _compound update_. The backup diagram for a compound update consists of the backup diagrams for each of the component updates with a horizontal line above them and the weighting fractions below.
+
+
+
+--- Page 311 ---
+[Empty page]
+
+--- Page 312 ---
+we want, we can separate these post-termination terms from the main sum, yielding
+
+\[G_{t}^{\lambda} = (1-\lambda)\sum_{n=1}^{T-t-1}\lambda^{n-1}G_{t:t+n}\;\;\;+\;\;\; \lambda^{T-t-1}G_{t}, \tag{12.3}\]
+
+as indicated in the figures. This equation makes it clearer what happens when \(\lambda=1\). In this case the main sum goes to zero, and the remaining term reduces to the conventional return. Thus, for \(\lambda=1\), updating according to the \(\lambda\)-return is a Monte Carlo algorithm. On the other hand, if \(\lambda=0\), then the \(\lambda\)-return reduces to \(G_{t:t+1}\), the one-step return. Thus, for \(\lambda=0\), updating according to the \(\lambda\)-return is a one-step TD method.
+
+_Exercise 12.1_ Just as the return can be written recursively in terms of the first reward and itself one-step later (3.9), so can the \(\lambda\)-return. Derive the analogous recursive relationship from (12.2) and (12.1). \(\Box\)
+
+_Exercise 12.2_ The parameter \(\lambda\) characterizes how fast the exponential weighting in Figure 12.2 falls off, and thus how far into the future the \(\lambda\)-return algorithm looks in determining its update. But a rate factor such as \(\lambda\) is sometimes an awkward way of characterizing the speed of the decay. For some purposes it is better to specify a time constant, or half-life. What is the equation relating \(\lambda\) and the half-life, \(\tau_{\lambda}\), the time by which the weighting sequence will have fallen to half of its initial value? \(\Box\)
+
+We are now ready to define our first learning algorithm based on the \(\lambda\)-return: the _off-line \(\lambda\)-return algorithm_. As an off-line algorithm, it makes no changes to the weight vector during the episode. Then, at the end of the episode, a whole sequence of off-line updates are made according to our usual semi-gradient rule, using the \(\lambda\)-return as the target:
+
+\[\mathbf{w}_{t+1}\doteq\mathbf{w}_{t}+\alpha\Big{[}G_{t}^{\lambda}-\hat{v}(S_{t },\!\mathbf{w}_{t})\Big{]}\nabla\hat{v}(S_{t},\!\mathbf{w}_{t}),\;\;\;t=0, \ldots,T-1. \tag{12.4}\]
+
+Figure 12.2: Weighting given in the \(\lambda\)-return to each of the _n_-step returns.
+
+
+
+--- Page 313 ---
+The \(\lambda\)-return gives us an alternative way of moving smoothly between Monte Carlo and one-step TD methods that can be compared with the _n_-step bootstrapping way developed in Chapter 7. There we assessed effectiveness on a 19-state random walk task (Example 7.1, page 144). Figure 12.3 shows the performance of the off-line \(\lambda\)-return algorithm on this task alongside that of the _n_-step methods (repeated from Figure 7.2). The experiment was just as described earlier except that for the \(\lambda\)-return algorithm we varied \(\lambda\) instead of \(n\). The performance measure used is the estimated root-mean-square error between the correct and estimated values of each state measured at the end of the episode, averaged over the first 10 episodes and the 19 states. Note that overall performance of the off-line \(\lambda\)-return algorithms is comparable to that of the _n_-step algorithms. In both cases we get best performance with an intermediate value of the bootstrapping parameter, \(n\) for _n_-step methods and \(\lambda\) for the off-line \(\lambda\)-return algorithm.
+
+The approach that we have been taking so far is what we call the theoretical, or _forward_, view of a learning algorithm. For each state visited, we look forward in time to all the future rewards and decide how best to combine them. We might imagine ourselves riding the stream of states, looking forward from each state to determine its update, as suggested by Figure 12.4. After looking forward from and updating one state, we move on to the next and never have to work with the preceding state again. Future states, on the other hand, are viewed and processed repeatedly, once from each vantage point preceding them.
+
+Figure 12.3: 19-state Random walk results (Example 7.1): Performance of the off-
+
+
+
+--- Page 314 ---
+
+
+### 12.2 \(\mathbf{TD(\lambda)}\)
+
+TD(\(\lambda\)) is one of the oldest and most widely used algorithms in reinforcement learning. It was the first algorithm for which a formal relationship was shown between a more theoretical forward view and a more computationally-congenial backward view using eligibility traces. Here we will show empirically that it approximates the off-line \(\lambda\)-return algorithm presented in the previous section.
+
+TD(\(\lambda\)) improves over the off-line \(\lambda\)-return algorithm in three ways. First it updates the weight vector on every step of an episode rather than only at the end, and thus its estimates may be better sooner. Second, its computations are equally distributed in time rather than all at the end of the episode. And third, it can be applied to continuing problems rather than just to episodic problems. In this section we present the semi-gradient version of TD(\(\lambda\)) with function approximation.
+
+With function approximation, the eligibility trace is a vector \(\mathbf{z}_{t}\in\mathbb{R}^{d}\) with the same number of components as the weight vector \(\mathbf{w}_{t}\). Whereas the weight vector is a long-term memory, accumulating over the lifetime of the system, the eligibility trace is a short-term memory, typically lasting less time than the length of an episode. Eligibility traces assist in the learning process; their only consequence is that they affect the weight vector, and then the weight vector determines the estimated value.
+
+In TD(\(\lambda\)), the eligibility trace vector is initialized to zero at the beginning of the episode, is incremented on each time step by the value gradient, and then fades away by \(\gamma\lambda\):
+
+\[\begin{array}{l}\mathbf{z}_{-1}\doteq\mathbf{0},\\ \mathbf{z}_{t}\doteq\gamma\lambda\mathbf{z}_{t-1}+\nabla\hat{v}(S_{t},\mathbf{w }_{t}),\quad 0\leq t\leq T,\end{array} \tag{12.5}\]
+
+where \(\gamma\) is the discount rate and \(\lambda\) is the parameter introduced in the previous section, which we henceforth call the trace-decay parameter. The eligibility trace keeps track of which components of the weight vector have contributed, positively or negatively, to recent state valuations, where "recent" is defined in terms of \(\gamma\lambda\). (Recall that in linear function approximation, \(\nabla\hat{v}(S_{t},\mathbf{w}_{t})\) is the feature vector, \(\mathbf{x}_{t}\), in which case the eligibility trace vector is just a sum of past, fading, input vectors.) The trace is said to indicate the eligibility of each component of the weight vector for undergoing learning changes
+
+Figure 12.4: The forward view. We decide how to update each state by looking forward to future rewards and states.
+
+
+
+--- Page 315 ---
+[Empty page]
+
+--- Page 316 ---
+\(\mathrm{TD}(\lambda)\) is oriented backward in time. At each moment we look at the current TD error and assign it backward to each prior state according to how much that state contributed to the current eligibility trace at that time. We might imagine ourselves riding along the stream of states, computing TD errors, and shouting them back to the previously visited states, as suggested by Figure 12.5. Where the TD error and traces come together, we get the update given by (12.7), changing the values of those past states for when they occur again in the future.
+
+To better understand the backward view of \(\mathrm{TD}(\lambda)\), consider what happens at various values of \(\lambda\). If \(\lambda=0\), then by (12.5) the trace at \(t\) is exactly the value gradient corresponding to \(S_{t}\). Thus the \(\mathrm{TD}(\lambda)\) update (12.7) reduces to the one-step semi-gradient TD update treated in Chapter 9 (and, in the tabular case, to the simple TD rule (6.2)). This is why that algorithm was called \(\mathrm{TD}(0)\). In terms of Figure 12.5, \(\mathrm{TD}(0)\) is the case in which only the one state preceding the current one is updated by the TD error (other states may have their value estimates changed by generalization due to function approximation). For larger values of \(\lambda\), but still \(\lambda<1\), more of the preceding states are updated, but each more temporally distant state is updated less because the corresponding eligibility trace is smaller, as suggested by the figure. We say that the earlier states are given less _credit_ for the TD error.
+
+If \(\lambda=1\), then the credit given to earlier states falls only by \(\gamma\) per step. This turns out to be just the right thing to do to achieve Monte Carlo behavior. For example, remember that the TD error, \(\delta_{t}\), includes an undiscounted term of \(R_{t+1}\). In passing this back \(k\) steps it needs to be discounted, like any reward in a return, by \(\gamma^{k}\), which is just what the falling eligibility trace achieves. If \(\lambda=1\) and \(\gamma=1\), then the eligibility traces do not decay at all with time. In this case the method behaves like a Monte Carlo method for an undiscounted, episodic task. If \(\lambda=1\), the algorithm is also known as \(\mathrm{TD}(1)\).
+
+\(\mathrm{TD}(1)\) is a way of implementing Monte Carlo algorithms that is more general than those presented earlier and that significantly increases their range of applicability. Whereas the earlier Monte Carlo methods were limited to episodic tasks, \(\mathrm{TD}(1)\) can be applied to discounted continuing tasks as well. Moreover, \(\mathrm{TD}(1)\) can be performed incrementally and online. One disadvantage of Monte Carlo methods is that they learn nothing from an episode until it is over. For example, if a Monte Carlo control method takes an action that produces a very poor reward but does not end the episode, then the agent's tendency to repeat the action will be undiminished during the episode. Online \(\mathrm{TD}(1)\), on the other hand, learns in an \(n\)-step TD way from the incomplete ongoing episode, where the \(n\) steps are all the way up to the current step. If something unusually good or bad happens during an episode, control methods based on \(\mathrm{TD}(1)\) can learn immediately and alter their behavior on that same episode.
+
+It is revealing to revisit the 19-state random walk example (Example 7.1) to see how well \(\mathrm{TD}(\lambda)\) does in approximating the off-line \(\lambda\)-return algorithm. The results for both algorithms are shown in Figure 12.6. For each \(\lambda\) value, if \(\alpha\) is selected optimally for it (or smaller), then the two algorithms perform virtually identically. If \(\alpha\) is chosen larger than is optimal, however, then the \(\lambda\)-return algorithm is only a little worse whereas \(\mathrm{TD}(\lambda)\) is much worse and may even be unstable. This is not catastrophic for \(\mathrm{TD}(\lambda)\) on this problem, as these higher parameter values are not what one would want to use anyway, but for other problems it can be a significant weakness.
+
+
+
+--- Page 317 ---
+Linear TD(\(\lambda\)) has been proved to converge in the on-policy case if the step-size parameter is reduced over time according to the usual conditions (2.7). Just as discussed in Section 9.4, convergence is not to the minimum-error weight vector, but to a nearby weight vector that depends on \(\lambda\). The bound on solution quality presented in that section (9.14) can now be generalized to apply for any \(\lambda\). For the continuing discounted case,
+
+\[\overline{\mathrm{VE}}(\mathbf{w}_{\infty}) \leq \frac{1-\gamma\lambda}{1-\gamma}\,\min_{\mathbf{w}}\overline{ \mathrm{VE}}(\mathbf{w}). \tag{12.8}\]
+
+That is, the asymptotic error is no more than \(\frac{1-\gamma\lambda}{1-\gamma}\) times the smallest possible error. As \(\lambda\) approaches \(1\), the bound approaches the minimum error (and it is loosest at \(\lambda\!=\!0\)). In practice, however, \(\lambda\!=\!1\) is often the poorest choice, as will be illustrated later in Figure 12.14.
+
+_Exercise 12.3_: Some insight into how TD(\(\lambda\)) can closely approximate the off-line \(\lambda\)-return algorithm can be gained by seeing that the latter's error term (in brackets in (12.4)) can be written as the sum of TD errors (12.6) for a single fixed \(\mathbf{w}\). Show this, following the pattern of (6.6), and using the recursive relationship for the \(\lambda\)-return you obtained in Exercise 12.1. \(\square\)
+
+_Exercise 12.4_: Use your result from the preceding exercise to show that, if the weight updates over an episode were computed on each step but not actually used to change the weights (\(\mathbf{w}\) remained fixed), then the sum of TD(\(\lambda\))'s weight updates would be the same as the sum of the off-line \(\lambda\)-return algorithm's updates. \(\square\)
+
+### 12.3 \(n\)-step Truncated \(\lambda\)-return Methods
+
+The off-line \(\lambda\)-return algorithm is an important ideal, but it is of limited utility because it uses the \(\lambda\)-return (12.2), which is not known until the end of the episode. In the
+
+Figure 12.6: 19-state Random walk results (Example 7.1): Performance of TD(\(\lambda\)) alongside that of the off-line \(\lambda\)-return algorithm. The two algorithms performed virtually identically at low (less than optimal) \(\alpha\) values, but TD(\(\lambda\)) was worse at high \(\alpha\) values.
+
+
+
+--- Page 318 ---
+continuing case, the \(\lambda\)-return is technically never known, as it depends on _n_-step returns for arbitrarily large \(n\), and thus on rewards arbitrarily far in the future. However, the dependence becomes weaker for longer-delayed rewards, falling by \(\gamma\lambda\) for each step of delay. A natural approximation, then, would be to truncate the sequence after some number of steps. Our existing notion of _n_-step returns provides a natural way to do this in which the missing rewards are replaced with estimated values.
+
+In general, we define the _truncated \(\lambda\)-return_ for time \(t\), given data only up to some later horizon, \(h\), as
+
+\[G^{\lambda}_{t:h} \doteq (1-\lambda)\sum_{n=1}^{h-t-1}\lambda^{n-1}G_{t:t+n} + \lambda^{h-t-1}G_{t:h},\qquad 0\leq t<h\leq T. \tag{12.9}\]
+
+If you compare this equation with the \(\lambda\)-return (12.3), it is clear that the horizon \(h\) is playing the same role as was previously played by \(T\), the time of termination. Whereas in the \(\lambda\)-return there is a residual weight given to the conventional return \(G_{t}\), here it is given to the longest available _n_-step return, \(G_{t:h}\) (Figure 12.2).
+
+The truncated \(\lambda\)-return immediately gives rise to a family of _n_-step \(\lambda\)-return algorithms similar to the _n_-step methods of Chapter 7. In all of these algorithms, updates are delayed by \(n\) steps and only take into account the first \(n\) rewards, but now all the \(k\)-step returns are included for \(1\leq k\leq n\) (whereas the earlier _n_-step algorithms used only the _n_-step return), weighted geometrically as in Figure 12.2. In the state-value case, this family of algorithms is known as Truncated TD(\(\lambda\)), or TTD(\(\lambda\)). The compound backup diagram, shown in Figure 12.7, is similar to that for TD(\(\lambda\)) (Figure 12.1) except that the longest component update is at most \(n\) steps rather than always going all the way to the
+
+Figure 12.7: The backup diagram for Truncated TD(\(\lambda\)).
+
+
+
+--- Page 319 ---
+[Empty page]
+
+--- Page 320 ---
+equation degenerating to zero. Using this update target, we construct \(\mathbf{w}_{1}\). Then, after advancing the data horizon to step 2, what do we do? We have new data in the form of \(R_{2}\) and \(S_{2}\), as well as the new \(\mathbf{w}_{1}\), so now we can construct a better update target \(G^{\lambda}_{0:2}\) for the first update from \(S_{0}\) as well as a better update target \(G^{\lambda}_{1:2}\) for the second update from \(S_{1}\). Using these improved targets, we redo the updates at \(S_{1}\) and \(S_{2}\), starting again from \(\mathbf{w}_{0}\), to produce \(\mathbf{w}_{2}\). Now we advance the horizon to step 3 and repeat, going all the way back to produce three new targets, redoing all updates starting from the original \(\mathbf{w}_{0}\) to produce \(\mathbf{w}_{3}\), and so on. Each time the horizon is advanced, all the updates are redone starting from \(\mathbf{w}_{0}\) using the weight vector from the preceding horizon.
+
+This conceptual algorithm involves multiple passes over the episode, one at each horizon, each generating a different sequence of weight vectors. To describe it clearly we have to distinguish between the weight vectors computed at the different horizons. Let us use \(\mathbf{w}_{t}^{h}\) to denote the weights used to generate the value at time \(t\) in the sequence up to horizon \(h\). The first weight vector \(\mathbf{w}_{0}^{h}\) in each sequence is that inherited from the previous episode (so they are the same for all \(h\)), and the last weight vector \(\mathbf{w}_{h}^{h}\) in each sequence defines the ultimate weight-vector sequence of the algorithm. At the final horizon \(h=T\) we obtain the final weights \(\mathbf{w}_{T}^{T}\) which will be passed on to form the initial weights of the next episode. With these conventions, the three first sequences described in the previous paragraph can be given explicitly:
+
+\[h=1:\quad\mathbf{w}_{1}^{1}\doteq\mathbf{w}_{0}^{1}+\alpha\left[G^{\lambda}_{0 :1}-\hat{v}(S_{0},\mathbf{w}_{0}^{1})\right]\nabla\hat{v}(S_{0},\mathbf{w}_{0} ^{1}),\]
+
+\[h=2:\quad\mathbf{w}_{1}^{2}\doteq\mathbf{w}_{0}^{2}+\alpha\left[G^{\lambda}_{0 :2}-\hat{v}(S_{0},\mathbf{w}_{0}^{2})\right]\nabla\hat{v}(S_{0},\mathbf{w}_{0} ^{2}),\]
+
+\[\mathbf{w}_{2}^{2}\doteq\mathbf{w}_{1}^{2}+\alpha\left[G^{\lambda}_{1:2}-\hat{v }(S_{1},\mathbf{w}_{1}^{2})\right]\nabla\hat{v}(S_{1},\mathbf{w}_{1}^{2}),\]
+
+\[h=3:\quad\mathbf{w}_{1}^{3}\doteq\mathbf{w}_{0}^{3}+\alpha\left[G^{\lambda}_{0 :3}-\hat{v}(S_{0},\mathbf{w}_{0}^{3})\right]\nabla\hat{v}(S_{0},\mathbf{w}_{0} ^{3}),\]
+
+\[\mathbf{w}_{2}^{3}\doteq\mathbf{w}_{1}^{3}+\alpha\left[G^{\lambda}_{1:3}-\hat{ v}(S_{1},\mathbf{w}_{1}^{3})\right]\nabla\hat{v}(S_{1},\mathbf{w}_{1}^{3}),\]
+
+\[\mathbf{w}_{3}^{3}\doteq\mathbf{w}_{2}^{3}+\alpha\left[G^{\lambda}_{2:3}-\hat{ v}(S_{2},\mathbf{w}_{2}^{3})\right]\nabla\hat{v}(S_{2},\mathbf{w}_{2}^{3}).\]
+
+The general form for the update is
+
+\[\mathbf{w}_{t+1}^{h}\doteq\mathbf{w}_{t}^{h}+\alpha\left[G^{\lambda}_{t:h}- \hat{v}(S_{t},\mathbf{w}_{t}^{h})\right]\nabla\hat{v}(S_{t},\mathbf{w}_{t}^{h }),\ \ 0\leq t<h\leq T.\]
+
+This update, together with \(\mathbf{w}_{t}\doteq\mathbf{w}_{t}^{t}\) defines the _online \(\lambda\)-return algorithm_.
+
+The online \(\lambda\)-return algorithm is fully online, determining a new weight vector \(\mathbf{w}_{t}\) at each step \(t\) during an episode, using only information available at time \(t\). Its main drawback is that it is computationally complex, passing over the portion of the episode experienced so far on every step. Note that it is strictly more complex than the off-line \(\lambda\)-return algorithm, which passes through all the steps at the time of termination but does not make any updates during the episode. In return, the online algorithm can be expected to perform better than the off-line one, not only during the episode when it makes an update while the off-line algorithm makes none, but also at the end of the episode because the weight vector used in bootstrapping (in \(G^{\lambda}_{t:h}\)) has had a larger number of informative 
+
+--- Page 321 ---
+updates. This effect can be seen if one looks carefully at Figure 12.8, which compares the two algorithms on the 19-state random walk task.
+
+### 12.5 True Online TD(\(\lambda\))
+
+The online \(\lambda\)-return algorithm just presented is currently the best performing temporal-difference algorithm. It is an ideal which online TD(\(\lambda\)) only approximates. As presented, however, the online \(\lambda\)-return algorithm is very complex. Is there a way to invert this forward-view algorithm to produce an efficient backward-view algorithm using eligibility traces? It turns out that there is indeed an exact computationally congenial implementation of the online \(\lambda\)-return algorithm for the case of linear function approximation. This implementation is known as the true online TD(\(\lambda\)) algorithm because it is "truer" to the ideal of the online \(\lambda\)-return algorithm than the TD(\(\lambda\)) algorithm is.
+
+The derivation of true online TD(\(\lambda\)) is a little too complex to present here (see the next section and the appendix to the paper by van Seijen et al., 2016) but its strategy is simple. The sequence of weight vectors produced by the online \(\lambda\)-return algorithm can be arranged in a triangle:
+
+\[\begin{array}{cccccccc}&{\bf w}_{0}^{0}&&&&\\ &{\bf w}_{0}^{1}&{\bf w}_{1}^{1}&&&&\\ &{\bf w}_{0}^{2}&{\bf w}_{1}^{2}&{\bf w}_{2}^{2}&&&\\ &{\bf w}_{0}^{3}&{\bf w}_{1}^{3}&{\bf w}_{2}^{3}&{\bf w}_{3}^{3}&&&\\ &\vdots&\vdots&\vdots&\vdots&\ddots&\\ &{\bf w}_{0}^{T}&{\bf w}_{1}^{T}&{\bf w}_{2}^{T}&{\bf w}_{3}^{T}&\cdots&{\bf w} _{T}^{T}&\end{array}\]
+
+One row of this triangle is produced on each time step. It turns out that the weight vectors on the diagonal, the \({\bf w}_{t}^{t}\), are the only ones really needed. The first, \({\bf w}_{0}^{0}\), is the initial weight
+
+Figure 12.8: 19-state Random walk results (Example 7.1): Performance of online and off-line \(\lambda\)-return algorithms. The performance measure here is the \(\overline{\rm{VE}}\) at the end of the episode, which should be the best case for the off-line algorithm. Nevertheless, the online algorithm performs subtly better. For comparison, the \(\lambda\!=\!0\) line is the same for both methods.
+
+
+
+--- Page 322 ---
+[Empty page]
+
+--- Page 323 ---
+Earlier work often used a third kind of trace called the _replacing trace_, defined only for the tabular case or for binary feature vectors such as those produced by tile coding. The replacing trace is defined on a component-by-component basis depending on whether the component of the feature vector was 1 or 0:
+
+\[z_{i,t}\doteq\left\{\begin{array}{ll}1&\mbox{if $x_{i,t}=1$}\\ \gamma\lambda z_{i,t-1}&\mbox{otherwise.}\end{array}\right. \tag{12.12}\]
+
+Nowadays, we see replacing traces as crude approximations to dutch traces, which largely supersede them. Dutch traces usually perform better than replacing traces and have a clearer theoretical basis. Accumulating traces remain of interest for nonlinear function approximations where dutch traces are not available.
+
+### 12.6 *Dutch Traces in Monte Carlo Learning
+
+Although eligibility traces are closely associated historically with TD learning, in fact they have nothing to do with it. In fact, eligibility traces arise even in Monte Carlo learning, as we show in this section. We show that the linear MC algorithm (Chapter 9), taken as a forward view, can be used to derive an equivalent yet computationally cheaper backward-view algorithm using dutch traces. This is the only equivalence of forward- and backward-views that we explicitly demonstrate in this book. It gives some of the flavor of the proof of equivalence of true online TD(\(\lambda\)) and the online \(\lambda\)-return algorithm, but is much simpler.
+
+The linear version of the gradient Monte Carlo prediction algorithm (page 202) makes the following sequence of updates, one for each time step of the episode:
+
+\[\mathbf{w}_{t+1}\doteq\mathbf{w}_{t}+\alpha\left[G-\mathbf{w}_{t}^{\top} \mathbf{x}_{t}\right]\mathbf{x}_{t},\hskip 14.226378pt0\leq t<T. \tag{12.13}\]
+
+To simplify the example, we assume here that the return \(G\) is a single reward received at the end of the episode (this is why \(G\) is not subscripted by time) and that there is no discounting. In this case the update is also known as the Least Mean Square (LMS) rule. As a Monte Carlo algorithm, all the updates depend on the final reward/return, so none can be made until the end of the episode. The MC algorithm is an off-line algorithm and we do not seek to improve this aspect of it. Rather we seek merely an implementation of this algorithm with computational advantages. We will still update the weight vector only at the end of the episode, but we will do some computation during each step of the episode and less at its end. This will give a more equal distribution of computation--\(O(d)\) per step--and also remove the need to store the feature vectors at each step for use later at the end of each episode. Instead, we will introduce an additional vector memory, the eligibility trace, keeping in it a summary of all the feature vectors seen so far. This will be sufficient to efficiently recreate exactly the same overall update as the sequence of MC
+
+--- Page 324 ---
+updates (12.13), by the end of the episode:
+
+\[\mathbf{w}_{T} =\mathbf{w}_{T-1}+\alpha\left(G-\mathbf{w}_{T-1}^{\top}\mathbf{x}_{T -1}\right)\mathbf{x}_{T-1}\] \[=\mathbf{w}_{T-1}+\alpha\mathbf{x}_{T-1}\left(-\mathbf{x}_{T-1}^{ \top}\mathbf{w}_{T-1}\right)+\alpha G\mathbf{x}_{T-1}\] \[=\left(\mathbf{I}-\alpha\mathbf{x}_{T-1}\mathbf{x}_{T-1}^{\top} \right)\mathbf{w}_{T-1}+\alpha G\mathbf{x}_{T-1}\] \[=\mathbf{F}_{T-1}\mathbf{w}_{T-1}+\alpha G\mathbf{x}_{T-1}\]
+
+where \(\mathbf{F}_{t}\doteq\mathbf{I}-\alpha\mathbf{x}_{t}\mathbf{x}_{t}^{\top}\) is a _forgetting_, or _fading_, matrix. Now, recursing,
+
+\[=\mathbf{F}_{T-1}\left(\mathbf{F}_{T-2}\mathbf{w}_{T-2}+\alpha G \mathbf{x}_{T-2}\right)+\alpha G\mathbf{x}_{T-1}\] \[=\mathbf{F}_{T-1}\mathbf{F}_{T-2}\mathbf{w}_{T-2}+\alpha G\left( \mathbf{F}_{T
+

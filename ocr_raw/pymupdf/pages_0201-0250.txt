@@ -1,0 +1,2516 @@
+--- Page 201 ---
+8.7. Real-time Dynamic Programming
+179
+Example 8.6: RTDP on the Racetrack
+The racetrack problem of Exercise 5.12
+(page 111) is a stochastic optimal path problem. Comparing RTDP and the conventional
+DP value iteration algorithm on an example racetrack problem illustrates some of the
+advantages of on-policy trajectory sampling.
+Recall from the exercise that an agent has to learn how to drive a car around a turn
+like those shown in Figure 5.5 and cross the ﬁnish line as quickly as possible while staying
+on the track. Start states are all the zero-speed states on the starting line; the goal states
+are all the states that can be reached in one time step by crossing the ﬁnish line from
+inside the track. Unlike Exercise 5.12, here there is no limit on the car’s speed, so the
+state set is potentially inﬁnite. However, the set of states that can be reached from the
+set of start states via any policy is ﬁnite and can be considered to be the state set of the
+problem. Each episode begins in a randomly selected start state and ends when the car
+crosses the ﬁnish line. The rewards are −1 for each step until the car crosses the ﬁnish
+line. If the car hits the track boundary, it is moved back to a random start state, and the
+episode continues.
+A racetrack similar to the small racetrack on the left of Figure 5.5 has 9,115 states
+reachable from start states by any policy, only 599 of which are relevant, meaning that
+they are reachable from some start state via some optimal policy. (The number of relevant
+states was estimated by counting the states visited while executing optimal actions for
+107 episodes.)
+The table below compares solving this task by conventional DP and by RTDP. These
+results are averages over 25 runs, each begun with a di↵erent random number seed.
+Conventional DP in this case is value iteration using exhaustive sweeps of the state set,
+with values updated one state at a time in place, meaning that the update for each state
+uses the most recent values of the other states (This is the Gauss-Seidel version of value
+iteration, which was found to be approximately twice as fast as the Jacobi version on
+this problem. See Section 4.8.) No special attention was paid to the ordering of the
+updates; other orderings could have produced faster convergence. Initial values were all
+zero for each run of both methods. DP was judged to have converged when the maximum
+change in a state value over a sweep was less than 10−4, and RTDP was judged to have
+converged when the average time to cross the ﬁnish line over 20 episodes appeared to
+stabilize at an asymptotic number of steps. This version of RTDP updated only the value
+of the current state on each step.
+DP
+RTDP
+Average computation to convergence
+28 sweeps
+4000 episodes
+Average number of updates to convergence
+252,784
+127,600
+Average number of updates per episode
+—
+31.9
+% of states updated 100 times
+—
+98.45
+% of states updated 10 times
+—
+80.51
+% of states updated 0 times
+—
+3.18
+Both methods produced policies averaging between 14 and 15 steps to cross the ﬁnish
+line, but RTDP required only roughly half of the updates that DP did. This is the result
+of RTDP’s on-policy trajectory sampling. Whereas the value of every state was updated
+
+--- Page 202 ---
+180
+Chapter 8: Planning and Learning with Tabular Methods
+in each sweep of DP, RTDP focused updates on fewer states. In an average run, RTDP
+updated the values of 98.45% of the states no more than 100 times and 80.51% of the
+states no more than 10 times; the values of about 290 states were not updated at all in
+an average run.
+Another advantage of RTDP is that as the value function approaches the optimal
+value function v⇤, the policy used by the agent to generate trajectories approaches an
+optimal policy because it is always greedy with respect to the current value function.
+This is in contrast to the situation in conventional value iteration. In practice, value
+iteration terminates when the value function changes by only a small amount in a sweep,
+which is how we terminated it to obtain the results in the table above. At this point,
+the value function closely approximates v⇤, and a greedy policy is close to an optimal
+policy. However, it is possible that policies that are greedy with respect to the latest
+value function were optimal, or nearly so, long before value iteration terminates. (Recall
+from Chapter 4 that optimal policies can be greedy with respect to many di↵erent
+value functions, not just v⇤.) Checking for the emergence of an optimal policy before
+value iteration converges is not a part of the conventional DP algorithm and requires
+considerable additional computation.
+In the racetrack example, by running many test episodes after each DP sweep, with
+actions selected greedily according to the result of that sweep, it was possible to estimate
+the earliest point in the DP computation at which the approximated optimal evaluation
+function was good enough so that the corresponding greedy policy was nearly optimal.
+For this racetrack, a close-to-optimal policy emerged after 15 sweeps of value iteration, or
+after 136,725 value-iteration updates. This is considerably less than the 252,784 updates
+DP needed to converge to v⇤, but still more than the 127,600 updates RTDP required.
+Although these simulations are certainly not deﬁnitive comparisons of the RTDP with
+conventional sweep-based value iteration, they illustrate some of advantages of on-policy
+trajectory sampling. Whereas conventional value iteration continued to update the value
+of all the states, RTDP strongly focused on subsets of the states that were relevant to
+the problem’s objective. This focus became increasingly narrow as learning continued.
+Because the convergence theorem for RTDP applies to the simulations, we know that
+RTDP eventually would have focused only on relevant states, i.e., on states making up
+optimal paths. RTDP achieved nearly optimal control with about 50% of the computation
+required by sweep-based value iteration.
+8.8
+Planning at Decision Time
+Planning can be used in at least two ways. The one we have considered so far in this
+chapter, typiﬁed by dynamic programming and Dyna, is to use planning to gradually
+improve a policy or value function on the basis of simulated experience obtained from a
+model (either a sample or a distribution model). Selecting actions is then a matter of
+comparing the current state’s action values obtained from a table in the tabular case we
+have thus far considered, or by evaluating a mathematical expression in the approximate
+methods we consider in Part II below. Well before an action is selected for any current
+state St, planning has played a part in improving the table entries, or the function
+
+--- Page 203 ---
+8.9. Heuristic Search
+181
+approximation parameters, needed to select actions for many states, including St. Used
+this way, planning is not focused on the current state. We call planning used in this way
+background planning.
+The other way to use planning is to begin and complete it after encountering each
+new state St, as a computation whose output is the selection of a single action At; on
+the next step planning begins anew with St+1 to produce At+1, and so on. The simplest,
+and almost degenerate, example of this use of planning is when only state values are
+available, and an action is selected by comparing the values of model-predicted next states
+for each action (or by comparing the values of afterstates as in the tic-tac-toe example
+in Chapter 1). More generally, planning used in this way can look much deeper than
+one-step-ahead and evaluate action choices leading to many di↵erent predicted state and
+reward trajectories. Unlike the ﬁrst use of planning, here planning focuses on a particular
+state. We call this decision-time planning.
+These two ways of thinking about planning—using simulated experience to gradually
+improve a policy or value function, or using simulated experience to select an action for
+the current state—can blend together in natural and interesting ways, but they have
+tended to be studied separately, and that is a good way to ﬁrst understand them. Let us
+now take a closer look at decision-time planning.
+Even when planning is only done at decision time, we can still view it, as we did
+in Section 8.1, as proceeding from simulated experience to updates and values, and
+ultimately to a policy. It is just that now the values and policy are speciﬁc to the current
+state and the action choices available there, so much so that the values and policy created
+by the planning process are typically discarded after being used to select the current
+action. In many applications this is not a great loss because there are very many states
+and we are unlikely to return to the same state for a long time. In general, one may
+want to do a mix of both: focus planning on the current state and store the results
+of planning so as to be that much farther along should one return to the same state
+later. Decision-time planning is most useful in applications in which fast responses are
+not required. In chess playing programs, for example, one may be permitted seconds or
+minutes of computation for each move, and strong programs may plan dozens of moves
+ahead within this time. On the other hand, if low latency action selection is the priority,
+then one is generally better o↵doing planning in the background to compute a policy
+that can then be rapidly applied to each newly encountered state.
+8.9
+Heuristic Search
+The classical state-space planning methods in artiﬁcial intelligence are decision-time
+planning methods collectively known as heuristic search. In heuristic search, for each
+state encountered, a large tree of possible continuations is considered. The approximate
+value function is applied to the leaf nodes and then backed up toward the current state
+at the root. The backing up within the search tree is just the same as in the expected
+updates with maxes (those for v⇤and q⇤) discussed throughout this book. The backing
+up stops at the state–action nodes for the current state. Once the backed-up values of
+these nodes are computed, the best of them is chosen as the current action, and then all
+backed-up values are discarded.
+
+--- Page 204 ---
+182
+Chapter 8: Planning and Learning with Tabular Methods
+In conventional heuristic search no e↵ort is made to save the backed-up values by
+changing the approximate value function. In fact, the value function is generally designed
+by people and never changed as a result of search. However, it is natural to consider
+allowing the value function to be improved over time, using either the backed-up values
+computed during heuristic search or any of the other methods presented throughout
+this book. In a sense we have taken this approach all along. Our greedy, "-greedy, and
+UCB (Section 2.7) action-selection methods are not unlike heuristic search, albeit on a
+smaller scale. For example, to compute the greedy action given a model and a state-value
+function, we must look ahead from each possible action to each possible next state, take
+into account the rewards and estimated values, and then pick the best action. Just as
+in conventional heuristic search, this process computes backed-up values of the possible
+actions, but does not attempt to save them. Thus, heuristic search can be viewed as an
+extension of the idea of a greedy policy beyond a single step.
+The point of searching deeper than one step is to obtain better action selections. If one
+has a perfect model and an imperfect action-value function, then in fact deeper search
+will usually yield better policies.2 Certainly, if the search is all the way to the end of
+the episode, then the e↵ect of the imperfect value function is eliminated, and the action
+determined in this way must be optimal. If the search is of suﬃcient depth k such that γk
+is very small, then the actions will be correspondingly near optimal. On the other hand,
+the deeper the search, the more computation is required, usually resulting in a slower
+response time. A good example is provided by Tesauro’s grandmaster-level backgammon
+player, TD-Gammon (Section 16.1). This system used TD learning to learn an afterstate
+value function through many games of self-play, using a form of heuristic search to make
+its moves. As a model, TD-Gammon used a priori knowledge of the probabilities of dice
+rolls and the assumption that the opponent always selected the actions that TD-Gammon
+rated as best for it. Tesauro found that the deeper the heuristic search, the better the
+moves made by TD-Gammon, but the longer it took to make each move. Backgammon
+has a large branching factor, yet moves must be made within a few seconds. It was
+only feasible to search ahead selectively a few steps, but even so the search resulted in
+signiﬁcantly better action selections.
+We should not overlook the most obvious way in which heuristic search focuses updates:
+on the current state. Much of the e↵ectiveness of heuristic search is due to its search tree
+being tightly focused on the states and actions that might immediately follow the current
+state. You may spend more of your life playing chess than checkers, but when you play
+checkers, it pays to think about checkers and about your particular checkers position,
+your likely next moves, and successor positions. No matter how you select actions, it
+is these states and actions that are of highest priority for updates and where you most
+urgently want your approximate value function to be accurate. Not only should your
+computation be preferentially devoted to imminent events, but so should your limited
+memory resources. In chess, for example, there are far too many possible positions to
+store distinct value estimates for each of them, but chess programs based on heuristic
+search can easily store distinct estimates for the millions of positions they encounter
+2There are interesting exceptions to this (see Pearl, 1984).
+
+--- Page 205 ---
+8.10. Rollout Algorithms
+183
+looking ahead from a single position. This great focusing of memory and computational
+resources on the current decision is presumably the reason why heuristic search can be so
+e↵ective.
+The distribution of updates can be altered in similar ways to focus on the current
+state and its likely successors. As a limiting case we might use exactly the methods of
+heuristic search to construct a search tree, and then perform the individual, one-step
+updates from bottom up, as suggested by Figure 8.9. If the updates are ordered in this
+way and a tabular representation is used, then exactly the same overall update would
+be achieved as in depth-ﬁrst heuristic search. Any state-space search can be viewed in
+this way as the piecing together of a large number of individual one-step updates. Thus,
+the performance improvement observed with deeper searches is not due to the use of
+multistep updates as such. Instead, it is due to the focus and concentration of updates
+on states and actions immediately downstream from the current state. By devoting a
+large amount of computation speciﬁcally relevant to the candidate actions, decision-time
+planning can produce better decisions than can be produced by relying on unfocused
+updates.
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+Figure 8.9: Heuristic search can be implemented as a sequence of one-step updates (shown
+here outlined in blue) backing up values from the leaf nodes toward the root. The ordering
+shown here is for a selective depth-ﬁrst search.
+8.10
+Rollout Algorithms
+Rollout algorithms are decision-time planning algorithms based on Monte Carlo control
+applied to simulated trajectories that all begin at the current environment state. They
+estimate action values for a given policy by averaging the returns of many simulated
+trajectories that start with each possible action and then follow the given policy. When
+the action-value estimates are considered to be accurate enough, the action (or one of the
+
+--- Page 206 ---
+184
+Chapter 8: Planning and Learning with Tabular Methods
+actions) having the highest estimated value is executed, after which the process is carried
+out anew from the resulting next state. As explained by Tesauro and Galperin (1997),
+who experimented with rollout algorithms for playing backgammon, the term “rollout”
+comes from estimating the value of a backgammon position by playing out, i.e., “rolling
+out,” the position many times to the game’s end with randomly generated sequences of
+dice rolls, where the moves of both players are made by some ﬁxed policy.
+Unlike the Monte Carlo control algorithms described in Chapter 5, the goal of a
+rollout algorithm is not to estimate a complete optimal action-value function, q⇤, or a
+complete action-value function, q⇡, for a given policy ⇡. Instead, they produce Monte
+Carlo estimates of action values only for each current state and for a given policy usually
+called the rollout policy. As decision-time planning algorithms, rollout algorithms make
+immediate use of these action-value estimates, then discard them. This makes rollout
+algorithms relatively simple to implement because there is no need to sample outcomes
+for every state-action pair, and there is no need to approximate a function over either
+the state space or the state-action space.
+What then do rollout algorithms accomplish?
+The policy improvement theorem
+described in Section 4.2 tells us that given any two policies ⇡and ⇡0 that are identical
+except that ⇡0(s) = a 6= ⇡(s) for some state s, if q⇡(s, a) ≥v⇡(s), then policy ⇡0 is as good
+as, or better, than ⇡. Moreover, if the inequality is strict, then ⇡0 is in fact better than ⇡.
+This applies to rollout algorithms where s is the current state and ⇡is the rollout policy.
+Averaging the returns of the simulated trajectories produces estimates of q⇡(s, a0) for
+each action a0 2 A(s). Then the policy that selects an action in s that maximizes these
+estimates and thereafter follows ⇡is a good candidate for a policy that improves over
+⇡. The result is like one step of the policy-iteration algorithm of dynamic programming
+discussed in Section 4.3 (though it is more like one step of asynchronous value iteration
+described in Section 4.5 because it changes the action for just the current state).
+In other words, the aim of a rollout algorithm is to improve upon the rollout policy;
+not to ﬁnd an optimal policy. Experience has shown that rollout algorithms can be
+surprisingly e↵ective. For example, Tesauro and Galperin (1997) were surprised by the
+dramatic improvements in backgammon playing ability produced by the rollout method.
+In some applications, a rollout algorithm can produce good performance even if the
+rollout policy is completely random. But the performance of the improved policy depends
+on properties of the rollout policy and the ranking of actions produced by the Monte
+Carlo value estimates. Intuition suggests that the better the rollout policy and the more
+accurate the value estimates, the better the policy produced by a rollout algorithm is
+likely be (but see Gelly and Silver, 2007).
+This involves important tradeo↵s because better rollout policies typically mean that
+more time is needed to simulate enough trajectories to obtain good value estimates.
+As decision-time planning methods, rollout algorithms usually have to meet strict time
+constraints. The computation time needed by a rollout algorithm depends on the number
+of actions that have to be evaluated for each decision, the number of time steps in the
+simulated trajectories needed to obtain useful sample returns, the time it takes the rollout
+policy to make decisions, and the number of simulated trajectories needed to obtain good
+Monte Carlo action-value estimates.
+
+--- Page 207 ---
+8.11. Monte Carlo Tree Search
+185
+Balancing these factors is important in any application of rollout methods, though there
+are several ways to ease the challenge. Because the Monte Carlo trials are independent of
+one another, it is possible to run many trials in parallel on separate processors. Another
+approach is to truncate the simulated trajectories short of complete episodes, correcting
+the truncated returns by means of a stored evaluation function (which brings into play
+all that we have said about truncated returns and updates in the preceding chapters).
+It is also possible, as Tesauro and Galperin (1997) suggest, to monitor the Monte Carlo
+simulations and prune away candidate actions that are unlikely to turn out to be the
+best, or whose values are close enough to that of the current best that choosing them
+instead would make no real di↵erence (though Tesauro and Galperin point out that this
+would complicate a parallel implementation).
+We do not ordinarily think of rollout algorithms as learning algorithms because they
+do not maintain long-term memories of values or policies. However, these algorithms take
+advantage of some of the features of reinforcement learning that we have emphasized
+in this book.
+As instances of Monte Carlo control, they estimate action values by
+averaging the returns of a collection of sample trajectories, in this case trajectories of
+simulated interactions with a sample model of the environment. In this way they are
+like reinforcement learning algorithms in avoiding the exhaustive sweeps of dynamic
+programming by trajectory sampling, and in avoiding the need for distribution models
+by relying on sample, instead of expected, updates. Finally, rollout algorithms take
+advantage of the policy improvement property by acting greedily with respect to the
+estimated action values.
+8.11
+Monte Carlo Tree Search
+Monte Carlo Tree Search (MCTS) is a recent and strikingly successful example of decision-
+time planning. At its base, MCTS is a rollout algorithm as described above, but enhanced
+by the addition of a means for accumulating value estimates obtained from the Monte
+Carlo simulations in order to successively direct simulations toward more highly-rewarding
+trajectories. MCTS is largely responsible for the improvement in computer Go from
+a weak amateur level in 2005 to a grandmaster level (6 dan or more) in 2015. Many
+variations of the basic algorithm have been developed, including a variant that we discuss
+in Section 16.6 that was critical for the stunning 2016 victories of the program AlphaGo
+over an 18-time world champion Go player. MCTS has proved to be e↵ective in a wide
+variety of competitive settings, including general game playing (e.g., see Finnsson and
+Bj¨ornsson, 2008; Genesereth and Thielscher, 2014), but it is not limited to games; it can
+be e↵ective for single-agent sequential decision problems if there is an environment model
+simple enough for fast multistep simulation.
+MCTS is executed after encountering each new state to select the agent’s action for
+that state; it is executed again to select the action for the next state, and so on. As in a
+rollout algorithm, each execution is an iterative process that simulates many trajectories
+starting from the current state and running to a terminal state (or until discounting
+makes any further reward negligible as a contribution to the return). The core idea
+of MCTS is to successively focus multiple simulations starting at the current state by
+
+--- Page 208 ---
+186
+Chapter 8: Planning and Learning with Tabular Methods
+extending the initial portions of trajectories that have received high evaluations from
+earlier simulations. MCTS does not have to retain approximate value functions or policies
+from one action selection to the next, though in many implementations it retains selected
+action values likely to be useful for its next execution.
+For the most part, the actions in the simulated trajectories are generated using a simple
+policy, usually called a rollout policy as it is for simpler rollout algorithms. When both
+the rollout policy and the model do not require a lot of computation, many simulated
+trajectories can be generated in a short period of time. As in any tabular Monte Carlo
+method, the value of a state–action pair is estimated as the average of the (simulated)
+returns from that pair. Monte Carlo value estimates are maintained only for the subset
+of state–action pairs that are most likely to be reached in a few steps, which form a tree
+rooted at the current state, as illustrated in Figure 8.10. MCTS incrementally extends
+the tree by adding nodes representing states that look promising based on the results
+of the simulated trajectories. Any simulated trajectory will pass through the tree and
+then exit it at some leaf node. Outside the tree and at the leaf nodes the rollout policy is
+used for action selections, but at the states inside the tree something better is possible.
+For these states we have value estimates for at least some of the actions, so we can pick
+among them using an informed policy, called the tree policy, that balances exploration
+Selection
+Simulation
+Expansion
+Backup
+Repeat while time remains 
+Tree
+ Policy
+Rollout
+Policy
+Figure 8.10: Monte Carlo Tree Search. When the environment changes to a new state, MCTS
+executes as many iterations as possible before an action needs to be selected, incrementally
+building a tree whose root node represents the current state. Each iteration consists of the four
+operations Selection, Expansion (though possibly skipped on some iterations), Simulation,
+and Backup, as explained in the text and illustrated by the bold arrows in the trees. Adapted
+from Chaslot, Bakkes, Szita, and Spronck (2008).
+
+--- Page 209 ---
+8.11. Monte Carlo Tree Search
+187
+and exploitation. For example, the tree policy could select actions using an "-greedy or
+UCB selection rule (Chapter 2).
+In more detail, each iteration of a basic version of MCTS consists of the following four
+steps as illustrated in Figure 8.10:
+1. Selection. Starting at the root node, a tree policy based on the action values
+attached to the edges of the tree traverses the tree to select a leaf node.
+2. Expansion. On some iterations (depending on details of the application), the tree
+is expanded from the selected leaf node by adding one or more child nodes reached
+from the selected node via unexplored actions.
+3. Simulation. From the selected node, or from one of its newly-added child nodes
+(if any), simulation of a complete episode is run with actions selected by the rollout
+policy. The result is a Monte Carlo trial with actions selected ﬁrst by the tree
+policy and beyond the tree by the rollout policy.
+4. Backup. The return generated by the simulated episode is backed up to update,
+or to initialize, the action values attached to the edges of the tree traversed by
+the tree policy in this iteration of MCTS. No values are saved for the states and
+actions visited by the rollout policy beyond the tree. Figure 8.10 illustrates this by
+showing a backup from the terminal state of the simulated trajectory directly to the
+state–action node in the tree where the rollout policy began (though in general, the
+entire return over the simulated trajectory is backed up to this state–action node).
+MCTS continues executing these four steps, starting each time at the tree’s root node,
+until no more time is left, or some other computational resource is exhausted. Then,
+ﬁnally, an action from the root node (which still represents the current state of the
+environment) is selected according to some mechanism that depends on the accumulated
+statistics in the tree; for example, it may be an action having the largest action value
+of all the actions available from the root state, or perhaps the action with the largest
+visit count to avoid selecting outliers. This is the action MCTS actually selects. After
+the environment transitions to a new state, MCTS is run again, sometimes starting
+with a tree of a single root node representing the new state, but often starting with a
+tree containing any descendants of this node left over from the tree constructed by the
+previous execution of MCTS; all the remaining nodes are discarded, along with the action
+values associated with them.
+MCTS was ﬁrst proposed to select moves in programs playing two-person competitive
+games, such as Go. For game playing, each simulated episode is one complete play of the
+game in which both players select actions by the tree and rollout policies. Section 16.6
+describes an extension of MCTS used in the AlphaGo program that combines the Monte
+Carlo evaluations of MCTS with action values learned by a deep artiﬁcial neural network
+via self-play reinforcement learning.
+Relating MCTS to the reinforcement learning principles we describe in this book
+provides some insight into how it achieves such impressive results. At its base, MCTS is
+a decision-time planning algorithm based on Monte Carlo control applied to simulations
+
+--- Page 210 ---
+188
+Chapter 8: Planning and Learning with Tabular Methods
+that start from the root state; that is, it is a kind of rollout algorithm as described in
+the previous section. It therefore beneﬁts from online, incremental, sample-based value
+estimation and policy improvement. Beyond this, it saves action-value estimates attached
+to the tree edges and updates them using reinforcement learning’s sample updates. This
+has the e↵ect of focusing the Monte Carlo trials on trajectories whose initial segments
+are common to high-return trajectories previously simulated. Further, by incrementally
+expanding the tree, MCTS e↵ectively grows a lookup table to store a partial action-value
+function, with memory allocated to the estimated values of state–action pairs visited in
+the initial segments of high-yielding sample trajectories. MCTS thus avoids the problem
+of globally approximating an action-value function while it retains the beneﬁt of using
+past experience to guide exploration.
+The striking success of decision-time planning by MCTS has deeply inﬂuenced artiﬁcial
+intelligence, and many researchers are studying modiﬁcations and extensions of the basic
+procedure for use in both games and single-agent applications.
+8.12
+Summary of the Chapter
+Planning requires a model of the environment. A distribution model consists of the
+probabilities of next states and rewards for possible actions; a sample model produces
+single transitions and rewards generated according to these probabilities.
+Dynamic
+programming requires a distribution model because it uses expected updates, which involve
+computing expectations over all the possible next states and rewards. A sample model,
+on the other hand, is what is needed to simulate interacting with the environment during
+which sample updates, like those used by many reinforcement learning algorithms, can be
+used. Sample models are generally much easier to obtain than distribution models.
+We have presented a perspective emphasizing the surprisingly close relationships be-
+tween planning optimal behavior and learning optimal behavior. Both involve estimating
+the same value functions, and in both cases it is natural to update the estimates incre-
+mentally, in a long series of small backing-up operations. This makes it straightforward
+to integrate learning and planning processes simply by allowing both to update the same
+estimated value function. In addition, any of the learning methods can be converted into
+planning methods simply by applying them to simulated (model-generated) experience
+rather than to real experience. In this case learning and planning become even more
+similar; they are possibly identical algorithms operating on two di↵erent sources of
+experience.
+It is straightforward to integrate incremental planning methods with acting and model-
+learning.
+Planning, acting, and model-learning interact in a circular fashion (as in
+the diagram on page 162), each producing what the other needs to improve; no other
+interaction among them is either required or prohibited. The most natural approach
+is for all processes to proceed asynchronously and in parallel. If the processes must
+share computational resources, then the division can be handled almost arbitrarily—by
+whatever organization is most convenient and eﬃcient for the task at hand.
+In this chapter we have touched upon a number of dimensions of variation among
+state-space planning methods. One dimension is the variation in the size of updates. The
+
+--- Page 211 ---
+8.13. Summary of Part I: Dimensions
+189
+smaller the updates, the more incremental the planning methods can be. Among the
+smallest updates are one-step sample updates, as in Dyna. Another important dimension
+is the distribution of updates, that is, of the focus of search. Prioritized sweeping focuses
+backward on the predecessors of states whose values have recently changed. On-policy
+trajectory sampling focuses on states or state–action pairs that the agent is likely to
+encounter when controlling its environment. This can allow computation to skip over
+parts of the state space that are irrelevant to the prediction or control problem. Real-
+time dynamic programming, an on-policy trajectory sampling version of value iteration,
+illustrates some of the advantages this strategy has over conventional sweep-based policy
+iteration.
+Planning can also focus forward from pertinent states, such as states actually encoun-
+tered during an agent-environment interaction. The most important form of this is when
+planning is done at decision time, that is, as part of the action-selection process. Classical
+heuristic search as studied in artiﬁcial intelligence is an example of this. Other examples
+are rollout algorithms and Monte Carlo Tree Search that beneﬁt from online, incremental,
+sample-based value estimation and policy improvement.
+8.13
+Summary of Part I: Dimensions
+This chapter concludes Part I of this book. In it we have tried to present reinforcement
+learning not as a collection of individual methods, but as a coherent set of ideas cutting
+across methods. Each idea can be viewed as a dimension along which methods vary. The
+set of such dimensions spans a large space of possible methods. By exploring this space
+at the level of dimensions we hope to obtain the broadest and most lasting understanding.
+In this section we use the concept of dimensions in method space to recapitulate the view
+of reinforcement learning developed so far in this book.
+All of the methods we have explored so far in this book have three key ideas in common:
+ﬁrst, they all seek to estimate value functions; second, they all operate by backing up
+values along actual or possible state trajectories; and third, they all follow the general
+strategy of generalized policy iteration (GPI), meaning that they maintain an approximate
+value function and an approximate policy, and they continually try to improve each on the
+basis of the other. These three ideas are central to the subjects covered in this book. We
+suggest that value functions, backing up value updates, and GPI are powerful organizing
+principles potentially relevant to any model of intelligence, whether artiﬁcial or natural.
+Two of the most important dimensions along which the methods vary are shown in
+Figure 8.11. These dimensions have to do with the kind of update used to improve the
+value function. The horizontal dimension is whether they are sample updates (based on a
+sample trajectory) or expected updates (based on a distribution of possible trajectories).
+Expected updates require a distribution model, whereas sample updates need only a
+sample model, or can be done from actual experience with no model at all (another
+dimension of variation). The vertical dimension of Figure 8.11 corresponds to the depth
+of updates, that is, to the degree of bootstrapping. At three of the four corners of the
+space are the three primary methods for estimating values: dynamic programming, TD,
+and Monte Carlo. Along the left edge of the space are the sample-update methods,
+
+--- Page 212 ---
+190
+Chapter 8: Planning and Learning with Tabular Methods
+width
+of update
+depth
+(length)
+of update
+Temporal-
+difference
+learning
+Dynamic
+programming
+Monte
+Carlo
+...
+Exhaustive
+search
+Figure 8.11: A slice through the space of reinforcement learning methods, highlighting the
+two of the most important dimensions explored in Part I of this book: the depth and width of
+the updates.
+ranging from one-step TD updates to full-return Monte Carlo updates. Between these
+is a spectrum including methods based on n-step updates (and in Chapter 12 we will
+extend this to mixtures of n-step updates such as the λ-updates implemented by eligibility
+traces).
+Dynamic programming methods are shown in the extreme upper-right corner of the
+space because they involve one-step expected updates. The lower-right corner is the
+extreme case of expected updates so deep that they run all the way to terminal states
+(or, in a continuing task, until discounting has reduced the contribution of any further
+rewards to a negligible level). This is the case of exhaustive search. Intermediate methods
+along this dimension include heuristic search and related methods that search and update
+up to a limited depth, perhaps selectively. There are also methods that are intermediate
+along the horizontal dimension. These include methods that mix expected and sample
+updates, as well as the possibility of methods that mix samples and distributions within
+a single update. The interior of the square is ﬁlled in to represent the space of all such
+intermediate methods.
+A third dimension that we have emphasized in this book is the binary distinction
+between on-policy and o↵-policy methods. In the former case, the agent learns the value
+function for the policy it is currently following, whereas in the latter case it learns the
+
+--- Page 213 ---
+8.13. Summary of Part I: Dimensions
+191
+value function for the policy for a di↵erent policy, often the one that the agent currently
+thinks is best. The policy generating behavior is typically di↵erent from what is currently
+thought best because of the need to explore. This third dimension might be visualized as
+perpendicular to the plane of the page in Figure 8.11.
+In addition to the three dimensions just discussed, we have identiﬁed a number of
+others throughout the book:
+Deﬁnition of return Is the task episodic or continuing, discounted or undiscounted?
+Action values vs. state values vs. afterstate values What kind of values should
+be estimated? If only state values are estimated, then either a model or a separate
+policy (as in actor–critic methods) is required for action selection.
+Action selection/exploration How are actions selected to ensure a suitable trade-o↵
+between exploration and exploitation? We have considered only the simplest ways to
+do this: "-greedy, optimistic initialization of values, soft-max, and upper conﬁdence
+bound.
+Synchronous vs. asynchronous Are the updates for all states performed simultane-
+ously or one by one in some order?
+Real vs. simulated Should one update based on real experience or simulated experi-
+ence? If both, how much of each?
+Location of updates What states or state–action pairs should be updated? Model-
+free methods can choose only among the states and state–action pairs actually
+encountered, but model-based methods can choose arbitrarily. There are many
+possibilities here.
+Timing of updates Should updates be done as part of selecting actions, or only after-
+ward?
+Memory for updates How long should updated values be retained? Should they be
+retained permanently, or only while computing an action selection, as in heuristic
+search?
+Of course, these dimensions are neither exhaustive nor mutually exclusive. Individual
+algorithms di↵er in many other ways as well, and many algorithms lie in several places
+along several dimensions. For example, Dyna methods use both real and simulated
+experience to a↵ect the same value function. It is also perfectly sensible to maintain
+multiple value functions computed in di↵erent ways or over di↵erent state and action
+representations. These dimensions do, however, constitute a coherent set of ideas for
+describing and exploring a wide space of possible methods.
+The most important dimension not mentioned here, and not covered in Part I of
+this book, is that of function approximation. Function approximation can be viewed as
+an orthogonal spectrum of possibilities ranging from tabular methods at one extreme
+through state aggregation, a variety of linear methods, and then a diverse set of nonlinear
+methods. This dimension is explored in Part II.
+
+--- Page 214 ---
+192
+Chapter 8: Planning and Learning with Tabular Methods
+Bibliographical and Historical Remarks
+8.1
+The overall view of planning and learning presented here has developed gradually
+over a number of years, in part by the authors (Sutton, 1990, 1991a, 1991b;
+Barto, Bradtke, and Singh, 1991, 1995; Sutton and Pinette, 1985; Sutton and
+Barto, 1981b); it has been strongly inﬂuenced by Agre and Chapman (1990; Agre
+1988), Bertsekas and Tsitsiklis (1989), Singh (1993), and others. The authors
+were also strongly inﬂuenced by psychological studies of latent learning (Tolman,
+1932) and by psychological views of the nature of thought (e.g., Galanter and
+Gerstenhaber, 1956; Craik, 1943; Campbell, 1960; Dennett, 1978). In Part
+III of the book, Section 14.6 relates model-based and model-free methods to
+psychological theories of learning and behavior, and Section 15.11 discusses ideas
+about how the brain might implement these types of methods.
+8.2
+The terms direct and indirect, which we use to describe di↵erent kinds of
+reinforcement learning, are from the adaptive control literature (e.g., Goodwin
+and Sin, 1984), where they are used to make the same kind of distinction. The
+term system identiﬁcation is used in adaptive control for what we call model-
+learning (e.g., Goodwin and Sin, 1984; Ljung and S¨oderstrom, 1983; Young,
+1984). The Dyna architecture is due to Sutton (1990), and the results in this
+and the next section are based on results reported there. Barto and Singh
+(1990) consider some of the issues in comparing direct and indirect reinforcement
+learning methods. Early work extending Dyna to linear function approximation
+was done by Sutton, Szepesv´ari, Geramifard, and Bowling (2008) and by Parr,
+Li, Taylor, Painter-Wakeﬁeld, and Littman (2008).
+8.3
+There have been several works with model-based reinforcement learning that take
+the idea of exploration bonuses and optimistic initialization to its logical extreme,
+in which all incompletely explored choices are assumed maximally rewarding
+and optimal paths are computed to test them. The E3 algorithm of Kearns and
+Singh (2002) and the R-max algorithm of Brafman and Tennenholtz (2003) are
+guaranteed to ﬁnd a near-optimal solution in time polynomial in the number
+of states and actions. This is usually too slow for practical algorithms but is
+probably the best that can be done in the worst case.
+8.4
+Prioritized sweeping was developed simultaneously and independently by Moore
+and Atkeson (1993) and Peng and Williams (1993). The results in the box on
+page 170 are due to Peng and Williams (1993). The results in the box on page 171
+are due to Moore and Atkeson. Key subsequent work in this area includes that
+by McMahan and Gordon (2005) and by van Seijen and Sutton (2013).
+8.5
+This section was strongly inﬂuenced by the experiments of Singh (1993).
+8.6–7
+Trajectory sampling has implicitly been a part of reinforcement learning from
+the outset, but it was most explicitly emphasized by Barto, Bradtke, and Singh
+(1995) in their introduction of RTDP. They recognized that Korf’s (1990) learning
+
+--- Page 215 ---
+8.13. Summary of Part I: Dimensions
+193
+real-time A* (LRTA*) algorithm is an asynchronous DP algorithm that applies
+to stochastic problems as well as the deterministic problems on which Korf
+focused. Beyond LRTA*, RTDP includes the option of updating the values of
+many states in the time intervals between the execution of actions. Barto et
+al. (1995) proved the convergence result described here by combining Korf’s (1990)
+convergence proof for LRTA* with the result of Bertsekas (1982) (also Bertsekas
+and Tsitsiklis, 1989) ensuring convergence of asynchronous DP for stochastic
+shortest path problems in the undiscounted case. Combining model-learning
+with RTDP is called Adaptive RTDP, also presented by Barto et al. (1995) and
+discussed by Barto (2011).
+8.9
+For further reading on heuristic search, the reader is encouraged to consult texts
+and surveys such as those by Russell and Norvig (2009) and Korf (1988). Peng
+and Williams (1993) explored a forward focusing of updates much as is suggested
+in this section.
+8.10
+Abramson’s (1990) expected-outcome model is a rollout algorithm applied to two-
+person games in which the play of both simulated players is random. He argued
+that even with random play, it is a “powerful heuristic” that is “precise, accurate,
+easily estimable, eﬃciently calculable, and domain-independent.” Tesauro and
+Galperin (1997) demonstrated the e↵ectiveness of rollout algorithms for improving
+the play of backgammon programs, adopting the term “rollout” from its use
+in evaluating backgammon positions by playing out positions with di↵erent
+randomly generating sequences of dice rolls. Bertsekas, Tsitsiklis, and Wu (1997)
+examine rollout algorithms applied to combinatorial optimization problems, and
+Bertsekas (2013) surveys their use in discrete deterministic optimization problems,
+remarking that they are “often surprisingly e↵ective.”
+8.11
+The central ideas of MCTS were introduced by Coulom (2006) and by Kocsis
+and Szepesv´ari (2006). They built upon previous research with Monte Carlo
+planning algorithms as reviewed by these authors. Browne, Powley, Whitehouse,
+Lucas, Cowling, Rohlfshagen, Tavener, Perez, Samothrakis, and Colton (2012)
+is an excellent survey of MCTS methods and their applications. David Silver
+contributed to the ideas and presentation in this section.
+
+--- Page 216 ---
+
+
+--- Page 217 ---
+Part II:
+Approximate Solution Methods
+In the second part of the book we extend the tabular methods presented in the ﬁrst part
+to apply to problems with arbitrarily large state spaces. In many of the tasks to which we
+would like to apply reinforcement learning the state space is combinatorial and enormous;
+the number of possible camera images, for example, is much larger than the number of
+atoms in the universe. In such cases we cannot expect to ﬁnd an optimal policy or the
+optimal value function even in the limit of inﬁnite time and data; our goal instead is to
+ﬁnd a good approximate solution using limited computational resources. In this part of
+the book we explore such approximate solution methods.
+The problem with large state spaces is not just the memory needed for large tables,
+but the time and data needed to ﬁll them accurately. In many of our target tasks, almost
+every state encountered will never have been seen before. To make sensible decisions in
+such states it is necessary to generalize from previous encounters with di↵erent states
+that are in some sense similar to the current one. In other words, the key issue is that of
+generalization. How can experience with a limited subset of the state space be usefully
+generalized to produce a good approximation over a much larger subset?
+Fortunately, generalization from examples has already been extensively studied, and
+we do not need to invent totally new methods for use in reinforcement learning. To some
+extent we need only combine reinforcement learning methods with existing generalization
+methods. The kind of generalization we require is often called function approximation
+because it takes examples from a desired function (e.g., a value function) and attempts
+to generalize from them to construct an approximation of the entire function. Function
+approximation is an instance of supervised learning, the primary topic studied in machine
+learning, artiﬁcial neural networks, pattern recognition, and statistical curve ﬁtting. In
+theory, any of the methods studied in these ﬁelds can be used in the role of function
+approximator within reinforcement learning algorithms, although in practice some ﬁt
+more easily into this role than others.
+Reinforcement learning with function approximation involves a number of new issues
+that do not normally arise in conventional supervised learning, such as nonstationarity,
+bootstrapping, and delayed targets. We introduce these and other issues successively over
+the ﬁve chapters of this part. Initially we restrict attention to on-policy training, treating
+in Chapter 9 the prediction case, in which the policy is given and only its value function
+is approximated, and then in Chapter 10 the control case, in which an approximation to
+the optimal policy is found. The challenging problem of o↵-policy learning with function
+approximation is treated in Chapter 11. In each of these three chapters we will have
+
+--- Page 218 ---
+196
+Part II: Approximate Solution Methods
+to return to ﬁrst principles and re-examine the objectives of the learning to take into
+account function approximation. Chapter 12 introduces and analyzes the algorithmic
+mechanism of eligibility traces, which dramatically improves the computational properties
+of multi-step reinforcement learning methods in many cases. The ﬁnal chapter of this
+part explores a di↵erent approach to control, policy-gradient methods, which approximate
+the optimal policy directly and need never form an approximate value function (although
+they may be much more eﬃcient if they do approximate a value function as well the
+policy).
+
+--- Page 219 ---
+Chapter 9
+On-policy Prediction with
+Approximation
+In this chapter, we begin our study of function approximation in reinforcement learning
+by considering its use in estimating the state-value function from on-policy data, that is,
+in approximating v⇡from experience generated using a known policy ⇡. The novelty in
+this chapter is that the approximate value function is represented not as a table but as a
+parameterized functional form with weight vector w 2 Rd. We will write ˆv(s,w) ⇡v⇡(s)
+for the approximate value of state s given weight vector w. For example, ˆv might be
+a linear function in features of the state, with w the vector of feature weights. More
+generally, ˆv might be the function computed by a multi-layer artiﬁcial neural network,
+with w the vector of connection weights in all the layers. By adjusting the weights, any
+of a wide range of di↵erent functions can be implemented by the network. Or ˆv might be
+the function computed by a decision tree, where w is all the numbers deﬁning the split
+points and leaf values of the tree. Typically, the number of weights (the dimensionality of
+w) is much less than the number of states (d ⌧|S|), and changing one weight changes the
+estimated value of many states. Consequently, when a single state is updated, the change
+generalizes from that state to a↵ect the values of many other states. Such generalization
+makes the learning potentially more powerful but also potentially more diﬃcult to manage
+and understand.
+Perhaps surprisingly, extending reinforcement learning to function approximation also
+makes it applicable to partially observable problems, in which the full state is not available
+to the agent. If the parameterized function form for ˆv does not allow the estimated
+value to depend on certain aspects of the state, then it is just as if those aspects are
+unobservable. In fact, all the theoretical results for methods using function approximation
+presented in this part of the book apply equally well to cases of partial observability.
+What function approximation can’t do, however, is augment the state representation
+with memories of past observations. Some such possible further extensions are discussed
+brieﬂy in Section 17.3.
+
+--- Page 220 ---
+198
+Chapter 9: On-policy Prediction with Approximation
+9.1
+Value-function Approximation
+All of the prediction methods covered in this book have been described as updates to an
+estimated value function that shift its value at particular states toward a “backed-up value,”
+or update target, for that state. Let us refer to an individual update by the notation s 7! u,
+where s is the state updated and u is the update target that s’s estimated value is shifted
+toward. For example, the Monte Carlo update for value prediction is St 7! Gt, the TD(0)
+update is St 7! Rt+1 +γˆv(St+1,wt), and the n-step TD update is St 7! Gt:t+n. In the DP
+(dynamic programming) policy-evaluation update, s 7! E⇡[Rt+1 + γˆv(St+1,wt) | St =s],
+an arbitrary state s is updated, whereas in the other cases the state encountered in actual
+experience, St, is updated.
+It is natural to interpret each update as specifying an example of the desired input–
+output behavior of the value function. In a sense, the update s 7! u means that the
+estimated value for state s should be more like the update target u. Up to now, the
+actual update has been trivial: the table entry for s’s estimated value has simply been
+shifted a fraction of the way toward u, and the estimated values of all other states
+were left unchanged. Now we permit arbitrarily complex and sophisticated methods to
+implement the update, and updating at s generalizes so that the estimated values of
+many other states are changed as well. Machine learning methods that learn to mimic
+input–output examples in this way are called supervised learning methods, and when the
+outputs are numbers, like u, the process is often called function approximation. Function
+approximation methods expect to receive examples of the desired input–output behavior
+of the function they are trying to approximate. We use these methods for value prediction
+simply by passing to them the s 7! u of each update as a training example. We then
+interpret the approximate function they produce as an estimated value function.
+Viewing each update as a conventional training example in this way enables us to use
+any of a wide range of existing function approximation methods for value prediction. In
+principle, we can use any method for supervised learning from examples, including artiﬁcial
+neural networks, decision trees, and various kinds of multivariate regression. However,
+not all function approximation methods are equally well suited for use in reinforcement
+learning. The most sophisticated artiﬁcial neural network and statistical methods all
+assume a static training set over which multiple passes are made. In reinforcement
+learning, however, it is important that learning be able to occur online, while the agent
+interacts with its environment or with a model of its environment. To do this requires
+methods that are able to learn eﬃciently from incrementally acquired data. In addition,
+reinforcement learning generally requires function approximation methods able to handle
+nonstationary target functions (target functions that change over time). For example,
+in control methods based on GPI (generalized policy iteration) we often seek to learn
+q⇡while ⇡changes. Even if the policy remains the same, the target values of training
+examples are nonstationary if they are generated by bootstrapping methods (DP and TD
+learning). Methods that cannot easily handle such nonstationarity are less suitable for
+reinforcement learning.
+
+--- Page 221 ---
+9.2. The Prediction Objective (VE)
+199
+9.2
+The Prediction Objective (VE)
+Up to now we have not speciﬁed an explicit objective for prediction. In the tabular case
+a continuous measure of prediction quality was not necessary because the learned value
+function could come to equal the true value function exactly. Moreover, the learned
+values at each state were decoupled—an update at one state a↵ected no other. But with
+genuine approximation, an update at one state a↵ects many others, and it is not possible
+to get the values of all states exactly correct. By assumption we have far more states
+than weights, so making one state’s estimate more accurate invariably means making
+others’ less accurate. We are obligated then to say which states we care most about. We
+must specify a state distribution µ(s) ≥0, P
+s µ(s) = 1, representing how much we care
+about the error in each state s. By the error in a state s we mean the square of the
+di↵erence between the approximate value ˆv(s,w) and the true value v⇡(s). Weighting
+this over the state space by µ, we obtain a natural objective function, the mean square
+value error, denoted VE:
+VE(w) .=
+X
+s2S
+µ(s)
+h
+v⇡(s) −ˆv(s,w)
+i2
+.
+(9.1)
+The square root of this measure, the root VE, gives a rough measure of how much the
+approximate values di↵er from the true values and is often used in plots. Often µ(s) is
+chosen to be the fraction of time spent in s. Under on-policy training this is called the
+on-policy distribution; we focus entirely on this case in this chapter. In continuing tasks,
+the on-policy distribution is the stationary distribution under ⇡.
+The on-policy distribution in episodic tasks
+In an episodic task, the on-policy distribution is a little di↵erent in that it depends
+on how the initial states of episodes are chosen. Let h(s) denote the probability
+that an episode begins in each state s, and let ⌘(s) denote the number of time
+steps spent, on average, in state s in a single episode. Time is spent in a state s
+if episodes start in s, or if transitions are made into s from a preceding state ¯s in
+which time is spent:
+⌘(s) = h(s) +
+X
+¯s
+⌘(¯s)
+X
+a
+⇡(a|¯s)p(s|¯s, a),
+for all s 2 S.
+(9.2)
+This system of equations can be solved for the expected number of visits ⌘(s). The
+on-policy distribution is then the fraction of time spent in each state normalized to
+sum to one:
+µ(s) =
+⌘(s)
+P
+s0 ⌘(s0),
+for all s 2 S.
+(9.3)
+This is the natural choice without discounting. If there is discounting (γ < 1) it
+should be treated as a form of termination, which can be done simply by including
+a factor of γ in the second term of (9.2).
+
+--- Page 222 ---
+200
+Chapter 9: On-policy Prediction with Approximation
+The two cases, continuing and episodic, behave similarly, but with approximation they
+must be treated separately in formal analyses, as we will see repeatedly in this part of
+the book. This completes the speciﬁcation of the learning objective.
+It is not completely clear that the VE is the right performance objective for rein-
+forcement learning. Remember that our ultimate purpose—the reason we are learning
+a value function—is to ﬁnd a better policy. The best value function for this purpose is
+not necessarily the best for minimizing VE. Nevertheless, it is not yet clear what a more
+useful alternative goal for value prediction might be. For now, we will focus on VE.
+An ideal goal in terms of VE would be to ﬁnd a global optimum, a weight vector w⇤
+for which VE(w⇤) VE(w) for all possible w. Reaching this goal is sometimes possible
+for simple function approximators such as linear ones, but is rarely possible for complex
+function approximators such as artiﬁcial neural networks and decision trees. Short of
+this, complex function approximators may seek to converge instead to a local optimum,
+a weight vector w⇤for which VE(w⇤) VE(w) for all w in some neighborhood of w⇤.
+Although this guarantee is only slightly reassuring, it is typically the best that can be
+said for nonlinear function approximators, and often it is enough. Still, for many cases of
+interest in reinforcement learning there is no guarantee of convergence to an optimum, or
+even to within a bounded distance of an optimum. Some methods may in fact diverge,
+with their VE approaching inﬁnity in the limit.
+In the last two sections we outlined a framework for combining a wide range of
+reinforcement learning methods for value prediction with a wide range of function
+approximation methods, using the updates of the former to generate training examples
+for the latter. We also described a VE performance measure which these methods may
+aspire to minimize. The range of possible function approximation methods is far too
+large to cover all, and anyway too little is known about most of them to make a reliable
+evaluation or recommendation. Of necessity, we consider only a few possibilities. In
+the rest of this chapter we focus on function approximation methods based on gradient
+principles, and on linear gradient-descent methods in particular. We focus on these
+methods in part because we consider them to be particularly promising and because they
+reveal key theoretical issues, but also because they are simple and our space is limited.
+9.3
+Stochastic-gradient and Semi-gradient Methods
+We now develop in detail one class of learning methods for function approximation in
+value prediction, those based on stochastic gradient descent (SGD). SGD methods are
+among the most widely used of all function approximation methods and are particularly
+well suited to online reinforcement learning.
+In gradient-descent methods, the weight vector is a column vector with a ﬁxed number
+of real valued components, w .= (w1, w2, . . . , wd)>,1 and the approximate value function
+ˆv(s,w) is a di↵erentiable function of w for all s 2 S. We will be updating w at each of
+a series of discrete time steps, t = 0, 1, 2, 3, . . ., so we will need a notation wt for the
+1The > denotes transpose, needed here to turn the horizontal row vector in the text into a vertical
+column vector; in this book vectors are generally taken to be column vectors unless explicitly written out
+horizontally or transposed.
+
+--- Page 223 ---
+9.3. Stochastic-gradient and Semi-gradient Methods
+201
+weight vector at each step. For now, let us assume that, on each step, we observe a new
+example St 7! v⇡(St) consisting of a (possibly randomly selected) state St and its true
+value under the policy. These states might be successive states from an interaction with
+the environment, but for now we do not assume so. Even though we are given the exact,
+correct values, v⇡(St) for each St, there is still a diﬃcult problem because our function
+approximator has limited resources and thus limited resolution. In particular, there is
+generally no w that gets all the states, or even all the examples, exactly correct. In
+addition, we must generalize to all the other states that have not appeared in examples.
+We assume that states appear in examples with the same distribution, µ, over which
+we are trying to minimize the VE as given by (9.1). A good strategy in this case is
+to try to minimize error on the observed examples. Stochastic gradient-descent (SGD)
+methods do this by adjusting the weight vector after each example by a small amount in
+the direction that would most reduce the error on that example:
+wt+1 .= wt −1
+2↵r
+h
+v⇡(St) −ˆv(St,wt)
+i2
+(9.4)
+= wt + ↵
+h
+v⇡(St) −ˆv(St,wt)
+i
+rˆv(St,wt),
+(9.5)
+where ↵is a positive step-size parameter, and rf(w), for any scalar expression f(w)
+that is a function of a vector (here w), denotes the column vector of partial derivatives
+of the expression with respect to the components of the vector:
+rf(w) .=
+✓@f(w)
+@w1
+, @f(w)
+@w2
+, . . . , @f(w)
+@wd
+◆>
+.
+(9.6)
+This derivative vector is the gradient of f with respect to w. SGD methods are “gradient
+descent” methods because the overall step in wt is proportional to the negative gradient
+of the example’s squared error (9.4). This is the direction in which the error falls most
+rapidly. Gradient descent methods are called “stochastic” when the update is done, as
+here, on only a single example, which might have been selected stochastically. Over many
+examples, making small steps, the overall e↵ect is to minimize an average performance
+measure such as the VE.
+It may not be immediately apparent why SGD takes only a small step in the direction
+of the gradient. Could we not move all the way in this direction and completely eliminate
+the error on the example? In many cases this could be done, but usually it is not desirable.
+Remember that we do not seek or expect to ﬁnd a value function that has zero error for
+all states, but only an approximation that balances the errors in di↵erent states. If we
+completely corrected each example in one step, then we would not ﬁnd such a balance.
+In fact, the convergence results for SGD methods assume that ↵decreases over time. If
+it decreases in such a way as to satisfy the standard stochastic approximation conditions
+(2.7), then the SGD method (9.5) is guaranteed to converge to a local optimum.
+We turn now to the case in which the target output, here denoted Ut 2 R, of the tth
+training example, St 7! Ut, is not the true value, v⇡(St), but some, possibly random,
+approximation to it. For example, Ut might be a noise-corrupted version of v⇡(St), or it
+might be one of the bootstrapping targets using ˆv mentioned in the previous section. In
+
+--- Page 224 ---
+202
+Chapter 9: On-policy Prediction with Approximation
+these cases we cannot perform the exact update (9.5) because v⇡(St) is unknown, but
+we can approximate it by substituting Ut in place of v⇡(St). This yields the following
+general SGD method for state-value prediction:
+wt+1 .= wt + ↵
+h
+Ut −ˆv(St,wt)
+i
+rˆv(St,wt).
+(9.7)
+If Ut is an unbiased estimate, that is, if E[Ut|St =s] = v⇡(s), for each t, then wt is
+guaranteed to converge to a local optimum under the usual stochastic approximation
+conditions (2.7) for decreasing ↵.
+For example, suppose the states in the examples are the states generated by interaction
+(or simulated interaction) with the environment using policy ⇡. Because the true value of
+a state is the expected value of the return following it, the Monte Carlo target Ut .= Gt is
+by deﬁnition an unbiased estimate of v⇡(St). With this choice, the general SGD method
+(9.7) converges to a locally optimal approximation to v⇡(St). Thus, the gradient-descent
+version of Monte Carlo state-value prediction is guaranteed to ﬁnd a locally optimal
+solution. Pseudocode for a complete algorithm is shown in the box below.
+Gradient Monte Carlo Algorithm for Estimating ˆv ⇡v⇡
+Input: the policy ⇡to be evaluated
+Input: a di↵erentiable function ˆv : S ⇥Rd ! R
+Algorithm parameter: step size ↵> 0
+Initialize value-function weights w 2 Rd arbitrarily (e.g., w = 0)
+Loop forever (for each episode):
+Generate an episode S0, A0, R1, S1, A1, . . . , RT , ST using ⇡
+Loop for each step of episode, t = 0, 1, . . . , T −1:
+w  w + ↵
+⇥
+Gt −ˆv(St,w)
+⇤
+rˆv(St,w)
+One does not obtain the same guarantees if a bootstrapping estimate of v⇡(St) is used
+as the target Ut in (9.7). Bootstrapping targets such as n-step returns Gt:t+n or the DP
+target P
+a,s0,r ⇡(a|St)p(s0, r|St, a)[r + γˆv(s0,wt)] all depend on the current value of the
+weight vector wt, which implies that they will be biased and that they will not produce a
+true gradient-descent method. One way to look at this is that the key step from (9.4)
+to (9.5) relies on the target being independent of wt. This step would not be valid if
+a bootstrapping estimate were used in place of v⇡(St). Bootstrapping methods are not
+in fact instances of true gradient descent (Barnard, 1993). They take into account the
+e↵ect of changing the weight vector wt on the estimate, but ignore its e↵ect on the target.
+They include only a part of the gradient and, accordingly, we call them semi-gradient
+methods.
+Although semi-gradient (bootstrapping) methods do not converge as robustly as
+gradient methods, they do converge reliably in important cases such as the linear case
+discussed in the next section. Moreover, they o↵er important advantages that make them
+often clearly preferred. One reason for this is that they typically enable signiﬁcantly faster
+learning, as we have seen in Chapters 6 and 7. Another is that they enable learning to
+
+--- Page 225 ---
+9.3. Stochastic-gradient and Semi-gradient Methods
+203
+be continual and online, without waiting for the end of an episode. This enables them to
+be used on continuing problems and provides computational advantages. A prototypical
+semi-gradient method is semi-gradient TD(0), which uses Ut .= Rt+1 + γˆv(St+1,w) as its
+target. Complete pseudocode for this method is given in the box below.
+Semi-gradient TD(0) for estimating ˆv ⇡v⇡
+Input: the policy ⇡to be evaluated
+Input: a di↵erentiable function ˆv : S+ ⇥Rd ! R such that ˆv(terminal,·) = 0
+Algorithm parameter: step size ↵> 0
+Initialize value-function weights w 2 Rd arbitrarily (e.g., w = 0)
+Loop for each episode:
+Initialize S
+Loop for each step of episode:
+Choose A ⇠⇡(·|S)
+Take action A, observe R, S0
+w  w + ↵
+⇥
+R + γˆv(S0,w) −ˆv(S,w)
+⇤
+rˆv(S,w)
+S  S0
+until S is terminal
+State aggregation is a simple form of generalizing function approximation in which
+states are grouped together, with one estimated value (one component of the weight
+vector w) for each group. The value of a state is estimated as its group’s component,
+and when the state is updated, that component alone is updated. State aggregation
+is a special case of SGD (9.7) in which the gradient, rˆv(St,wt), is 1 for St’s group’s
+component and 0 for the other components.
+Example 9.1: State Aggregation on the 1000-state Random Walk Consider a
+1000-state version of the random walk task (Examples 6.2 and 7.1 on pages 125 and
+144). The states are numbered from 1 to 1000, left to right, and all episodes begin near
+the center, in state 500. State transitions are from the current state to one of the 100
+neighboring states to its left, or to one of the 100 neighboring states to its right, all with
+equal probability. Of course, if the current state is near an edge, then there may be fewer
+than 100 neighbors on that side of it. In this case, all the probability that would have
+gone into those missing neighbors goes into the probability of terminating on that side
+(thus, state 1 has a 0.5 chance of terminating on the left, and state 950 has a 0.25 chance
+of terminating on the right). As usual, termination on the left produces a reward of
+−1, and termination on the right produces a reward of +1. All other transitions have a
+reward of zero. We use this task as a running example throughout this section.
+Figure 9.1 shows the true value function v⇡for this task. It is nearly a straight line,
+curving very slightly toward the horizontal for the last 100 states at each end. Also shown
+is the ﬁnal approximate value function learned by the gradient Monte-Carlo algorithm
+with state aggregation after 100,000 episodes with a step size of ↵= 2 ⇥10−5. For the
+state aggregation, the 1000 states were partitioned into 10 groups of 100 states each (i.e.,
+states 1–100 were one group, states 101–200 were another, and so on). The staircase e↵ect
+
+--- Page 226 ---
+204
+Chapter 9: On-policy Prediction with Approximation
+0
+State
+Value
+scale
+    True 
+value v⇡
+    Approximate 
+MC value ˆv
+    State distribution  
+0.0017
+0.0137
+Distribution
+scale
+1000
+1
+0
+-1
+1
+µ
+Figure 9.1: Function approximation by state aggregation on the 1000-state random walk task,
+using the gradient Monte Carlo algorithm (page 202).
+shown in the ﬁgure is typical of state aggregation; within each group, the approximate
+value is constant, and it changes abruptly from one group to the next. These approximate
+values are close to the global minimum of the VE (9.1).
+Some of the details of the approximate values are best appreciated by reference to
+the state distribution µ for this task, shown in the lower portion of the ﬁgure with a
+right-side scale. State 500, in the center, is the ﬁrst state of every episode, but is rarely
+visited again. On average, about 1.37% of the time steps are spent in the start state.
+The states reachable in one step from the start state are the second most visited, with
+about 0.17% of the time steps being spent in each of them. From there µ falls o↵almost
+linearly, reaching about 0.0147% at the extreme states 1 and 1000. The most visible
+e↵ect of the distribution is on the leftmost groups, whose values are clearly shifted higher
+than the unweighted average of the true values of states within the group, and on the
+rightmost groups, whose values are clearly shifted lower. This is due to the states in
+these areas having the greatest asymmetry in their weightings by µ. For example, in the
+leftmost group, state 100 is weighted more than 3 times more strongly than state 1. Thus
+the estimate for the group is biased toward the true value of state 100, which is higher
+than the true value of state 1.
+9.4
+Linear Methods
+One of the most important special cases of function approximation is that in which the
+approximate function, ˆv(·,w), is a linear function of the weight vector, w. Corresponding
+to every state s, there is a real-valued vector x(s) .= (x1(s), x2(s), . . . , xd(s))>, with the
+same number of components as w. Linear methods approximate the state-value function
+
+--- Page 227 ---
+9.4. Linear Methods
+205
+by the inner product between w and x(s):
+ˆv(s,w) .= w>x(s) .=
+d
+X
+i=1
+wixi(s).
+(9.8)
+In this case the approximate value function is said to be linear in the weights, or simply
+linear.
+The vector x(s) is called a feature vector representing state s. Each component xi(s)
+of x(s) is the value of a function xi : S ! R. We think of a feature as the entirety of one
+of these functions, and we call its value for a state s a feature of s. For linear methods,
+features are basis functions because they form a linear basis for the set of approximate
+functions. Constructing d-dimensional feature vectors to represent states is the same as
+selecting a set of d basis functions. Features may be deﬁned in many di↵erent ways; we
+cover a few possibilities in the next sections.
+It is natural to use SGD updates with linear function approximation. The gradient of
+the approximate value function with respect to w in this case is
+rˆv(s,w) = x(s).
+Thus, in the linear case the general SGD update (9.7) reduces to a particularly simple
+form:
+wt+1 .= wt + ↵
+h
+Ut −ˆv(St,wt)
+i
+x(St).
+Because it is so simple, the linear SGD case is one of the most favorable for mathematical
+analysis. Almost all useful convergence results for learning systems of all kinds are for
+linear (or simpler) function approximation methods.
+In particular, in the linear case there is only one optimum (or, in degenerate cases,
+one set of equally good optima), and thus any method that is guaranteed to converge to
+or near a local optimum is automatically guaranteed to converge to or near the global
+optimum. For example, the gradient Monte Carlo algorithm presented in the previous
+section converges to the global optimum of the VE under linear function approximation
+if ↵is reduced over time according to the usual conditions.
+The semi-gradient TD(0) algorithm presented in the previous section also converges
+under linear function approximation, but this does not follow from general results on
+SGD; a separate theorem is necessary. The weight vector converged to is also not the
+global optimum, but rather a point near the local optimum. It is useful to consider this
+important case in more detail, speciﬁcally for the continuing case. The update at each
+time t is
+wt+1 .= wt + ↵
+⇣
+Rt+1 + γw>
+t xt+1 −w>
+t xt
+⌘
+xt
+(9.9)
+= wt + ↵
+⇣
+Rt+1xt −xt
+#
+xt −γxt+1
+$>wt
+⌘
+,
+where here we have used the notational shorthand xt = x(St). Once the system has
+reached steady state, for any given wt, the expected next weight vector can be written
+E[wt+1|wt] = wt + ↵(b −Awt),
+(9.10)
+
+--- Page 228 ---
+206
+Chapter 9: On-policy Prediction with Approximation
+where
+b .= E[Rt+1xt] 2 Rd
+and
+A .= E
+h
+xt
+#
+xt −γxt+1
+$>i
+2 Rd⇥d
+(9.11)
+From (9.10) it is clear that, if the system converges, it must converge to the weight vector
+wTD at which
+b −AwTD = 0
+)
+b = AwTD
+)
+wTD .= A−1b.
+(9.12)
+This quantity is called the TD ﬁxed point. In fact linear semi-gradient TD(0) converges
+to this point. Some of the theory proving its convergence, and the existence of the inverse
+above, is given in the box.
+Proof of Convergence of Linear TD(0)
+What properties assure convergence of the linear TD(0) algorithm (9.9)? Some
+insight can be gained by rewriting (9.10) as
+E[wt+1|wt] = (I −↵A)wt + ↵b.
+(9.13)
+Note that the matrix A multiplies the weight vector wt and not b; only A is
+important to convergence. To develop intuition, consider the special case in which
+A is a diagonal matrix. If any of the diagonal elements are negative, then the
+corresponding diagonal element of I −↵A will be greater than one, and the
+corresponding component of wt will be ampliﬁed, which will lead to divergence if
+continued. On the other hand, if the diagonal elements of A are all positive, then
+↵can be chosen smaller than one over the largest of them, such that I −↵A is
+diagonal with all diagonal elements between 0 and 1. In this case the ﬁrst term
+of the update tends to shrink wt, and stability is assured. In general, wt will be
+reduced toward zero whenever A is positive deﬁnite, meaning y>Ay > 0 for any
+real vector y 6= 0. Positive deﬁniteness also ensures that the inverse A−1 exists.
+For linear TD(0), in the continuing case with γ < 1, the A matrix (9.11) can be
+written
+A =
+X
+s
+µ(s)
+X
+a
+⇡(a|s)
+X
+r,s0
+p(r, s0|s, a)x(s)
+#
+x(s) −γx(s0)
+$>
+=
+X
+s
+µ(s)
+X
+s0
+p(s0|s)x(s)
+#
+x(s) −γx(s0)
+$>
+=
+X
+s
+µ(s)x(s)
+✓
+x(s) −γ
+X
+s0
+p(s0|s)x(s0)
+◆>
+= X>D(I −γP)X,
+where µ(s) is the stationary distribution under ⇡, p(s0|s) is the probability of
+transition from s to s0 under policy ⇡, P is the |S|⇥|S| matrix of these probabilities,
+
+--- Page 229 ---
+9.4. Linear Methods
+207
+D is the |S| ⇥|S| diagonal matrix with the µ(s) on its diagonal, and X is the |S| ⇥d
+matrix with x(s) as its rows. From here it is clear that the inner matrix D(I −γP)
+is key to determining the positive deﬁniteness of A.
+For a key matrix of this form, positive deﬁniteness is assured if all of its columns
+sum to a nonnegative number. This was shown by Sutton (1988, p. 27) based
+on two previously established theorems. One theorem says that any matrix M
+is positive deﬁnite if and only if the symmetric matrix S = M + M> is positive
+deﬁnite (Sutton 1988, appendix). The second theorem says that any symmetric
+real matrix S is positive deﬁnite if all of its diagonal entries are positive and greater
+than the sum of the absolute values of the corresponding o↵-diagonal entries (Varga
+1962, p. 23). For our key matrix, D(I −γP), the diagonal entries are positive
+and the o↵-diagonal entries are negative, so all we have to show is that each row
+sum plus the corresponding column sum is positive. The row sums are all positive
+because P is a stochastic matrix and γ < 1. Thus it only remains to show that
+the column sums are nonnegative. Note that the row vector of the column sums
+of any matrix M can be written as 1>M, where 1 is the column vector with all
+components equal to 1. Let µ denote the |S|-vector of the µ(s), where µ = P>µ by
+virtue of µ being the stationary distribution. The column sums of our key matrix,
+then, are:
+1>D(I −γP) = µ>(I −γP)
+= µ> −γµ>P
+= µ> −γµ>
+(because µ is the stationary distribution)
+= (1 −γ)µ>,
+all components of which are positive. Thus, the key matrix and its A matrix
+are positive deﬁnite, and on-policy TD(0) is stable. (Additional conditions and a
+schedule for reducing ↵over time are needed to prove convergence with probability
+one.)
+At the TD ﬁxed point, it has also been proven (in the continuing case) that the VE is
+within a bounded expansion of the lowest possible error:
+VE(wTD) 
+1
+1 −γ min
+w VE(w).
+(9.14)
+That is, the asymptotic error of the TD method is no more than
+1
+1−γ times the smallest
+possible error, that attained in the limit by the Monte Carlo method. Because γ is often
+near one, this expansion factor can be quite large, so there is substantial potential loss in
+asymptotic performance with the TD method. On the other hand, recall that the TD
+methods are often of vastly reduced variance compared to Monte Carlo methods, and
+thus faster, as we saw in Chapters 6 and 7. Which method will be best depends on the
+nature of the approximation and problem, and on how long learning continues.
+
+--- Page 230 ---
+208
+Chapter 9: On-policy Prediction with Approximation
+A bound analogous to (9.14) applies to other on-policy bootstrapping methods as well.
+For example, linear semi-gradient DP (Eq. 9.7 with Ut .= P
+a ⇡(a|St) P
+s0,r p(s0, r|St, a)[r+
+γˆv(s0,wt)]) with updates according to the on-policy distribution will also converge to
+the TD ﬁxed point. One-step semi-gradient action-value methods, such as semi-gradient
+Sarsa(0) covered in the next chapter converge to an analogous ﬁxed point and an analogous
+bound. For episodic tasks, there is a slightly di↵erent but related bound (see Bertsekas
+and Tsitsiklis, 1996). There are also a few technical conditions on the rewards, features,
+and decrease in the step-size parameter, which we have omitted here. The full details
+can be found in the original paper (Tsitsiklis and Van Roy, 1997).
+Critical to these convergence results is that states are updated according to the on-
+policy distribution. For other update distributions, bootstrapping methods using function
+approximation may actually diverge to inﬁnity. Examples of this and a discussion of
+possible solution methods are given in Chapter 11.
+Example 9.2: Bootstrapping on the 1000-state Random Walk State aggregation
+is a special case of linear function approximation, so let’s return to the 1000-state random
+walk to illustrate some of the observations made in this chapter. The left panel of
+Figure 9.2 shows the ﬁnal value function learned by the semi-gradient TD(0) algorithm
+(page 203) using the same state aggregation as in Example 9.1. We see that the near-
+asymptotic TD approximation is indeed farther from the true values than the Monte
+Carlo approximation shown in Figure 9.1.
+Nevertheless, TD methods retain large potential advantages in learning rate, and
+generalize Monte Carlo methods, as we investigated fully with n-step TD methods in
+Chapter 7. The right panel of Figure 9.2 shows results with an n-step semi-gradient
+TD method using state aggregation on the 1000-state random walk that are strikingly
+similar to those we obtained earlier with tabular methods and the 19-state random
+walk (Figure 7.2). To obtain such quantitatively similar results we switched the state
+aggregation to 20 groups of 50 states each. The 20 groups were then quantitatively close
+0.55
+0.5
+0.45
+0.35
+0.3
+0.25
+0.4
+0.4
+0.2
+0
+0.8
+0.6
+1
+↵
+Average
+RMS error
+over 1000 states
+and ﬁrst 10 
+episodes
+n=1
+n=2
+n=4
+n=8
+n=16
+n=32
+n=64
+128
+512
+256
+State
+    True 
+value v⇡
+    Approximate 
+TD value
+1
+0
+-1
+1
+1000
+ˆv
+Figure 9.2: Bootstrapping with state aggregation on the 1000-state random walk task. Left:
+Asymptotic values of semi-gradient TD are worse than the asymptotic Monte Carlo values in
+Figure 9.1. Right: Performance of n-step methods with state-aggregation are strikingly similar
+to those with tabular representations (cf. Figure 7.2). These data are averages over 100 runs.
+
+--- Page 231 ---
+9.4. Linear Methods
+209
+to the 19 states of the tabular problem. In particular, recall that state transitions were
+up to 100 states to the left or right. A typical transition would then be of 50 states to
+the right or left, which is quantitatively analogous to the single-state state transitions of
+the 19-state tabular system. To complete the match, we use here the same performance
+measure—an unweighted average of the RMS error over all states and over the ﬁrst
+10 episodes—rather than a VE objective as is otherwise more appropriate when using
+function approximation.
+The semi-gradient n-step TD algorithm used in the example above is the natural
+extension of the tabular n-step TD algorithm presented in Chapter 7 to semi-gradient
+function approximation. Pseudocode is given in the box below.
+n-step semi-gradient TD for estimating ˆv ⇡v⇡
+Input: the policy ⇡to be evaluated
+Input: a di↵erentiable function ˆv : S+ ⇥Rd ! R such that ˆv(terminal,·) = 0
+Algorithm parameters: step size ↵> 0, a positive integer n
+Initialize value-function weights w arbitrarily (e.g., w = 0)
+All store and access operations (St and Rt) can take their index mod n + 1
+Loop for each episode:
+Initialize and store S0 6= terminal
+T  1
+Loop for t = 0, 1, 2, . . . :
+|
+If t < T, then:
+|
+Take an action according to ⇡(·|St)
+|
+Observe and store the next reward as Rt+1 and the next state as St+1
+|
+If St+1 is terminal, then T  t + 1
+|
+⌧ t −n + 1
+(⌧is the time whose state’s estimate is being updated)
+|
+If ⌧≥0:
+|
+G  Pmin(⌧+n,T )
+i=⌧+1
+γi−⌧−1Ri
+|
+If ⌧+ n < T, then: G  G + γnˆv(S⌧+n,w)
+(G⌧:⌧+n)
+|
+w  w + ↵[G −ˆv(S⌧,w)] rˆv(S⌧,w)
+Until ⌧= T −1
+The key equation of this algorithm, analogous to (7.2), is
+wt+n .= wt+n−1 + ↵[Gt:t+n −ˆv(St,wt+n−1)] rˆv(St,wt+n−1),
+0 t < T, (9.15)
+where the n-step return is generalized from (7.1) to
+Gt:t+n .= Rt+1 +γRt+2 +· · ·+γn−1Rt+n +γnˆv(St+n,wt+n−1), 0 t T −n. (9.16)
+Exercise 9.1 Show that tabular methods such as presented in Part I of this book are a
+special case of linear function approximation. What would the feature vectors be?
+⇤
+
+--- Page 232 ---
+210
+Chapter 9: On-policy Prediction with Approximation
+9.5
+Feature Construction for Linear Methods
+Linear methods are interesting because of their convergence guarantees, but also because
+in practice they can be very eﬃcient in terms of both data and computation. Whether or
+not this is so depends critically on how the states are represented in terms of features,
+which we investigate in this large section. Choosing features appropriate to the task is
+an important way of adding prior domain knowledge to reinforcement learning systems.
+Intuitively, the features should correspond to the aspects of the state space along which
+generalization may be appropriate. If we are valuing geometric objects, for example,
+we might want to have features for each possible shape, color, size, or function. If we
+are valuing states of a mobile robot, then we might want to have features for locations,
+degrees of remaining battery power, recent sonar readings, and so on.
+A limitation of the linear form is that it cannot take into account any interactions
+between features, such as the presence of feature i being good only in the absence of
+feature j. For example, in the pole-balancing task (Example 3.4), high angular velocity
+can be either good or bad depending on the angle. If the angle is high, then high angular
+velocity means an imminent danger of falling—a bad state—whereas if the angle is low,
+then high angular velocity means the pole is righting itself—a good state. A linear value
+function could not represent this if its features coded separately for the angle and the
+angular velocity. It needs instead, or in addition, features for combinations of these two
+underlying state dimensions. In the following subsections we consider a variety of general
+ways of doing this.
+9.5.1
+Polynomials
+The states of many problems are initially expressed as numbers, such as positions and
+velocities in the pole-balancing task (Example 3.4), the number of cars in each lot in the
+Jack’s car rental problem (Example 4.2), or the gambler’s capital in the gambler problem
+(Example 4.3). In these types of problems, function approximation for reinforcement
+learning has much in common with the familiar tasks of interpolation and regression.
+Various families of features commonly used for interpolation and regression can also be
+used in reinforcement learning. Polynomials make up one of the simplest families of
+features used for interpolation and regression. While the basic polynomial features we
+discuss here do not work as well as other types of features in reinforcement learning, they
+serve as a good introduction because they are simple and familiar.
+As an example, suppose a reinforcement learning problem has states with two numerical
+dimensions. For a single representative state s, let its two numbers be s1 2 R and s2 2 R.
+You might choose to represent s simply by its two state dimensions, so that x(s) =
+(s1, s2)>, but then you would not be able to take into account any interactions between
+these dimensions. In addition, if both s1 and s2 were zero, then the approximate value
+would have to also be zero. Both limitations can be overcome by instead representing s by
+the four-dimensional feature vector x(s) = (1, s1, s2, s1s2)>. The initial 1 feature allows
+the representation of aﬃne functions in the original state numbers, and the ﬁnal product
+feature, s1s2, enables interactions to be taken into account. Or you might choose to use
+higher-dimensional feature vectors like x(s) = (1, s1, s2, s1s2, s2
+1, s2
+2, s1s2
+2, s2
+1s2, s2
+1s2
+2)> to
+
+--- Page 233 ---
+9.5. Feature Construction for Linear Methods
+211
+take more complex interactions into account. Such feature vectors enable approximations
+as arbitrary quadratic functions of the state numbers—even though the approximation is
+still linear in the weights that have to be learned. Generalizing this example from two
+to k numbers, we can represent highly-complex interactions among a problem’s state
+dimensions:
+Suppose each state s corresponds to k numbers, s1, s2, ..., sk, with each si 2 R.
+For this k-dimensional state space, each order-n polynomial-basis feature xi can be
+written as
+xi(s) = ⇧k
+j=1sci,j
+j
+,
+(9.17)
+where each ci,j is an integer in the set {0, 1, . . . , n} for an integer n ≥0. These
+features make up the order-n polynomial basis for dimension k, which contains
+(n + 1)k di↵erent features.
+Higher-order polynomial bases allow for more accurate approximations of more compli-
+cated functions. But because the number of features in an order-n polynomial basis grows
+exponentially with the dimension k of the natural state space (if n>0), it is generally
+necessary to select a subset of them for function approximation. This can be done using
+prior beliefs about the nature of the function to be approximated, and some automated
+selection methods developed for polynomial regression can be adapted to deal with the
+incremental and nonstationary nature of reinforcement learning.
+Exercise 9.2 Why does (9.17) deﬁne (n + 1)k distinct features for dimension k?
+⇤
+Exercise 9.3 What n and ci,j produce the feature vectors x(s) = (1, s1, s2, s1s2, s2
+1, s2
+2,
+s1s2
+2, s2
+1s2, s2
+1s2
+2)>?
+⇤
+9.5.2
+Fourier Basis
+Another linear function approximation method is based on the time-honored Fourier
+series, which expresses periodic functions as weighted sums of sine and cosine basis
+functions (features) of di↵erent frequencies. (A function f is periodic if f(x) = f(x + ⌧)
+for all x and some period ⌧.) The Fourier series and the more general Fourier transform
+are widely used in applied sciences in part because if a function to be approximated is
+known, then the basis function weights are given by simple formulae and, further, with
+enough basis functions essentially any function can be approximated as accurately as
+desired. In reinforcement learning, where the functions to be approximated are unknown,
+Fourier basis functions are of interest because they are easy to use and can perform well
+in a range of reinforcement learning problems.
+First consider the one-dimensional case. The usual Fourier series representation of a
+function of one dimension having period ⌧represents the function as a linear combination
+of sine and cosine functions that are each periodic with periods that evenly divide ⌧(in
+other words, whose frequencies are integer multiples of a fundamental frequency 1/⌧).
+But if you are interested in approximating an aperiodic function deﬁned over a bounded
+
+--- Page 234 ---
+212
+Chapter 9: On-policy Prediction with Approximation
+interval, then you can use these Fourier basis features with ⌧set to the length of the
+interval. The function of interest is then just one period of the periodic linear combination
+of the sine and cosine features.
+Furthermore, if you set ⌧to twice the length of the interval of interest and restrict
+attention to the approximation over the half interval [0, ⌧/2], then you can use just the
+cosine features. This is possible because you can represent any even function, that is,
+any function that is symmetric about the origin, with just the cosine basis. So any
+function over the half-period [0, ⌧/2] can be approximated as closely as desired with
+enough cosine features. (Saying “any function” is not exactly correct because the function
+has to be mathematically well-behaved, but we skip this technicality here.) Alternatively,
+it is possible to use just sine features, linear combinations of which are always odd
+functions, that is functions that are anti-symmetric about the origin. But it is generally
+better to keep just the cosine features because “half-even” functions tend to be easier to
+approximate than “half-odd” functions because the latter are often discontinuous at the
+origin. Of course, this does not rule out using both sine and cosine features to approximate
+over the interval [0, ⌧/2], which might be advantageous in some circumstances.
+Following this logic and letting ⌧= 2 so that the features are deﬁned over the half-⌧
+interval [0, 1], the one-dimensional order-n Fourier cosine basis consists of the n + 1
+features
+xi(s) = cos(i⇡s), s 2 [0, 1],
+for i = 0, . . . , n. Figure 9.3 shows one-dimensional Fourier cosine features xi, for i =
+1, 2, 3, 4; x0 is a constant function.
+0
+0.1
+0.2
+0.3
+0.4
+0.5
+0.6
+0.7
+0.8
+0.9
+1
+−1
+−0.8
+−0.6
+−0.4
+−0.2
+0
+0.2
+0.4
+0.6
+0.8
+1
+1
+-1
+1
+0
+0
+0.1
+0.2
+0.3
+0.4
+0.5
+0.6
+0.7
+0.8
+0.9
+1
+−1
+−0.8
+−0.6
+−0.4
+−0.2
+0
+0.2
+0.4
+0.6
+0.8
+1
+1
+-1
+1
+0
+0
+0.1
+0.2
+0.3
+0.4
+0.5
+0.6
+0.7
+0.8
+0.9
+1
+−1
+−0.8
+−0.6
+−0.4
+−0.2
+0
+0.2
+0.4
+0.6
+0.8
+1
+1
+-1
+1
+0
+0
+0.1
+0.2
+0.3
+0.4
+0.5
+0.6
+0.7
+0.8
+0.9
+1
+−1
+−0.8
+−0.6
+−0.4
+−0.2
+0
+0.2
+0.4
+0.6
+0.8
+1
+1
+-1
+1
+0
+Figure 9.3: One-dimensional Fourier cosine-basis features xi, i = 1, 2, 3, 4, for approximating
+functions over the interval [0, 1]. After Konidaris et al. (2011).
+This same reasoning applies to the Fourier cosine series approximation in the multi-
+dimensional case as described in the box below.
+Suppose each state s corresponds to a vector of k numbers, s = (s1, s2, ..., sk)>,
+with each si 2 [0, 1]. The ith feature in the order-n Fourier cosine basis can then
+be written
+xi(s) = cos
+#
+⇡s>ci$
+,
+(9.18)
+where ci = (ci
+1, . . . , ci
+k)>, with ci
+j 2 {0, . . . , n} for j = 1, . . . , k and i = 1, . . . , (n+1)k.
+This deﬁnes a feature for each of the (n + 1)k possible integer vectors ci. The inner
+
+--- Page 235 ---
+9.5. Feature Construction for Linear Methods
+213
+product s>ci has the e↵ect of assigning an integer in {0, . . . , n} to each dimension
+of s. As in the one-dimensional case, this integer determines the feature’s frequency
+along that dimension. The features can of course be shifted and scaled to suit the
+bounded state space of a particular application.
+As an example, consider the k = 2 case in which s = (s1, s2)>, where each ci = (ci
+1, ci
+2)>.
+Figure 9.4 shows a selection of six Fourier cosine features, each labeled by the vector ci
+that deﬁnes it (s1 is the horizontal axis and ci is shown as a row vector with the index i
+omitted). Any zero in c means the feature is constant along that state dimension. So if
+c = (0, 0)>, the feature is constant over both dimensions; if c = (c1, 0)> the feature is
+constant over the second dimension and varies over the ﬁrst with frequency depending
+on c1; and similarly, for c = (0, c2)>. When c = (c1, c2)> with neither cj = 0, the
+feature varies along both dimensions and represents an interaction between the two state
+variables. The values of c1 and c2 determine the frequency along each dimension, and
+their ratio gives the direction of the interaction.
+c = (0, 1)
+1
+1
+0
+0
+1
+1
+0
+0
+c = (0, 1)>
+c = (1, 0)
+1
+1
+0
+0
+1
+1
+0
+0
+c = (1, 0)>
+c = (1, 1)
+1
+1
+0
+0
+1
+1
+0
+0
+c = (1, 1)>
+c = (1, 5)
+1
+1
+0
+0
+1
+1
+0
+0
+c = (0, 5)>
+c = (2, 5)
+1
+1
+0
+0
+1
+1
+0
+0
+c = (2, 5)>
+1
+1
+0
+0
+c = (5, 2)>
+Figure 9.4: A selection of six two-dimensional Fourier cosine features, each labeled by the
+vector ci that deﬁnes it (s1 is the horizontal axis, and ci is shown with the index i omitted).
+After Konidaris et al. (2011).
+When using Fourier cosine features with a learning algorithm such as (9.7), semi-
+gradient TD(0), or semi-gradient Sarsa, it may be helpful to use a di↵erent step-size
+parameter for each feature. If ↵is the basic step-size parameter, then Konidaris, Osentoski,
+and Thomas (2011) suggest setting the step-size parameter for feature xi to ↵i =
+↵/
+p
+(ci
+1)2 + · · · + (ci
+k)2 (except when each ci
+j = 0, in which case ↵i = ↵).
+
+--- Page 236 ---
+214
+Chapter 9: On-policy Prediction with Approximation
+Fourier cosine features with Sarsa can produce good performance compared to several
+other collections of basis functions, including polynomial and radial basis functions. Not
+surprisingly, however, Fourier features have trouble with discontinuities because it is
+diﬃcult to avoid “ringing” around points of discontinuity unless very high frequency basis
+functions are included.
+The number of features in the order-n Fourier basis grows exponentially with the
+dimension of the state space, but if that dimension is small enough (e.g., k 5), then
+one can select n so that all of the order-n Fourier features can be used. This makes the
+selection of features more-or-less automatic. For high dimension state spaces, however, it
+is necessary to select a subset of these features. This can be done using prior beliefs about
+the nature of the function to be approximated, and some automated selection methods
+can be adapted to deal with the incremental and nonstationary nature of reinforcement
+learning. An advantage of Fourier basis features in this regard is that it is easy to select
+features by setting the ci vectors to account for suspected interactions among the state
+variables and by limiting the values in the cj vectors so that the approximation can
+ﬁlter out high frequency components considered to be noise. On the other hand, because
+Fourier features are non-zero over the entire state space (with the few zeros excepted),
+they represent global properties of states, which can make it diﬃcult to ﬁnd good ways
+to represent local properties.
+Figure 9.5 shows learning curves comparing the Fourier and polynomial bases on the
+1000-state random walk example. In general, we do not recommend using polynomials
+for online learning.2
+.4
+.3
+.2
+.1
+0
+0
+5000
+Episodes
+Polynomial basis
+Fourier basis
+p
+VE
+ 
+averaged
+over 30 runs
+Figure 9.5: Fourier basis vs polynomials on the 1000-state random walk. Shown are learning
+curves for the gradient Monte Carlo method with Fourier and polynomial bases of order 5, 10,
+and 20. The step-size parameters were roughly optimized for each case: ↵= 0.0001 for the
+polynomial basis and ↵= 0.00005 for the Fourier basis. The performance measure (y-axis) is
+the root mean square value error (9.1).
+2There are families of polynomials more complicated than those we have discussed, for example,
+di↵erent families of orthogonal polynomials, and these might work better, but at present there is little
+experience with them in reinforcement learning.
+
+--- Page 237 ---
+9.5. Feature Construction for Linear Methods
+215
+9.5.3
+Coarse Coding
+s0
+s
+Figure 9.6: Coarse coding. Generaliza-
+tion from state s to state s0 depends on
+the number of their features whose recep-
+tive ﬁelds (in this case, circles) overlap.
+These states have one feature in common,
+so there will be slight generalization be-
+tween them.
+Consider a task in which the natural repre-
+sentation of the state set is a continuous two-
+dimensional space. One kind of representation for
+this case is made up of features corresponding to
+circles in state space, as shown to the right. If
+the state is inside a circle, then the corresponding
+feature has the value 1 and is said to be present;
+otherwise the feature is 0 and is said to be absent.
+This kind of 1–0-valued feature is called a binary
+feature. Given a state, which binary features are
+present indicate within which circles the state lies,
+and thus coarsely code for its location. Represent-
+ing a state with features that overlap in this way
+(although they need not be circles or binary) is
+known as coarse coding.
+Assuming linear gradient-descent function ap-
+proximation, consider the e↵ect of the size and
+density of the circles. Corresponding to each cir-
+cle is a single weight (a component of w) that is
+a↵ected by learning. If we train at one state, a
+point in the space, then the weights of all circles
+intersecting that state will be a↵ected. Thus, by (9.8), the approximate value function
+will be a↵ected at all states within the union of the circles, with a greater e↵ect the more
+circles a point has “in common” with the state, as shown in Figure 9.6. If the circles are
+small, then the generalization will be over a short distance, as in Figure 9.7 (left), whereas
+if they are large, it will be over a large distance, as in Figure 9.7 (middle). Moreover,
+a) Narrow generalization
+b) Broad generalization
+c) Asymmetric generalization
+Figure 9.7: Generalization in linear function approximation methods is determined by the
+sizes and shapes of the features’ receptive ﬁelds. All three of these cases have roughly the same
+number and density of features.
+
+--- Page 238 ---
+216
+Chapter 9: On-policy Prediction with Approximation
+the shape of the features will determine the nature of the generalization. For example, if
+they are not strictly circular, but are elongated in one direction, then generalization will
+be similarly a↵ected, as in Figure 9.7 (right).
+Features with large receptive ﬁelds give broad generalization, but might also seem to
+limit the learned function to a coarse approximation, unable to make discriminations
+much ﬁner than the width of the receptive ﬁelds. Happily, this is not the case. Initial
+generalization from one point to another is indeed controlled by the size and shape of
+the receptive ﬁelds, but acuity, the ﬁnest discrimination ultimately possible, is controlled
+more by the total number of features.
+Example 9.3: Coarseness of Coarse Coding
+This example illustrates the e↵ect on
+learning of the size of the receptive ﬁelds in coarse coding. Linear function approximation
+based on coarse coding and (9.7) was used to learn a one-dimensional square-wave function
+(shown at the top of Figure 9.8). The values of this function were used as the targets, Ut.
+With just one dimension, the receptive ﬁelds were intervals rather than circles. Learning
+was repeated with three di↵erent sizes of the intervals: narrow, medium, and broad, as
+shown at the bottom of the ﬁgure. All three cases had the same density of features,
+about 50 over the extent of the function being learned. Training examples were generated
+uniformly at random over this extent. The step-size parameter was ↵= 0.2
+n , where n is
+the number of features that were present at one time. Figure 9.8 shows the functions
+learned in all three cases over the course of learning. Note that the width of the features
+had a strong e↵ect early in learning. With broad features, the generalization tended to be
+broad; with narrow features, only the close neighbors of each trained point were changed,
+causing the function learned to be more bumpy. However, the ﬁnal function learned was
+a↵ected only slightly by the width of the features. Receptive ﬁeld shape tends to have a
+strong e↵ect on generalization but little e↵ect on asymptotic solution quality.
+10
+40
+160
+640
+2560
+10240
+Narrow
+features
+desired
+function
+Medium
+features
+Broad
+features
+#Examples
+approx-
+imation
+feature
+width
+Figure 9.8: Example of feature width’s strong e↵ect on initial generalization (ﬁrst row) and
+weak e↵ect on asymptotic accuracy (last row).
+
+--- Page 239 ---
+9.5. Feature Construction for Linear Methods
+217
+9.5.4
+Tile Coding
+Tile coding is a form of coarse coding for multi-dimensional continuous spaces that is
+ﬂexible and computationally eﬃcient. It may be the most practical feature representation
+for modern sequential digital computers.
+In tile coding the receptive ﬁelds of the features are grouped into partitions of the state
+space. Each such partition is called a tiling, and each element of the partition is called a
+tile. For example, the simplest tiling of a two-dimensional state space is a uniform grid
+such as that shown on the left side of Figure 9.9. The tiles or receptive ﬁeld here are
+squares rather than the circles in Figure 9.6. If just this single tiling were used, then the
+state indicated by the white spot would be represented by the single feature whose tile
+it falls within; generalization would be complete to all states within the same tile and
+nonexistent to states outside it. With just one tiling, we would not have coarse coding
+but just a case of state aggregation.
+Point in 
+state space
+to be
+represented
+Tiling 1
+Tiling 2
+Tiling 3
+Tiling 4
+Continuous 
+2D state 
+space
+Four active
+tiles/features 
+overlap the point
+and are used to 
+represent it
+Figure 9.9: Multiple, overlapping grid-tilings on a limited two-dimensional space. These tilings
+are o↵set from one another by a uniform amount in each dimension.
+To get the strengths of coarse coding requires overlapping receptive ﬁelds, and by
+deﬁnition the tiles of a partition do not overlap. To get true coarse coding with tile coding,
+multiple tilings are used, each o↵set by a fraction of a tile width. A simple case with
+four tilings is shown on the right side of Figure 9.9. Every state, such as that indicated
+by the white spot, falls in exactly one tile in each of the four tilings. These four tiles
+correspond to four features that become active when the state occurs. Speciﬁcally, the
+feature vector x(s) has one component for each tile in each tiling. In this example there
+are 4 ⇥4 ⇥4 = 64 components, all of which will be 0 except for the four corresponding to
+the tiles that s falls within. Figure 9.10 shows the advantage of multiple o↵set tilings
+(coarse coding) over a single tiling on the 1000-state random walk example.
+An immediate practical advantage of tile coding is that, because it works with partitions,
+the overall number of features that are active at one time is the same for any state.
+Exactly one feature is present in each tiling, so the total number of features present is
+always the same as the number of tilings. This allows the step-size parameter, ↵, to
+
+--- Page 240 ---
+218
+Chapter 9: On-policy Prediction with Approximation
+.4
+.3
+.2
+.1
+0
+ 
+averaged
+over 30 runs
+0
+5000
+Episodes
+State aggregation
+(one tiling)
+Tile coding (50 tilings)
+p
+VE
+Figure 9.10: Why we use coarse coding. Shown are learning curves on the 1000-state random
+walk example for the gradient Monte Carlo algorithm with a single tiling and with multiple
+tilings. The space of 1000 states was treated as a single continuous dimension, covered with tiles
+each 200 states wide. The multiple tilings were o↵set from each other by 4 states. The step-size
+parameter was set so that the initial learning rate in the two cases was the same, ↵= 0.0001 for
+the single tiling and ↵= 0.0001/50 for the 50 tilings.
+be set in an easy, intuitive way. For example, choosing ↵= 1
+n, where n is the number
+of tilings, results in exact one-trial learning. If the example s 7! v is trained on, then
+whatever the prior estimate, ˆv(s,wt), the new estimate will be ˆv(s,wt+1) = v. Usually
+one wishes to change more slowly than this, to allow for generalization and stochastic
+variation in target outputs. For example, one might choose ↵=
+1
+10n, in which case the
+estimate for the trained state would move one-tenth of the way to the target in one
+update, and neighboring states will be moved less, proportional to the number of tiles
+they have in common.
+Tile coding also gains computational advantages from its use of binary feature vectors.
+Because each component is either 0 or 1, the weighted sum making up the approximate
+value function (9.8) is almost trivial to compute. Rather than performing d multiplications
+and additions, one simply computes the indices of the n ⌧d active features and then
+adds up the n corresponding components of the weight vector.
+Generalization occurs to states other than the one trained if those states fall within
+any of the same tiles, proportional to the number of tiles in common. Even the choice of
+how to o↵set the tilings from each other a↵ects generalization. If they are o↵set uniformly
+in each dimension, as they were in Figure 9.9, then di↵erent states can generalize in
+qualitatively di↵erent ways, as shown in the upper half of Figure 9.11. Each of the eight
+subﬁgures show the pattern of generalization from a trained state to nearby points. In this
+example there are eight tilings, thus 64 subregions within a tile that generalize distinctly,
+but all according to one of these eight patterns. Note how uniform o↵sets result in a
+strong e↵ect along the diagonal in many patterns. These artifacts can be avoided if the
+tilings are o↵set asymmetrically, as shown in the lower half of the ﬁgure. These lower
+generalization patterns are better because they are all well centered on the trained state
+with no obvious asymmetries.
+
+--- Page 241 ---
+9.5. Feature Construction for Linear Methods
+219
+Possible 
+generalizations 
+for uniformly 
+oﬀset tilings
+Possible 
+generalizations
+for asymmetrically 
+oﬀset tilings
+Figure 9.11: Why tile asymmetrical o↵sets are preferred in tile coding. Shown is the strength
+of generalization from a trained state, indicated by the small black plus, to nearby states, for the
+case of eight tilings. If the tilings are uniformly o↵set (above), then there are diagonal artifacts
+and substantial variations in the generalization, whereas with asymmetrically o↵set tilings the
+generalization is more spherical and homogeneous.
+Tilings in all cases are o↵set from each other by a fraction of a tile width in each
+dimension. If w denotes the tile width and n the number of tilings, then w
+n is a fundamental
+unit. Within small squares w
+n on a side, all states activate the same tiles, have the same
+feature representation, and the same approximated value. If a state is moved by w
+n
+in any cartesian direction, the feature representation changes by one component/tile.
+Uniformly o↵set tilings are o↵set from each other by exactly this unit distance. For a
+two-dimensional space, we say that each tiling is o↵set by the displacement vector (1, 1),
+meaning that it is o↵set from the previous tiling by w
+n times this vector. In these terms,
+the asymmetrically o↵set tilings shown in the lower part of Figure 9.11 are o↵set by a
+displacement vector of (1, 3).
+Extensive studies have been made of the e↵ect of di↵erent displacement vectors on the
+generalization of tile coding (Parks and Militzer, 1991; An, 1991; An, Miller and Parks,
+
+--- Page 242 ---
+220
+Chapter 9: On-policy Prediction with Approximation
+1991; Miller, An, Glanz and Carter, 1990), assessing their homegeneity and tendency
+toward diagonal artifacts like those seen for the (1, 1) displacement vectors. Based on this
+work, Miller and Glanz (1996) recommend using displacement vectors consisting of the
+ﬁrst odd integers. In particular, for a continuous space of dimension k, a good choice is
+to use the ﬁrst odd integers (1, 3, 5, 7, . . . , 2k −1), with n (the number of tilings) set to an
+integer power of 2 greater than or equal to 4k. This is what we have done to produce the
+tilings in the lower half of Figure 9.11, in which k = 2, n = 23 ≥4k, and the displacement
+vector is (1, 3). In a three-dimensional case, the ﬁrst four tilings would be o↵set in total
+from a base position by (0, 0, 0), (1, 3, 5), (2, 6, 10), and (3, 9, 15). Open-source software
+that can eﬃciently make tilings like this for any k is readily available.
+In choosing a tiling strategy, one has to pick the number of the tilings and the shape of
+the tiles. The number of tilings, along with the size of the tiles, determines the resolution
+or ﬁneness of the asymptotic approximation, as in general coarse coding and illustrated
+in Figure 9.8. The shape of the tiles will determine the nature of generalization as in
+Figure 9.7. Square tiles will generalize roughly equally in each dimension as indicated in
+Figure 9.11 (lower). Tiles that are elongated along one dimension, such as the stripe tilings
+in Figure 9.12 (middle), will promote generalization along that dimension. The tilings in
+Figure 9.12 (middle) are also denser and thinner on the left, promoting discrimination
+along the horizontal dimension at lower values along that dimension. The diagonal stripe
+tiling in Figure 9.12 (right) will promote generalization along one diagonal. In higher
+dimensions, axis-aligned stripes correspond to ignoring some of the dimensions in some
+of the tilings, that is, to hyperplanar slices. Irregular tilings such as shown in Figure 9.12
+(left) are also possible, though rare in practice and beyond the standard software.
+a) Irregular
+b) Log stripes
+c) Diagonal stripes
+Figure 9.12: Tilings need not be grids. They can be arbitrarily shaped and non-uniform, while
+still in many cases being computationally eﬃcient to compute.
+In practice, it is often desirable to use di↵erent shaped tiles in di↵erent tilings. For
+example, one might use some vertical stripe tilings and some horizontal stripe tilings.
+This would encourage generalization along either dimension. However, with stripe tilings
+alone it is not possible to learn that a particular conjunction of horizontal and vertical
+coordinates has a distinctive value (whatever is learned for it will bleed into states with the
+same horizontal and vertical coordinates). For this one needs the conjunctive rectangular
+tiles such as originally shown in Figure 9.9. With multiple tilings—some horizontal, some
+vertical, and some conjunctive—one can get everything: a preference for generalizing
+along each dimension, yet the ability to learn speciﬁc values for conjunctions (see Sutton,
+
+--- Page 243 ---
+9.5. Feature Construction for Linear Methods
+221
+1996 for examples). The choice of tilings determines generalization, and until this choice
+can be e↵ectively automated, it is important that tile coding enables the choice to be
+made ﬂexibly and in a way that makes sense to people.
+Another useful trick for reducing memory requirements is hashing—a consistent pseudo-
+random collapsing of a large tiling into a much smaller set of tiles. Hashing produces
+tiles consisting of noncontiguous, disjoint regions randomly spread throughout the state
+one
+tile
+space, but that still form an exhaustive partition. For example,
+one tile might consist of the four subtiles shown to the right.
+Through hashing, memory requirements are often reduced by
+large factors with little loss of performance. This is possible
+because high resolution is needed in only a small fraction of the
+state space. Hashing frees us from the curse of dimensionality
+in the sense that memory requirements need not be exponential
+in the number of dimensions, but need merely match the real
+demands of the task. Open-source implementations of tile coding
+commonly include eﬃcient hashing.
+Exercise 9.4 Suppose we believe that one of two state dimensions is more likely to have
+an e↵ect on the value function than is the other, that generalization should be primarily
+across this dimension rather than along it. What kind of tilings could be used to take
+advantage of this prior knowledge?
+⇤
+9.5.5
+Radial Basis Functions
+Radial basis functions (RBFs) are the natural generalization of coarse coding to continuous-
+valued features. Rather than each feature being either 0 or 1, it can be anything in the
+interval [0, 1], reﬂecting various degrees to which the feature is present. A typical RBF
+feature, xi, has a Gaussian (bell-shaped) response xi(s) dependent only on the distance
+between the state, s, and the feature’s prototypical or center state, ci, and relative to the
+feature’s width, σi:
+xi(s) .= exp
+✓
+−||s −ci||2
+2σ2
+i
+◆
+.
+The norm or distance metric of course can be chosen in whatever way seems most
+appropriate to the states and task at hand. The ﬁgure below shows a one-dimensional
+example with a Euclidean distance metric.
+ci
+!i
+ci+1
+ci-1
+Figure 9.13: One-dimensional radial basis functions.
+
+--- Page 244 ---
+222
+Chapter 9: On-policy Prediction with Approximation
+The primary advantage of RBFs over binary features is that they produce approximate
+functions that vary smoothly and are di↵erentiable. Although this is appealing, in most
+cases it has no practical signiﬁcance. Nevertheless, extensive studies have been made of
+graded response functions such as RBFs in the context of tile coding (An, 1991; Miller et
+al., 1991; An et al., 1991; Lane, Handelman and Gelfand, 1992). All of these methods
+require substantial additional computational complexity (over tile coding) and often
+reduce performance when there are more than two state dimensions. In high dimensions
+the edges of tiles are much more important, and it has proven diﬃcult to obtain well
+controlled graded tile activations near the edges.
+An RBF network is a linear function approximator using RBFs for its features. Learning
+is deﬁned by equations (9.7) and (9.8), exactly as in other linear function approximators.
+In addition, some learning methods for RBF networks change the centers and widths of
+the features as well, bringing them into the realm of nonlinear function approximators.
+Nonlinear methods may be able to ﬁt target functions much more precisely. The downside
+to RBF networks, and to nonlinear RBF networks especially, is greater computational
+complexity and, often, more manual tuning before learning is robust and eﬃcient.
+9.6
+Selecting Step-Size Parameters Manually
+Most SGD methods require the designer to select an appropriate step-size parameter ↵.
+Ideally this selection would be automated, and in some cases it has been, but for most
+cases it is still common practice to set it manually. To do this, and to better understand
+the algorithms, it is useful to develop some intuitive sense of the role of the step-size
+parameter. Can we say in general how it should be set?
+Theoretical considerations are unfortunately of little help. The theory of stochastic
+approximation gives us conditions (2.7) on a slowly decreasing step-size sequence that are
+suﬃcient to guarantee convergence, but these tend to result in learning that is too slow.
+The classical choice ↵t = 1/t, which produces sample averages in tabular MC methods, is
+not appropriate for TD methods, for nonstationary problems, or for any method using
+function approximation. For linear methods, there are recursive least-squares methods
+that set an optimal matrix step size, and these methods can be extended to temporal-
+di↵erence learning as in the LSTD method described in Section 9.8, but these require
+O(d2) step-size parameters, or d times more parameters than we are learning. For this
+reason we rule them out for use on large problems where function approximation is most
+needed.
+To get some intuitive feel for how to set the step-size parameter manually, it is best
+to go back momentarily to the tabular case. There we can understand that a step size
+of ↵= 1 will result in a complete elimination of the sample error after one target (see
+(2.4) with a step size of one). As discussed on page 201, we usually want to learn slower
+than this. In the tabular case, a step size of ↵=
+1
+10 would take about 10 experiences to
+converge approximately to their mean target, and if we wanted to learn in 100 experiences
+we would use ↵=
+1
+100. In general, if ↵= 1
+⌧, then the tabular estimate for a state will
+approach the mean of its targets, with the most recent targets having the greatest e↵ect,
+after about ⌧experiences with the state.
+
+--- Page 245 ---
+9.7. Nonlinear Function Approximation: Artiﬁcial Neural Networks
+223
+With general function approximation there is not such a clear notion of number of
+experiences with a state, as each state may be similar to and dissimilar from all the others
+to various degrees. However, there is a similar rule that gives similar behavior in the case
+of linear function approximation. Suppose you wanted to learn in about ⌧experiences
+with substantially the same feature vector. A good rule of thumb for setting the step-size
+parameter of linear SGD methods is then
+↵.=
+#
+⌧E
+⇥
+x>x
+⇤$−1 ,
+(9.19)
+where x is a random feature vector chosen from the same distribution as input vectors
+will be in the SGD. This method works best if the feature vectors do not vary greatly in
+length; ideally x>x is a constant.
+Exercise 9.5 Suppose you are using tile coding to transform a seven-dimensional continuous
+state space into binary feature vectors to estimate a state value function ˆv(s,w) ⇡v⇡(s).
+You believe that the dimensions do not interact strongly, so you decide to use eight tilings
+of each dimension separately (stripe tilings), for 7 ⇥8 = 56 tilings. In addition, in case
+there are some pairwise interactions between the dimensions, you also take all
+#7
+2
+$
+= 21
+pairs of dimensions and tile each pair conjunctively with rectangular tiles. You make
+two tilings for each pair of dimensions, making a grand total of 21 ⇥2 + 56 = 98 tilings.
+Given these feature vectors, you suspect that you still have to average out some noise,
+so you decide that you want learning to be gradual, taking about 10 presentations with
+the same feature vector before learning nears its asymptote. What step-size parameter ↵
+should you use? Why?
+⇤
+Exercise 9.6 If ⌧= 1 and x(St)>x(St) = E
+⇥
+x>x
+⇤
+, prove that (9.19) together with (9.7)
+and linear function approximation results in the error being reduced to zero in one update.
+9.7
+Nonlinear Function Approximation:
+Artiﬁcial Neural Networks
+Artiﬁcial neural networks (ANNs) are widely used for nonlinear function approximation.
+An ANN is a network of interconnected units that have some of the properties of neurons,
+the main components of nervous systems. ANNs have a long history, with the latest
+advances in training deeply-layered ANNs (deep learning) being responsible for some
+of the most impressive abilities of machine learning systems, including reinforcement
+learning systems. In Chapter 16 we describe several impressive examples of reinforcement
+learning systems that use ANN function approximation.
+Figure 9.14 shows a generic feedforward ANN, meaning that there are no loops in the
+network, that is, there are no paths within the network by which a unit’s output can
+inﬂuence its input. The network in the ﬁgure has an output layer consisting of two output
+units, an input layer with four input units, and two “hidden layers”: layers that are neither
+input nor output layers. A real-valued weight is associated with each link. A weight
+roughly corresponds to the eﬃcacy of a synaptic connection in a real neural network (see
+Section 15.1). If an ANN has at least one loop in its connections, it is a recurrent rather
+
+--- Page 246 ---
+224
+Chapter 9: On-policy Prediction with Approximation
+Figure 9.14: A generic feedforward ANN with four input units, two output units, and two
+hidden layers.
+than a feedforward ANN. Although both feedforward and recurrent ANNs have been
+used in reinforcement learning, here we look only at the simpler feedforward case.
+The units (the circles in Figure 9.14) are typically semi-linear units, meaning that they
+compute a weighted sum of their input signals and then apply to the result a nonlinear
+function, called the activation function, to produce the unit’s output, or activation.
+Di↵erent activation functions are used, but they are typically S-shaped, or sigmoid,
+functions such as the logistic function f(x) = 1/(1 + e−x), though sometimes the rectiﬁer
+nonlinearity f(x) = max(0, x) is used. A step function like f(x) = 1 if x ≥✓, and 0
+otherwise, results in a binary unit with threshold ✓. The units in a network’s input layer
+are somewhat di↵erent in having their activations set to externally-supplied values that
+are the inputs to the function the network is approximating.
+The activation of each output unit of a feedforward ANN is a nonlinear function of the
+activation patterns over the network’s input units. The functions are parameterized by
+the network’s connection weights. An ANN with no hidden layers can represent only a
+very small fraction of the possible input-output functions. However an ANN with a single
+hidden layer containing a large enough ﬁnite number of sigmoid units can approximate
+any continuous function on a compact region of the network’s input space to any degree
+of accuracy (Cybenko, 1989). This is also true for other nonlinear activation functions
+that satisfy mild conditions, but nonlinearity is essential: if all the units in a multi-layer
+feedforward ANN have linear activation functions, the entire network is equivalent to a
+network with no hidden layers (because linear functions of linear functions are themselves
+linear).
+Despite this “universal approximation” property of one-hidden-layer ANNs, both
+experience and theory show that approximating the complex functions needed for many
+artiﬁcial intelligence tasks is made easier—indeed may require—abstractions that are
+hierarchical compositions of many layers of lower-level abstractions, that is, abstractions
+
+--- Page 247 ---
+9.7. Nonlinear Function Approximation: Artiﬁcial Neural Networks
+225
+produced by deep architectures such as ANNs with many hidden layers. (See Bengio,
+2009, for a thorough review.) The successive layers of a deep ANN compute increasingly
+abstract representations of the network’s “raw” input, with each unit providing a feature
+contributing to a hierarchical representation of the overall input-output function of the
+network.
+Training the hidden layers of an ANN is therefore a way to automatically create
+features appropriate for a given problem so that hierarchical representations can be
+produced without relying exclusively on hand-crafted features. This has been an enduring
+challenge for artiﬁcial intelligence and explains why learning algorithms for ANNs with
+hidden layers have received so much attention over the years. ANNs typically learn by a
+stochastic gradient method (Section 9.3). Each weight is adjusted in a direction aimed at
+improving the network’s overall performance as measured by an objective function to
+be either minimized or maximized. In the most common supervised learning case, the
+objective function is the expected error, or loss, over a set of labeled training examples. In
+reinforcement learning, ANNs can use TD errors to learn value functions, or they can aim
+to maximize expected reward as in a gradient bandit (Section 2.8) or a policy-gradient
+algorithm (Chapter 13). In all of these cases it is necessary to estimate how a change
+in each connection weight would inﬂuence the network’s overall performance, in other
+words, to estimate the partial derivative of an objective function with respect to each
+weight, given the current values of all the network’s weights. The gradient is the vector
+of these partial derivatives.
+The most successful way to do this for ANNs with hidden layers (provided the units
+have di↵erentiable activation functions) is the backpropagation algorithm, which consists
+of alternating forward and backward passes through the network. Each forward pass
+computes the activation of each unit given the current activations of the network’s input
+units. After each forward pass, a backward pass eﬃciently computes a partial derivative
+for each weight. (As in other stochastic gradient learning algorithms, the vector of these
+partial derivatives is an estimate of the true gradient.) In Section 15.10 we discuss
+methods for training ANNs with hidden layers that use reinforcement learning principles
+instead of backpropagation. These methods are less eﬃcient than the backpropagation
+algorithm, but they may be closer to how real neural networks learn.
+The backpropagation algorithm can produce good results for shallow networks having
+1 or 2 hidden layers, but it may not work well for deeper ANNs. In fact, training a
+network with k + 1 hidden layers can actually result in poorer performance than training
+a network with k hidden layers, even though the deeper network can represent all the
+functions that the shallower network can (Bengio, 2009). Explaining results like these
+is not easy, but several factors are important. First, the large number of weights in
+a typical deep ANN makes it diﬃcult to avoid the problem of overﬁtting, that is, the
+problem of failing to generalize correctly to cases on which the network has not been
+trained. Second, backpropagation does not work well for deep ANNs because the partial
+derivatives computed by its backward passes either decay rapidly toward the input side
+of the network, making learning by deep layers extremely slow, or the partial derivatives
+grow rapidly toward the input side of the network, making learning unstable. Methods
+for dealing with these problems are largely responsible for many impressive recent results
+
+--- Page 248 ---
+226
+Chapter 9: On-policy Prediction with Approximation
+achieved by systems that use deep ANNs.
+Overﬁtting is a problem for any function approximation method that adjusts functions
+with many degrees of freedom on the basis of limited training data. It is less of a
+problem for online reinforcement learning that does not rely on limited training sets, but
+generalizing e↵ectively is still an important issue. Overﬁtting is a problem for ANNs in
+general, but especially so for deep ANNs because they tend to have very large numbers
+of weights. Many methods have been developed for reducing overﬁtting. These include
+stopping training when performance begins to decrease on validation data di↵erent
+from the training data (cross validation), modifying the objective function to discourage
+complexity of the approximation (regularization), and introducing dependencies among
+the weights to reduce the number of degrees of freedom (e.g., weight sharing).
+A particularly e↵ective method for reducing overﬁtting by deep ANNs is the dropout
+method introduced by Srivastava, Hinton, Krizhevsky, Sutskever, and Salakhutdinov
+(2014). During training, units are randomly removed from the network (dropped out)
+along with their connections. This can be thought of as training a large number of
+“thinned” networks. Combining the results of these thinned networks at test time is a way
+to improve generalization performance. The dropout method eﬃciently approximates this
+combination by multiplying each outgoing weight of a unit by the probability that that
+unit was retained during training. Srivastava et al. found that this method signiﬁcantly
+improves generalization performance. It encourages individual hidden units to learn
+features that work well with random collections of other features. This increases the
+versatility of the features formed by the hidden units so that the network does not overly
+specialize to rarely-occurring cases.
+Hinton, Osindero, and Teh (2006) took a major step toward solving the problem of
+training the deep layers of a deep ANN in their work with deep belief networks, layered
+networks closely related to the deep ANNs discussed here. In their method, the deepest
+layers are trained one at a time using an unsupervised learning algorithm. Without
+relying on the overall objective function, unsupervised learning can extract features that
+capture statistical regularities of the input stream. The deepest layer is trained ﬁrst, then
+with input provided by this trained layer, the next deepest layer is trained, and so on,
+until the weights in all, or many, of the network’s layers are set to values that now act as
+initial values for supervised learning. The network is then ﬁne-tuned by backpropagation
+with respect to the overall objective function. Studies show that this approach generally
+works much better than backpropagation with weights initialized with random values.
+The better performance of networks trained with weights initialized this way could be
+due to many factors, but one idea is that this method places the network in a region of
+weight space from which a gradient-based algorithm can make good progress.
+Batch normalization (Io↵e and Szegedy, 2015) is another technique that makes it easier
+to train deep ANNs. It has long been known that ANN learning is easier if the network
+input is normalized, for example, by adjusting each input variable to have zero mean and
+unit variance. Batch normalization for training deep ANNs normalizes the output of deep
+layers before they feed into the following layer. Io↵e and Szegedy (2015) used statistics
+from subsets, or “mini-batches,” of training examples to normalize these between-layer
+signals to improve the learning rate of deep ANNs.
+
+--- Page 249 ---
+9.7. Nonlinear Function Approximation: Artiﬁcial Neural Networks
+227
+Another technique useful for training deep ANNs is deep residual learning (He, Zhang,
+Ren, and Sun, 2016). Sometimes it is easier to learn how a function di↵ers from the
+identity function than to learn the function itself. Then adding this di↵erence, or residual
+function, to the input produces the desired function. In deep ANNs, a block of layers
+can be made to learn a residual function simply by adding shortcut, or skip, connections
+around the block. These connections add the input to the block to its output, and
+no additional weights are needed. He et al. (2016) evaluated this method using deep
+convolutional networks with skip connections around every pair of adjacent layers, ﬁnding
+substantial improvement over networks without the skip connections on benchmark image
+classiﬁcation tasks. Both batch normalization and deep residual learning were used in
+the reinforcement learning application to the game of Go that we describe in Chapter 16.
+A type of deep ANN that has proven to be very successful in applications, including
+impressive reinforcement learning applications (Chapter 16), is the deep convolutional
+network. This type of network is specialized for processing high-dimensional data arranged
+in spatial arrays, such as images. It was inspired by how early visual processing works in
+the brain (LeCun, Bottou, Bengio and Ha↵ner, 1998). Because of its special architecture,
+a deep convolutional network can be trained by backpropagation without resorting to
+methods like those described above to train the deep layers.
+Figure 9.15 illustrates the architecture of a deep convolutional network. This instance,
+from LeCun et al. (1998), was designed to recognize hand-written characters. It consists
+of alternating convolutional and subsampling layers, followed by several fully connected
+ﬁnal layers. Each convolutional layer produces a number of feature maps. A feature
+map is a pattern of activity over an array of units, where each unit performs the same
+operation on data in its receptive ﬁeld, which is the part of the data it “sees” from the
+preceding layer (or from the external input in the case of the ﬁrst convolutional layer).
+The units of a feature map are identical to one another except that their receptive ﬁelds,
+which are all the same size and shape, are shifted to di↵erent locations on the arrays
+of incoming data. Units in the same feature map share the same weights. This means
+that a feature map detects the same feature no matter where it is located in the input
+Figure 9.15: Deep Convolutional Network. Republished with permission of Proceedings of the
+IEEE, from Gradient-based learning applied to document recognition, LeCun, Bottou, Bengio,
+and Ha↵ner, volume 86, 1998; permission conveyed through Copyright Clearance Center, Inc.
+
+--- Page 250 ---
+228
+Chapter 9: On-policy Prediction with Approximation
+array. In the network in Figure 9.15, for example, the ﬁrst convolutional layer produces
+6 feature maps, each consisting of 28 ⇥28 units. Each unit in each feature map has a
+5 ⇥5 receptive ﬁeld, and these receptive ﬁelds overlap (in this case by four columns and
+four rows). Consequently, each of the 6 feature maps is speciﬁed by just 25 adjustable
+weights.
+The subsampling layers of a deep convolutional network reduce the spatial resolution of
+the feature maps. Each feature map in a subsampling layer consists of units that average
+over a receptive ﬁeld of units in the feature maps of the preceding convolutional layer.
+For example, each unit in each of the 6 feature maps in the ﬁrst subsampling layer of the
+network of Figure 9.15 averages over a 2 ⇥2 non-overlapping receptive ﬁeld over one of
+the feature maps produced by the ﬁrst convolutional layer, resulting in six 14 ⇥14 feature
+maps. Subsampling layers reduce the network’s sensitivity to the spatial locations of the
+features detected, that is, they help make the network’s responses spatially invariant.
+This is useful because a feature detected at one place in an image is likely to be useful at
+other places as well.
+Advances in the design and training of ANNs—of which we have only mentioned a
+few—all contribute to reinforcement learning. Although current reinforcement learning
+theory is mostly limited to methods using tabular or linear function approximation
+methods, the impressive performances of notable reinforcement learning applications owe
+much of their success to nonlinear function approximation by multi-layer ANNs. We
+discuss several of these applications in Chapter 16.
+9.8
+Least-Squares TD
+All the methods we have discussed so far in this chapter have required computation per
+time step proportional to the number of parameters. With more computation, however,
+one can do better. In this section we present a method for linear function approximation
+that is arguably the best that can be done for this case.
+As we established in Section 9.4 TD(0) with linear function approximation converges
+asymptotically (for appropriately decreasing step sizes) to the TD ﬁxed point:
+wTD = A−1b,
+where
+A .= E
+⇥
+xt(xt −γxt+1)>⇤
+and
+b .= E[Rt+1xt] .
+Why, one might ask, must we compute this solution iteratively? This is wasteful of data!
+Could one not do better by computing estimates of A and b, and then directly computing
+the TD ﬁxed point? The Least-Squares TD algorithm, commonly known as LSTD, does
+exactly this. It forms the natural estimates
+bAt .=
+t−1
+X
+k=0
+xk(xk −γxk+1)> + "I
+and
+bbt .=
+t−1
+X
+k=0
+Rk+1xk,
+(9.20)
+
