@@ -79,24 +79,36 @@ schema: v1
 
 mcpServers:
   - name: rlbook
-    command: uv
+    command: /absolute/path/to/sutton-barto-mcp/.venv/bin/python
     args:
-      - run
-      - --directory
-      - /absolute/path/to/sutton-barto-mcp
-      - server.py
+      - /absolute/path/to/sutton-barto-mcp/server.py
 ```
 
-`uv run` builds the virtualenv and installs dependencies on first launch from
-`pyproject.toml`, so the install step above is optional if you use it. If you
-prefer your own virtualenv, point `command` at its `python` and set `cwd` to the
-repo — see the commented alternative in the file.
+On Windows the interpreter is `.venv\Scripts\python.exe`:
 
-Two things that bite:
+```yaml
+mcpServers:
+  - name: rlbook
+    command: 'C:\Users\you\Documents\sutton-barto-mcp\.venv\Scripts\python.exe'
+    args:
+      - 'C:\Users\you\Documents\sutton-barto-mcp\server.py'
+```
+
+If you have [uv](https://docs.astral.sh/uv/), `command: uv` with
+`args: [run, --directory, <repo>, server.py]` skips the install step entirely —
+it builds the environment from `pyproject.toml` on first launch. The commented
+variants are all in [`continue-mcp.yaml`](continue-mcp.yaml).
+
+Four things that bite:
 
 - MCP tools only show up in Continue's **agent** mode, not chat or edit.
 - `name`, `version` and `schema` are mandatory at the top of a Continue block.
   Without them the file is ignored silently.
+- **Never double-quote a Windows path in YAML.** `"C:\Users\..."` fails to
+  parse, because `\U` is read as an escape sequence. Use single quotes, no
+  quotes, or forward slashes.
+- `cwd:` is unnecessary: `server.py` finds `pages_corrected/` relative to its
+  own location, not the working directory.
 
 If you would rather run one long-lived server and point several workspaces at a
 URL, there is an unauthenticated HTTP mode:

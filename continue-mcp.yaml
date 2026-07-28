@@ -3,9 +3,13 @@
 # Copy to one of:
 #   <your-workspace>/.continue/mcpServers/rlbook.yaml   (that workspace only)
 #   ~/.continue/mcpServers/rlbook.yaml                  (every workspace)
+#   C:\Users\<you>\.continue\mcpServers\rlbook.yaml     (Windows, every workspace)
 #
-# Replace the path below with wherever you cloned this repo, then reload the
-# Continue window. MCP tools only appear in Continue's **agent** mode.
+# Replace the two paths below, then reload the Continue window. MCP tools only
+# appear in Continue's **agent** mode, not chat or edit.
+#
+# name, version and schema are mandatory. Without them Continue ignores the
+# file silently.
 
 name: rlbook
 version: 0.0.1
@@ -13,23 +17,45 @@ schema: v1
 
 mcpServers:
   - name: rlbook
-    # `uv run` creates the virtualenv and installs dependencies on first launch,
-    # reading pyproject.toml. Nothing to set up beforehand.
-    command: uv
+    command: /absolute/path/to/sutton-barto-mcp/.venv/bin/python
     args:
-      - run
-      - --directory
-      - /absolute/path/to/sutton-barto-mcp
-      - server.py
+      - /absolute/path/to/sutton-barto-mcp/server.py
 
-# --- Alternative: you already made a virtualenv yourself -----------------
+# --- Windows -------------------------------------------------------------
+#
+# The interpreter lives under .venv\Scripts\ instead of .venv/bin/, and is
+# python.exe. Quote Windows paths with SINGLE quotes: YAML treats \U, \D and
+# friends inside DOUBLE quotes as escape sequences and fails to parse.
+# Unquoted also works; forward slashes work too.
 #
 # mcpServers:
 #   - name: rlbook
-#     command: /absolute/path/to/sutton-barto-mcp/.venv/bin/python
+#     command: 'C:\Users\you\Documents\sutton-barto-mcp\.venv\Scripts\python.exe'
 #     args:
-#       - server.py
-#     cwd: /absolute/path/to/sutton-barto-mcp
+#       - 'C:\Users\you\Documents\sutton-barto-mcp\server.py'
 #
-# `env:` is not needed in either case. This is stdio mode, which uses no
-# authentication and reads none of the variables in .env.example.
+# Create that virtualenv first, from the repo directory:
+#
+#   python -m venv .venv
+#   .venv\Scripts\python.exe -m pip install -r requirements.txt
+#
+# --- Alternative: uv, if you have it -------------------------------------
+#
+# `uv run` builds the virtualenv and installs dependencies itself, reading
+# pyproject.toml, so there is nothing to set up beforehand.
+#
+# mcpServers:
+#   - name: rlbook
+#     command: uv
+#     args:
+#       - run
+#       - --directory
+#       - /absolute/path/to/sutton-barto-mcp
+#       - server.py
+#
+# -------------------------------------------------------------------------
+#
+# `cwd:` is unnecessary in all of these: server.py locates pages_corrected/
+# relative to its own file, not the working directory. `env:` is unnecessary
+# too — stdio mode uses no authentication and reads none of the variables in
+# .env.example.
